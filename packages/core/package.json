@@ -6,7 +6,8 @@
     ".": "./src/index.ts"
   },
   "dependencies": {
-    "@codebase-viz/types": "workspace:*"
+    "@codebase-viz/types": "workspace:*",
+    "ts-morph": "^23.0.0"
   },
   "devDependencies": {
     "typescript": "*",
