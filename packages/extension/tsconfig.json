@@ -1,9 +1,13 @@
 {
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
-    "composite": true,
+    "module": "CommonJS",
+    "moduleResolution": "Node",
+    "target": "ES2022",
+    "composite": false,
     "rootDir": "./src",
     "outDir": "./dist",
+    "lib": ["ES2022"],
     "paths": {
       "@codebase-viz/types": ["../types/src/index.ts"],
       "@codebase-viz/core": ["../core/src/index.ts"],
@@ -11,11 +15,5 @@
       "@codebase-viz/renderer": ["../renderer/src/index.ts"]
     }
   },
-  "references": [
-    { "path": "../types" },
-    { "path": "../core" },
-    { "path": "../llm" },
-    { "path": "../renderer" }
-  ],
   "include": ["src"]
 }

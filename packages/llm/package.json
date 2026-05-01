@@ -1,0 +1,19 @@
+{
+  "name": "@codebase-viz/llm",
+  "version": "0.1.0",
+  "type": "module",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.92.0",
+    "@codebase-viz/types": "workspace:*"
+  },
+  "devDependencies": {
+    "typescript": "*",
+    "vitest": "*"
+  }
+}
