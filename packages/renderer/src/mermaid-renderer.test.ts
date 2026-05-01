@@ -3,7 +3,7 @@ import * as path from 'node:path'
 import * as fs from 'node:fs/promises'
 import { fileURLToPath } from 'node:url'
 import { renderMermaid } from './mermaid-renderer.js'
-import { createIRGraph } from '@codebase-viz/types'
+import { createIRGraph, createRouteNode, makeNodeId } from '@codebase-viz/types'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const OUTPUT_DIR = path.join(__dirname, '../../../../.tmp-renderer-test')
@@ -82,5 +82,71 @@ describe('renderMermaid', () => {
     await renderMermaid(graph, OUTPUT_DIR)
     const content = await fs.readFile(path.join(OUTPUT_DIR, 'db-screen.md'), 'utf8')
     expect(content).toContain('erDiagram')
+  })
+
+  it('다중 섹션 라우트는 subgraph로 그루핑된다', async () => {
+    const prov = { file: 'app/blog/page.tsx', line: 1, adapter: 'test', analyzerVersion: '0.1' }
+    const blogRoute = createRouteNode({
+      id: makeNodeId('route', 'app/blog/page.tsx', '/blog'),
+      path: '/blog',
+      filePath: 'app/blog/page.tsx',
+      routeFileKind: 'page',
+      dynamicSegmentType: 'static',
+      isGroupRoute: false,
+      renderingMode: 'SSR',
+      provenance: prov,
+      confidence: 'verified',
+    })
+    const adminRoute = createRouteNode({
+      id: makeNodeId('route', 'app/admin/page.tsx', '/admin'),
+      path: '/admin',
+      filePath: 'app/admin/page.tsx',
+      routeFileKind: 'page',
+      dynamicSegmentType: 'static',
+      isGroupRoute: false,
+      renderingMode: 'CSR',
+      provenance: { ...prov, file: 'app/admin/page.tsx' },
+      confidence: 'verified',
+    })
+
+    const graph = createIRGraph({
+      analyzerVersion: 'codebase-viz@0.1.0',
+      repoRoot: '/tmp/test',
+      nodes: [blogRoute, adminRoute],
+      edges: [],
+    })
+
+    await renderMermaid(graph, OUTPUT_DIR)
+    const content = await fs.readFile(path.join(OUTPUT_DIR, 'rendering.md'), 'utf8')
+    expect(content).toContain('subgraph BLOG_G')
+    expect(content).toContain('subgraph ADMIN_G')
+    expect(content).toContain('classDef ssr')
+    expect(content).toContain('classDef csr')
+  })
+
+  it('렌더링 모드에 따라 classDef가 적용된다', async () => {
+    const prov = { file: 'app/page.tsx', line: 1, adapter: 'test', analyzerVersion: '0.1' }
+    const route = createRouteNode({
+      id: makeNodeId('route', 'app/page.tsx', '/'),
+      path: '/',
+      filePath: 'app/page.tsx',
+      routeFileKind: 'page',
+      dynamicSegmentType: 'static',
+      isGroupRoute: false,
+      renderingMode: 'ISR',
+      provenance: prov,
+      confidence: 'verified',
+    })
+
+    const graph = createIRGraph({
+      analyzerVersion: 'codebase-viz@0.1.0',
+      repoRoot: '/tmp/test',
+      nodes: [route],
+      edges: [],
+    })
+
+    await renderMermaid(graph, OUTPUT_DIR)
+    const content = await fs.readFile(path.join(OUTPUT_DIR, 'rendering.md'), 'utf8')
+    expect(content).toContain(':::isr')
   })
 })

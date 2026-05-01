@@ -1,8 +1,15 @@
-import { describe, it, expect, afterEach } from 'vitest'
+import { describe, it, expect, afterEach, vi } from 'vitest'
 import * as path from 'node:path'
 import * as fs from 'node:fs/promises'
 import { fileURLToPath } from 'node:url'
 import { analyze } from './index.js'
+import type { LLMAnalysisResult } from '@codebase-viz/llm'
+
+// vi.mock is hoisted — factory cannot reference variables declared below
+vi.mock('@codebase-viz/llm', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@codebase-viz/llm')>()
+  return { ...actual, analyzWithLLM: vi.fn() }
+})
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const FIXTURE = path.resolve(__dirname, '../../../fixtures/mini-next-app')
@@ -10,6 +17,7 @@ const OUTPUT_DIR = path.join(__dirname, '../../../.tmp-cli-test')
 
 afterEach(async () => {
   await fs.rm(OUTPUT_DIR, { recursive: true, force: true })
+  vi.restoreAllMocks()
 })
 
 describe('analyze CLI', () => {
@@ -35,5 +43,24 @@ describe('analyze CLI', () => {
 
     const content = await fs.readFile(path.join(OUTPUT_DIR, 'db-screen.md'), 'utf8')
     expect(content).toContain('posts')
+  })
+
+  it('--with-llm 모드: mock LLM 결과를 정적 분석에 머지하여 3개 .md를 생성한다', async () => {
+    const { analyzWithLLM } = await import('@codebase-viz/llm')
+    const mockResult: LLMAnalysisResult = {
+      framework: 'nextjs-app-router',
+      routes: [{ path: '/llm-only-page', file: 'app/page.tsx', mode: 'SSR', components: [] }],
+      tables: [],
+      inferenceNotes: [],
+    }
+    vi.mocked(analyzWithLLM).mockResolvedValue(mockResult)
+
+    await analyze(FIXTURE, OUTPUT_DIR, { apiKey: 'mock-key' })
+
+    const files = await fs.readdir(OUTPUT_DIR)
+    expect(files).toContain('rendering.md')
+    expect(files).toContain('screen-component.md')
+    expect(files).toContain('db-screen.md')
+    expect(vi.mocked(analyzWithLLM)).toHaveBeenCalledOnce()
   })
 })

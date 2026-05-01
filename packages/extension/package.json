@@ -1,0 +1,66 @@
+{
+  "name": "codesight",
+  "displayName": "CodeSight",
+  "description": "Visualize your project's rendering architecture, screen-component tree, and DB schema.",
+  "version": "0.1.0",
+  "publisher": "codesight",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/codesight/codesight"
+  },
+  "engines": {
+    "vscode": "^1.90.0"
+  },
+  "categories": ["Visualization", "Other"],
+  "keywords": ["architecture", "visualization", "nextjs", "react", "diagram"],
+  "activationEvents": ["onCommand:codesight.analyze"],
+  "main": "./dist/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "codesight.analyze",
+        "title": "CodeSight: Analyze Project"
+      },
+      {
+        "command": "codesight.setApiKey",
+        "title": "CodeSight: Set Anthropic API Key"
+      },
+      {
+        "command": "codesight.clearApiKey",
+        "title": "CodeSight: Clear Anthropic API Key"
+      }
+    ],
+    "configuration": {
+      "title": "CodeSight",
+      "properties": {
+        "codesight.model": {
+          "type": "string",
+          "default": "claude-sonnet-4-5",
+          "description": "Claude model to use for LLM analysis (requires API key)"
+        },
+        "codesight.enableLLM": {
+          "type": "boolean",
+          "default": false,
+          "description": "Enable LLM-based analysis (requires Anthropic API key)"
+        }
+      }
+    }
+  },
+  "scripts": {
+    "build": "node esbuild.mjs",
+    "package": "vsce package --no-dependencies"
+  },
+  "dependencies": {
+    "@codebase-viz/core": "workspace:*",
+    "@codebase-viz/llm": "workspace:*",
+    "@codebase-viz/renderer": "workspace:*",
+    "@codebase-viz/types": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/vscode": "^1.90.0",
+    "@vscode/vsce": "^3.0.0",
+    "esbuild": "^0.24.0",
+    "typescript": "*"
+  }
+}

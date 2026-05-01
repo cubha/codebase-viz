@@ -6,27 +6,107 @@ import {
   isTableNode,
   type IRGraph,
   type IREdge,
+  type RouteNode,
 } from '@codebase-viz/types'
 
 function edgeArrow(edge: IREdge): string {
-  return edge.confidence === 'inferred' ? '--.->' : '-->'
+  return edge.confidence === 'inferred' ? '-.->' : '-->'
 }
 
 function sanitizeId(s: string): string {
   return s.replace(/[^a-zA-Z0-9_]/g, '_')
 }
 
+const RENDERING_INIT = `%%{init:{'theme':'base','themeVariables':{'background':'#060810','primaryColor':'#0c1a30','primaryTextColor':'#7dd3fc','edgeLabelBackground':'#0c1a30','lineColor':'#2563eb'}}}%%`
+
+const CLASS_DEFS = [
+  `  classDef ssr fill:#0d1a0d,stroke:#16a34a,color:#86efac`,
+  `  classDef csr fill:#2d1200,stroke:#c2410c,color:#fb923c`,
+  `  classDef ssg fill:#1a0d1a,stroke:#7c3aed,color:#c4b5fd`,
+  `  classDef isr fill:#1a1a0d,stroke:#ca8a04,color:#fde047`,
+  `  classDef ppr fill:#0d1a2d,stroke:#2563eb,color:#93c5fd`,
+  `  classDef unk fill:#1a1a1a,stroke:#6b7280,color:#9ca3af`,
+].join('\n')
+
+function modeClass(mode: string): string {
+  const map: Record<string, string> = {
+    SSR: 'ssr', CSR: 'csr', SSG: 'ssg', ISR: 'isr', PPR: 'ppr',
+  }
+  return map[mode] ?? 'unk'
+}
+
+function getTopSection(routePath: string): string {
+  const parts = routePath.split('/').filter(Boolean)
+  if (parts.length === 0) return 'root'
+  const first = parts[0]
+  if (first === undefined) return 'root'
+  // strip dynamic segments from section key
+  return first.replace(/^\[/, '').replace(/\]$/, '') || 'root'
+}
+
+const SECTION_EMOJI: Record<string, string> = {
+  root: '🏠',
+  blog: '📝',
+  project: '📁',
+  projects: '📁',
+  contact: '📬',
+  admin: '⚙',
+  auth: '🔐',
+  about: '👤',
+  api: '⚡',
+}
+
+function sectionLabel(key: string): string {
+  const emoji = SECTION_EMOJI[key] ?? '📄'
+  return `${emoji} /${key}`
+}
+
 function buildRenderingDiagram(graph: IRGraph): string {
   const routeNodes = graph.nodes.filter(isRouteNode)
   if (routeNodes.length === 0) return 'graph TD\n  empty["(no routes found)"]'
 
-  const lines: string[] = ['graph TD']
+  // Group routes into sections by top-level path segment
+  const sections = new Map<string, RouteNode[]>()
   for (const r of routeNodes) {
-    const nodeId = sanitizeId(r.id)
-    const badge = r.renderingMode === 'unknown' ? '?' : r.renderingMode
-    const label = `${r.path} [${r.routeFileKind}|${badge}]`
-    lines.push(`  ${nodeId}["${label}"]`)
+    const sec = getTopSection(r.path)
+    const existing = sections.get(sec) ?? []
+    existing.push(r)
+    sections.set(sec, existing)
   }
+
+  const lines: string[] = [RENDERING_INIT, 'graph TD', CLASS_DEFS]
+
+  if (sections.size === 1 && sections.has('root')) {
+    // Single section — flat output
+    for (const r of routeNodes) {
+      const nodeId = sanitizeId(r.id)
+      const badge = r.renderingMode === 'unknown' ? '?' : r.renderingMode
+      const label = `${r.path} · ${badge}`
+      lines.push(`  ${nodeId}["${label}"]:::${modeClass(r.renderingMode)}`)
+    }
+  } else {
+    // Multi-section — subgraph per section
+    for (const [secKey, nodes] of sections) {
+      if (secKey === 'root') {
+        // Root routes inline (no subgraph wrapper)
+        for (const r of nodes) {
+          const nodeId = sanitizeId(r.id)
+          const badge = r.renderingMode === 'unknown' ? '?' : r.renderingMode
+          lines.push(`  ${nodeId}["${r.path} · ${badge}"]:::${modeClass(r.renderingMode)}`)
+        }
+      } else {
+        const subId = `${secKey.toUpperCase()}_G`
+        lines.push(`  subgraph ${subId}["${sectionLabel(secKey)}"]`)
+        for (const r of nodes) {
+          const nodeId = sanitizeId(r.id)
+          const badge = r.renderingMode === 'unknown' ? '?' : r.renderingMode
+          lines.push(`    ${nodeId}["${r.path} · ${badge}"]:::${modeClass(r.renderingMode)}`)
+        }
+        lines.push('  end')
+      }
+    }
+  }
+
   return lines.join('\n')
 }
 
@@ -35,12 +115,35 @@ function buildScreenComponentDiagram(graph: IRGraph): string {
   const componentNodes = graph.nodes.filter(isComponentNode)
   const relevantEdges = graph.edges.filter(e => e.kind === 'renders' || e.kind === 'imports')
 
-  const lines: string[] = ['graph LR']
+  const lines: string[] = [RENDERING_INIT, 'graph LR', CLASS_DEFS]
 
+  // Group routes by section
+  const sections = new Map<string, RouteNode[]>()
   for (const r of routeNodes) {
-    const nodeId = sanitizeId(r.id)
-    lines.push(`  ${nodeId}["${r.path} [${r.routeFileKind}]"]`)
+    const sec = getTopSection(r.path)
+    const existing = sections.get(sec) ?? []
+    existing.push(r)
+    sections.set(sec, existing)
   }
+
+  if (sections.size > 1) {
+    for (const [secKey, nodes] of sections) {
+      const subId = `${secKey.toUpperCase()}_S`
+      lines.push(`  subgraph ${subId}["${sectionLabel(secKey)}"]`)
+      for (const r of nodes) {
+        const nodeId = sanitizeId(r.id)
+        const badge = r.renderingMode === 'unknown' ? '?' : r.renderingMode
+        lines.push(`    ${nodeId}["${r.path} · ${badge}"]:::${modeClass(r.renderingMode)}`)
+      }
+      lines.push('  end')
+    }
+  } else {
+    for (const r of routeNodes) {
+      const nodeId = sanitizeId(r.id)
+      lines.push(`  ${nodeId}["${r.path} [${r.routeFileKind}]"]:::${modeClass(r.renderingMode)}`)
+    }
+  }
+
   for (const c of componentNodes) {
     const nodeId = sanitizeId(c.id)
     const label = c.runtime === 'client' ? `${c.name} [CSR]` : c.name
@@ -50,8 +153,7 @@ function buildScreenComponentDiagram(graph: IRGraph): string {
   for (const edge of relevantEdges) {
     const fromId = sanitizeId(edge.from)
     const toId = sanitizeId(edge.to)
-    const arrow = edgeArrow(edge)
-    lines.push(`  ${fromId} ${arrow} ${toId}`)
+    lines.push(`  ${fromId} ${edgeArrow(edge)} ${toId}`)
   }
 
   if (routeNodes.length === 0 && componentNodes.length === 0) {

@@ -1,0 +1,7 @@
+.vscode/**
+src/**
+esbuild.mjs
+tsconfig.json
+dist/**/*.map
+node_modules/**
+!node_modules/@codebase-viz/**
