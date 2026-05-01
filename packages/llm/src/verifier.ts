@@ -24,7 +24,7 @@ export async function verifyNodes(
   const failed: Array<{ node: IRNode; reason: string }> = []
 
   for (const node of nodes) {
-    if (node.kind === 'route' || node.kind === 'component') {
+    if (node.kind === 'route') {
       const filePath = path.join(repoRoot, node.filePath)
       const exists = await fileExists(filePath)
       if (exists) {
@@ -33,7 +33,8 @@ export async function verifyNodes(
         failed.push({ node, reason: `File not found: ${node.filePath}` })
       }
     } else {
-      // table nodes have no file to verify
+      // component and table nodes: pass through without file check
+      // (component paths from LLM are inferred and may not exist on disk)
       verified.push(node)
     }
   }

@@ -1,7 +1,7 @@
 import * as path from 'node:path'
 import * as process from 'node:process'
 import { pathToFileURL } from 'node:url'
-import { parseRoutes, parseComponents, parseTables, mapScreenToTable } from '@codebase-viz/core'
+import { parseRoutes, parseComponents, parseTables, mapScreenToTable, mapServerFilesToTable } from '@codebase-viz/core'
 import { renderMermaid } from '@codebase-viz/renderer'
 import { createIRGraph } from '@codebase-viz/types'
 import {
@@ -34,7 +34,12 @@ export async function analyze(
   })
 
   const mapperEdges = await mapScreenToTable(staticGraph)
-  let finalGraph = { ...staticGraph, edges: [...staticGraph.edges, ...mapperEdges] }
+  const { nodes: serverNodes, edges: serverEdges } = await mapServerFilesToTable(repoRoot, tableNodes)
+  let finalGraph = {
+    ...staticGraph,
+    nodes: [...staticGraph.nodes, ...serverNodes],
+    edges: [...staticGraph.edges, ...mapperEdges, ...serverEdges],
+  }
 
   if (llmOptions !== undefined) {
     const stack = await detectStack(repoRoot)

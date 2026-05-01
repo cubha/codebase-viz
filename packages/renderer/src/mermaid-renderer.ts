@@ -6,6 +6,7 @@ import {
   isTableNode,
   type IRGraph,
   type IREdge,
+  type IRNode,
   type RouteNode,
 } from '@codebase-viz/types'
 
@@ -17,7 +18,7 @@ function sanitizeId(s: string): string {
   return s.replace(/[^a-zA-Z0-9_]/g, '_')
 }
 
-const RENDERING_INIT = `%%{init:{'theme':'base','themeVariables':{'background':'#060810','primaryColor':'#0c1a30','primaryTextColor':'#7dd3fc','edgeLabelBackground':'#0c1a30','lineColor':'#2563eb'}}}%%`
+const RENDERING_INIT = `%%{init:{'theme':'base','themeVariables':{'background':'#060810','primaryColor':'#0c1a30','primaryTextColor':'#7dd3fc','primaryBorderColor':'#0e3a6e','edgeLabelBackground':'#0c1a30','lineColor':'#334155','secondaryColor':'#0f172a','clusterBkg':'#060c18','clusterBorder':'#1e3a5f','fontFamily':'JetBrains Mono'}}}%%`
 
 const CLASS_DEFS = [
   `  classDef ssr fill:#0d1a0d,stroke:#16a34a,color:#86efac`,
@@ -40,7 +41,6 @@ function getTopSection(routePath: string): string {
   if (parts.length === 0) return 'root'
   const first = parts[0]
   if (first === undefined) return 'root'
-  // strip dynamic segments from section key
   return first.replace(/^\[/, '').replace(/\]$/, '') || 'root'
 }
 
@@ -61,11 +61,64 @@ function sectionLabel(key: string): string {
   return `${emoji} /${key}`
 }
 
-function buildRenderingDiagram(graph: IRGraph): string {
+interface InfraInfo {
+  hasNextjs: boolean
+  nextVersion?: string
+  reactVersion?: string
+  hasSupabase: boolean
+}
+
+async function detectInfra(repoRoot: string): Promise<InfraInfo> {
+  try {
+    const raw = await fs.readFile(path.join(repoRoot, 'package.json'), 'utf-8')
+    const pkg = JSON.parse(raw) as {
+      dependencies?: Record<string, string>
+      devDependencies?: Record<string, string>
+    }
+    const deps = { ...pkg.dependencies, ...pkg.devDependencies }
+    const majorVer = (name: string): string | undefined => {
+      const v = deps[name]
+      return v ? v.replace(/[^0-9.]/g, '').split('.')[0] : undefined
+    }
+    const result: InfraInfo = {
+      hasNextjs: 'next' in deps,
+      hasSupabase: '@supabase/supabase-js' in deps || '@supabase/ssr' in deps,
+    }
+    const nextVer = majorVer('next')
+    const reactVer = majorVer('react')
+    if (nextVer !== undefined) result.nextVersion = nextVer
+    if (reactVer !== undefined) result.reactVersion = reactVer
+    return result
+  } catch {
+    return { hasNextjs: false, hasSupabase: false }
+  }
+}
+
+function buildRouteSectionLines(sections: Map<string, RouteNode[]>, indent: string): string[] {
+  const lines: string[] = []
+  const i2 = indent + '  '
+  for (const [secKey, nodes] of sections) {
+    if (secKey === 'root') {
+      for (const r of nodes) {
+        const badge = r.renderingMode === 'unknown' ? '?' : r.renderingMode
+        lines.push(`${indent}${sanitizeId(r.id)}["${r.path} · ${badge}"]:::${modeClass(r.renderingMode)}`)
+      }
+    } else {
+      lines.push(`${indent}subgraph ${secKey.toUpperCase()}_G["${sectionLabel(secKey)}"]`)
+      for (const r of nodes) {
+        const badge = r.renderingMode === 'unknown' ? '?' : r.renderingMode
+        lines.push(`${i2}${sanitizeId(r.id)}["${r.path} · ${badge}"]:::${modeClass(r.renderingMode)}`)
+      }
+      lines.push(`${indent}end`)
+    }
+  }
+  return lines
+}
+
+function buildRenderingDiagram(graph: IRGraph, infra?: InfraInfo): string {
   const routeNodes = graph.nodes.filter(isRouteNode)
   if (routeNodes.length === 0) return 'graph TD\n  empty["(no routes found)"]'
 
-  // Group routes into sections by top-level path segment
   const sections = new Map<string, RouteNode[]>()
   for (const r of routeNodes) {
     const sec = getTopSection(r.path)
@@ -76,35 +129,34 @@ function buildRenderingDiagram(graph: IRGraph): string {
 
   const lines: string[] = [RENDERING_INIT, 'graph TD', CLASS_DEFS]
 
-  if (sections.size === 1 && sections.has('root')) {
-    // Single section — flat output
-    for (const r of routeNodes) {
-      const nodeId = sanitizeId(r.id)
-      const badge = r.renderingMode === 'unknown' ? '?' : r.renderingMode
-      const label = `${r.path} · ${badge}`
-      lines.push(`  ${nodeId}["${label}"]:::${modeClass(r.renderingMode)}`)
+  if (infra?.hasNextjs) {
+    const nextLabel = infra.nextVersion ? ` ${infra.nextVersion}` : ''
+    const reactLabel = infra.reactVersion ? ` ${infra.reactVersion}` : ''
+    lines.push(`  subgraph INFRA["☁ VERCEL · Edge Network"]`)
+    lines.push(`    subgraph RUNTIME["⚙ Node.js · Server Runtime"]`)
+    lines.push(`      subgraph FRAMEWORK["▲ Next.js${nextLabel} · App Router"]`)
+    lines.push(`        subgraph REACT["⚛ React${reactLabel} · SSR Engine"]`)
+    if (infra.hasSupabase) {
+      lines.push(`          SSR_FETCH["(SSR data fetch)"]:::unk`)
+    }
+    const singleSection = sections.size === 1 && sections.has('root')
+    const routeIndent = singleSection ? '          ' : '          '
+    for (const l of buildRouteSectionLines(sections, routeIndent)) lines.push(l)
+    lines.push('        end')
+    lines.push('      end')
+    lines.push('    end')
+    lines.push('  end')
+    if (infra.hasSupabase) {
+      lines.push(`  subgraph DATALAYER["🗄 DATA LAYER"]`)
+      lines.push(`    subgraph SUPABASE_G["⚡ Supabase · BaaS"]`)
+      lines.push(`      PG_SB[("PostgreSQL")]`)
+      lines.push(`      SB_AUTH["Auth · OAuth"]`)
+      lines.push('    end')
+      lines.push('  end')
+      lines.push('  SSR_FETCH -.->|"supabase-js"| PG_SB')
     }
   } else {
-    // Multi-section — subgraph per section
-    for (const [secKey, nodes] of sections) {
-      if (secKey === 'root') {
-        // Root routes inline (no subgraph wrapper)
-        for (const r of nodes) {
-          const nodeId = sanitizeId(r.id)
-          const badge = r.renderingMode === 'unknown' ? '?' : r.renderingMode
-          lines.push(`  ${nodeId}["${r.path} · ${badge}"]:::${modeClass(r.renderingMode)}`)
-        }
-      } else {
-        const subId = `${secKey.toUpperCase()}_G`
-        lines.push(`  subgraph ${subId}["${sectionLabel(secKey)}"]`)
-        for (const r of nodes) {
-          const nodeId = sanitizeId(r.id)
-          const badge = r.renderingMode === 'unknown' ? '?' : r.renderingMode
-          lines.push(`    ${nodeId}["${r.path} · ${badge}"]:::${modeClass(r.renderingMode)}`)
-        }
-        lines.push('  end')
-      }
-    }
+    for (const l of buildRouteSectionLines(sections, '  ')) lines.push(l)
   }
 
   return lines.join('\n')
@@ -113,7 +165,12 @@ function buildRenderingDiagram(graph: IRGraph): string {
 function buildScreenComponentDiagram(graph: IRGraph): string {
   const routeNodes = graph.nodes.filter(isRouteNode)
   const componentNodes = graph.nodes.filter(isComponentNode)
-  const relevantEdges = graph.edges.filter(e => e.kind === 'renders' || e.kind === 'imports')
+  const rendersEdges = graph.edges.filter(e => e.kind === 'renders')
+  const importsEdges = graph.edges.filter(e => e.kind === 'imports')
+
+  // Only show components that have at least one renders edge pointing to them
+  const connectedCompIds = new Set(rendersEdges.map(e => e.to))
+  const connectedComponents = componentNodes.filter(c => connectedCompIds.has(c.id))
 
   const lines: string[] = [RENDERING_INIT, 'graph LR', CLASS_DEFS]
 
@@ -144,65 +201,102 @@ function buildScreenComponentDiagram(graph: IRGraph): string {
     }
   }
 
-  for (const c of componentNodes) {
+  for (const c of connectedComponents) {
     const nodeId = sanitizeId(c.id)
     const label = c.runtime === 'client' ? `${c.name} [CSR]` : c.name
     lines.push(`  ${nodeId}["${label}"]`)
   }
 
-  for (const edge of relevantEdges) {
+  for (const edge of rendersEdges) {
     const fromId = sanitizeId(edge.from)
     const toId = sanitizeId(edge.to)
-    lines.push(`  ${fromId} ${edgeArrow(edge)} ${toId}`)
+    if (connectedCompIds.has(edge.to)) {
+      lines.push(`  ${fromId} ${edgeArrow(edge)} ${toId}`)
+    }
   }
 
-  if (routeNodes.length === 0 && componentNodes.length === 0) {
+  // imports edges between connected components only
+  const connectedIdSet = new Set(connectedComponents.map(c => c.id))
+  for (const edge of importsEdges) {
+    if (connectedIdSet.has(edge.from) && connectedIdSet.has(edge.to)) {
+      lines.push(`  ${sanitizeId(edge.from)} ${edgeArrow(edge)} ${sanitizeId(edge.to)}`)
+    }
+  }
+
+  if (routeNodes.length === 0 && connectedComponents.length === 0) {
     lines.push('  empty["(no screen/component data)"]')
   }
 
   return lines.join('\n')
 }
 
+const DB_DIAGRAM_INIT = `%%{init:{'theme':'base','themeVariables':{'background':'#060810','primaryColor':'#0a2030','primaryTextColor':'#e2e8f0','primaryBorderColor':'#1e4060','lineColor':'#f59e0b','secondaryColor':'#0f172a','tertiaryColor':'#1a0a20','attributeBackgroundColorEven':'#0f1e30','attributeBackgroundColorOdd':'#091624','nodeBorder':'#1e4060','clusterBkg':'#0a0e1a','fontFamily':'JetBrains Mono'}}}%%`
+
+function getSourceLabel(node: IRNode): string | undefined {
+  if (isRouteNode(node)) {
+    const clean = node.path.replace(/\//g, '_').replace(/^_/, '') || 'root'
+    return sanitizeId(clean)
+  }
+  if (isComponentNode(node)) return sanitizeId(node.name)
+  return undefined
+}
+
 function buildDbScreenDiagram(graph: IRGraph): string {
   const tableNodes = graph.nodes.filter(isTableNode)
   const queriesEdges = graph.edges.filter(e => e.kind === 'queries')
 
-  const involvedComponentIds = new Set(queriesEdges.map(e => e.from))
-  const involvedComponentNodes = graph.nodes.filter(
-    n => isComponentNode(n) && involvedComponentIds.has(n.id),
-  )
+  // Deduplicate query sources (routes + components that actually query tables)
+  const sourcesMap = new Map<string, string>()
+  for (const edge of queriesEdges) {
+    if (sourcesMap.has(edge.from)) continue
+    const src = graph.nodes.find(n => n.id === edge.from)
+    if (src === undefined || isTableNode(src)) continue
+    const label = getSourceLabel(src)
+    if (label !== undefined) sourcesMap.set(edge.from, label)
+  }
 
-  const lines: string[] = ['erDiagram']
+  const lines: string[] = [DB_DIAGRAM_INIT, 'erDiagram']
 
+  // Table entities — up to 8 columns with PK/FK flags
   for (const t of tableNodes) {
     lines.push(`  ${sanitizeId(t.name)} {`)
-    for (const col of t.columns.slice(0, 5)) {
-      lines.push(`    ${col.type} ${sanitizeId(col.name)}`)
+    for (const col of t.columns.slice(0, 8)) {
+      const pkFlag = col.isPrimaryKey === true ? ' PK' : ''
+      const fkFlag = col.references !== undefined ? ' FK' : ''
+      lines.push(`    ${col.type} ${sanitizeId(col.name)}${pkFlag}${fkFlag}`)
     }
     lines.push('  }')
   }
 
-  for (const c of involvedComponentNodes) {
-    if (!isComponentNode(c)) continue
-    lines.push(`  ${sanitizeId(c.name)} {`)
+  // Source (route/component/action) proxy entities
+  for (const label of new Set(sourcesMap.values())) {
+    lines.push(`  ${label} {`)
     lines.push(`    string name`)
     lines.push('  }')
   }
 
-  for (const edge of queriesEdges) {
-    const componentNode = graph.nodes.find(n => n.id === edge.from)
-    const tableNode = graph.nodes.find(n => n.id === edge.to)
-    if (componentNode === undefined || tableNode === undefined) continue
-    if (!isComponentNode(componentNode) || !isTableNode(tableNode)) continue
+  // Table ↔ Table FK relationships (from ColumnDef.references)
+  const tableNameSet = new Set(tableNodes.map(t => sanitizeId(t.name)))
+  for (const t of tableNodes) {
+    for (const col of t.columns) {
+      if (col.references === undefined) continue
+      const target = sanitizeId(col.references.table)
+      if (tableNameSet.has(target)) {
+        lines.push(`  ${sanitizeId(t.name)} }o--|| ${target} : "${col.name}"`)
+      }
+    }
+  }
 
-    const rel = edge.confidence === 'inferred' ? '}|..|{' : '}|--||'
-    lines.push(
-      `  ${sanitizeId(componentNode.name)} ${rel} ${sanitizeId(tableNode.name)} : "queries"`,
-    )
+  // Source → Table queries edges
+  for (const edge of queriesEdges) {
+    const srcLabel = sourcesMap.get(edge.from)
+    const tblNode = graph.nodes.find(n => n.id === edge.to)
+    if (srcLabel === undefined || tblNode === undefined || !isTableNode(tblNode)) continue
+    lines.push(`  ${srcLabel} }|--|| ${sanitizeId(tblNode.name)} : "queries"`)
   }
 
   if (tableNodes.length === 0) {
-    lines.push('  NoTables["(no tables found)"] {')
+    lines.push('  NoTables {')
     lines.push('    string placeholder')
     lines.push('  }')
   }
@@ -217,7 +311,8 @@ function wrapMermaid(diagram: string): string {
 export async function renderMermaid(graph: IRGraph, outputDir: string): Promise<void> {
   await fs.mkdir(outputDir, { recursive: true })
 
-  const renderingDiagram = buildRenderingDiagram(graph)
+  const infra = await detectInfra(graph.repoRoot)
+  const renderingDiagram = buildRenderingDiagram(graph, infra)
   const screenComponentDiagram = buildScreenComponentDiagram(graph)
   const dbScreenDiagram = buildDbScreenDiagram(graph)
 

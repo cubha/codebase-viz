@@ -5,6 +5,11 @@ import { fileURLToPath } from 'node:url'
 import { renderMermaid } from './mermaid-renderer.js'
 import { createIRGraph, createRouteNode, makeNodeId } from '@codebase-viz/types'
 
+const FIXTURES_ROOT = path.resolve(
+  path.dirname(fileURLToPath(import.meta.url)),
+  '../../../fixtures/mini-next-app',
+)
+
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const OUTPUT_DIR = path.join(__dirname, '../../../../.tmp-renderer-test')
 
@@ -122,6 +127,35 @@ describe('renderMermaid', () => {
     expect(content).toContain('subgraph ADMIN_G')
     expect(content).toContain('classDef ssr')
     expect(content).toContain('classDef csr')
+  })
+
+  it('Next.js 프로젝트에 VERCEL 인프라 wrapper가 생성된다', async () => {
+    const prov = { file: 'app/page.tsx', line: 1, adapter: 'test', analyzerVersion: '0.1' }
+    const route = createRouteNode({
+      id: makeNodeId('route', 'app/page.tsx', 'page'),
+      path: '/',
+      filePath: 'app/page.tsx',
+      routeFileKind: 'page',
+      dynamicSegmentType: 'static',
+      isGroupRoute: false,
+      renderingMode: 'SSR',
+      provenance: prov,
+      confidence: 'verified',
+    })
+    const graph = createIRGraph({
+      analyzerVersion: 'codebase-viz@0.1.0',
+      repoRoot: FIXTURES_ROOT,
+      nodes: [route],
+      edges: [],
+    })
+
+    await renderMermaid(graph, OUTPUT_DIR)
+    const content = await fs.readFile(path.join(OUTPUT_DIR, 'rendering.md'), 'utf8')
+    expect(content).toContain('INFRA')
+    expect(content).toContain('Next.js')
+    expect(content).toContain('REACT')
+    expect(content).toContain('DATALAYER')
+    expect(content).toContain('PG_SB')
   })
 
   it('렌더링 모드에 따라 classDef가 적용된다', async () => {

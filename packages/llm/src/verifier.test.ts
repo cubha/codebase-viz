@@ -46,6 +46,22 @@ describe('verifyNodes', () => {
     expect(result.failed[0]?.reason).toContain('not found')
   })
 
+  it('ComponentNode는 존재하지 않는 파일이어도 verified로 통과한다', async () => {
+    const node = createComponentNode({
+      id: makeNodeId('component', 'app/nonexistent/BlogList.tsx', 'BlogList'),
+      name: 'BlogList',
+      filePath: 'app/nonexistent/BlogList.tsx',
+      runtime: 'server',
+      provenance: PROV,
+      confidence: 'inferred',
+      inferenceChain: ['llm-inferred'],
+    })
+
+    const result = await verifyNodes([node], '/tmp/test-repo')
+    expect(result.verified).toHaveLength(1)
+    expect(result.failed).toHaveLength(0)
+  })
+
   it('TableNode는 파일 검증 없이 verified로 통과한다', async () => {
     const node = createTableNode({
       id: makeNodeId('table', '(inferred)/blog_posts', 'blog_posts'),

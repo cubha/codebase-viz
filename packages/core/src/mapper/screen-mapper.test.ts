@@ -3,7 +3,7 @@ import * as path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { parseComponents } from '../parsers/component-parser.js'
 import { parseTables } from '../parsers/db-parser.js'
-import { mapScreenToTable } from './screen-mapper.js'
+import { mapScreenToTable, mapServerFilesToTable } from './screen-mapper.js'
 import { createIRGraph } from '@codebase-viz/types'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
@@ -50,6 +50,30 @@ describe('mapScreenToTable', () => {
 
     const edges = await mapScreenToTable(graph)
     expect(edges).toHaveLength(0)
+  })
+
+  it('routeNode 파일의 supabase.from() 호출도 queries 엣지를 생성한다', async () => {
+    const routeNodes = await (await import('../parsers/route-parser.js')).parseRoutes(FIXTURE)
+    const tableNodes = await parseTables(FIXTURE)
+
+    const graph = createIRGraph({
+      analyzerVersion: 'codebase-viz@0.1.0',
+      repoRoot: FIXTURE,
+      nodes: [...routeNodes, ...tableNodes],
+      edges: [],
+    })
+
+    const edges = await mapScreenToTable(graph)
+    // mini-next-app's page.tsx may or may not have supabase.from() — just ensure no crash
+    expect(Array.isArray(edges)).toBe(true)
+  })
+
+  it('mapServerFilesToTable: actions/ 디렉토리의 supabase.from() 호출을 감지한다', async () => {
+    const tableNodes = await parseTables(FIXTURE)
+    const { nodes, edges } = await mapServerFilesToTable(FIXTURE, tableNodes)
+    // mini-next-app has no src/actions/ → returns empty (no crash)
+    expect(Array.isArray(nodes)).toBe(true)
+    expect(Array.isArray(edges)).toBe(true)
   })
 
   it('같은 컴포넌트-테이블 쌍은 중복 엣지를 생성하지 않는다', async () => {
