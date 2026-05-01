@@ -1,0 +1,558 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CodeSight</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
+  <style>
+    :root {
+      --bg-deep:    #060810;
+      --bg-surface: #0a0e1a;
+      --bg-card:    #0d1220;
+      --border:     #162035;
+      --border-sub: #0f172a;
+      --text-pri:   #e2e8f0;
+      --text-sec:   #94a3b8;
+      --text-muted: #475569;
+      --blue:  #38bdf8;
+      --green: #4ade80;
+      --amber: #f59e0b;
+      --font:  'JetBrains Mono', monospace;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html, body {
+      height: 100%;
+      overflow: hidden;
+      font-family: var(--font);
+      background: var(--bg-deep);
+      color: var(--text-pri);
+    }
+
+    /* dot-grid atmosphere */
+    body::before {
+      content: '';
+      position: fixed; inset: 0;
+      background-image: radial-gradient(circle, #1e2d4d 1px, transparent 1px);
+      background-size: 28px 28px;
+      opacity: 0.3;
+      pointer-events: none;
+      z-index: 0;
+    }
+    body::after {
+      content: '';
+      position: fixed; inset: 0;
+      background: radial-gradient(ellipse 80% 60% at 50% 30%, transparent 50%, #060810cc 100%);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    /* ── HEADER ── */
+    header {
+      position: relative; z-index: 20;
+      display: flex; align-items: center; gap: 14px;
+      padding: 0 24px; height: 52px;
+      background: rgba(6,8,16,0.92);
+      border-bottom: 1px solid var(--border);
+      backdrop-filter: blur(16px);
+    }
+    .logo { font-size: 15px; font-weight: 700; letter-spacing: -0.5px; color: var(--text-pri); }
+    .logo em { font-style: normal; color: var(--blue); }
+    .badge {
+      font-size: 10px; font-weight: 500; letter-spacing: 0.8px;
+      background: rgba(56,189,248,.08); border: 1px solid rgba(56,189,248,.22);
+      color: var(--blue); padding: 2px 9px; border-radius: 3px;
+    }
+    .header-right { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+    .status-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--green); box-shadow: 0 0 6px var(--green); }
+    .header-meta { font-size: 10px; color: var(--text-muted); letter-spacing: 0.3px; }
+
+    /* ── TABS ── */
+    .tabs {
+      position: relative; z-index: 20;
+      display: flex; padding: 0 24px;
+      background: rgba(6,8,16,0.88);
+      border-bottom: 1px solid var(--border);
+      backdrop-filter: blur(12px);
+    }
+    .tab {
+      position: relative;
+      padding: 13px 18px; font-size: 11px; font-weight: 500; letter-spacing: 0.4px;
+      color: var(--text-muted); cursor: pointer;
+      border-bottom: 2px solid transparent;
+      transition: color .2s, border-color .2s;
+      user-select: none;
+    }
+    .tab:hover { color: var(--text-sec); }
+    .tab[data-t="r"].active { color: var(--blue);  border-bottom-color: var(--blue);  }
+    .tab[data-t="s"].active { color: var(--green); border-bottom-color: var(--green); }
+    .tab[data-t="d"].active { color: var(--amber); border-bottom-color: var(--amber); }
+
+    .tab-pip {
+      display: inline-block; width: 5px; height: 5px; border-radius: 50%;
+      margin-right: 8px; vertical-align: middle; opacity: 0.7;
+    }
+    .tab[data-t="r"] .tab-pip { background: var(--blue); }
+    .tab[data-t="s"] .tab-pip { background: var(--green); }
+    .tab[data-t="d"] .tab-pip { background: var(--amber); }
+
+    /* ── PANEL CONTAINER ── */
+    .panels {
+      position: relative; z-index: 5;
+      height: calc(100vh - 52px - 44px);
+    }
+    .panel {
+      position: absolute; inset: 0;
+      opacity: 0; pointer-events: none;
+      transition: opacity .22s;
+    }
+    .panel.active { opacity: 1; pointer-events: auto; }
+
+    /* ── ZOOM CANVAS ── */
+    .canvas-wrap {
+      width: 100%; height: 100%;
+      overflow: hidden; cursor: grab; position: relative;
+    }
+    .canvas-wrap:active { cursor: grabbing; }
+    .canvas-inner {
+      position: absolute;
+      top: 50%; left: 50%;
+      transform-origin: center center;
+      will-change: transform;
+    }
+    .diagram-svg svg {
+      max-width: 90vw;
+      filter: drop-shadow(0 2px 32px rgba(0,0,0,.5));
+    }
+
+    /* ── ZOOM CONTROLS ── */
+    .zoom-ctrl {
+      position: absolute; bottom: 20px; right: 20px;
+      display: flex; flex-direction: column; gap: 4px; z-index: 30;
+    }
+    .z-btn {
+      width: 32px; height: 32px;
+      background: rgba(13,18,32,.9); border: 1px solid var(--border);
+      color: var(--text-sec); font-family: var(--font); font-size: 15px;
+      cursor: pointer; border-radius: 4px;
+      display: flex; align-items: center; justify-content: center;
+      transition: background .15s, color .15s; backdrop-filter: blur(8px);
+    }
+    .z-btn:hover { background: var(--border); color: var(--text-pri); }
+
+    /* ── LEGEND (Tab 2) ── */
+    .legend {
+      position: absolute; top: 16px; left: 16px; z-index: 30;
+      background: rgba(6,8,16,.88); border: 1px solid var(--border);
+      border-radius: 6px; padding: 10px 14px; backdrop-filter: blur(10px);
+    }
+    .legend-row { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; font-size: 10px; color: var(--text-sec); }
+    .legend-row:last-child { margin-bottom: 0; }
+    .l-dot { width: 8px; height: 8px; border-radius: 2px; flex-shrink: 0; }
+
+    /* ── DB SPLIT LAYOUT ── */
+    .db-wrap { display: grid; grid-template-columns: 1fr 300px; height: 100%; }
+    .db-canvas-area { position: relative; overflow: hidden; }
+    .db-sidebar {
+      border-left: 1px solid var(--border);
+      background: rgba(10,14,26,.8); backdrop-filter: blur(10px);
+      overflow-y: auto; padding: 18px;
+    }
+    .db-sidebar::-webkit-scrollbar { width: 4px; }
+    .db-sidebar::-webkit-scrollbar-track { background: transparent; }
+    .db-sidebar::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+    .sidebar-label {
+      font-size: 9px; font-weight: 700; letter-spacing: 1.5px;
+      text-transform: uppercase; color: var(--text-muted); margin-bottom: 12px;
+    }
+    .table-card {
+      background: var(--bg-card); border: 1px solid var(--border);
+      border-radius: 6px; margin-bottom: 10px; overflow: hidden;
+    }
+    .table-head {
+      padding: 7px 12px;
+      background: linear-gradient(90deg, rgba(15,45,31,.7), rgba(13,18,32,.5));
+      border-bottom: 1px solid var(--border);
+      font-size: 11px; font-weight: 600; color: var(--green);
+      display: flex; align-items: center; gap: 6px;
+    }
+    .table-head-icon { font-size: 9px; color: var(--text-muted); }
+    .col-row {
+      padding: 4px 12px; font-size: 10px;
+      display: flex; justify-content: space-between; align-items: center;
+      border-bottom: 1px solid var(--border-sub);
+    }
+    .col-row:last-child { border-bottom: none; }
+    .col-name { color: var(--text-sec); }
+    .col-type { color: var(--text-muted); }
+    .col-pk { color: var(--amber); font-size: 8px; font-weight: 700; }
+    .col-fk { color: var(--blue); font-size: 8px; font-weight: 700; }
+
+    .sidebar-section { margin-top: 18px; }
+    .query-card {
+      background: var(--bg-card);
+      border: 1px solid rgba(245,158,11,.25);
+      border-radius: 6px; padding: 9px 12px; margin-bottom: 8px;
+    }
+    .query-name { font-size: 11px; font-weight: 600; color: var(--amber); }
+    .query-meta { font-size: 10px; color: var(--text-muted); margin-top: 3px; }
+
+    /* ── LOADING / ERROR ── */
+    .diagram-msg {
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      height: 100%; gap: 12px; color: var(--text-muted); font-size: 12px;
+    }
+    .diagram-msg .icon { font-size: 28px; opacity: .4; }
+
+    /* ── DB TABLE REFS ── */
+    .table-refs {
+      padding: 5px 12px 7px;
+      border-top: 1px solid var(--border-sub);
+      background: rgba(56,189,248,.04);
+    }
+    .refs-label {
+      font-size: 8px; font-weight: 700; letter-spacing: 1.2px;
+      text-transform: uppercase; color: var(--text-muted);
+      margin-bottom: 4px; margin-top: 2px;
+    }
+    .ref-row {
+      display: flex; align-items: center; gap: 6px;
+      padding: 2px 0; font-size: 10px;
+    }
+    .ref-screen {
+      color: var(--blue); font-weight: 500;
+      background: rgba(56,189,248,.08);
+      padding: 1px 6px; border-radius: 2px;
+      border: 1px solid rgba(56,189,248,.2);
+    }
+    .ref-comp {
+      color: var(--text-muted);
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="logo">Code<em>Sight</em></div>
+  <div class="badge">mini-next-app</div>
+  <div class="header-right">
+    <div class="status-dot"></div>
+    <div class="header-meta">Phase 1 · Wave3 · 51 tests pass</div>
+  </div>
+</header>
+
+<div class="tabs">
+  <div class="tab active" data-t="r" onclick="switchTab('r')">
+    <span class="tab-pip"></span>Rendering Architecture
+  </div>
+  <div class="tab" data-t="s" onclick="switchTab('s')">
+    <span class="tab-pip"></span>Screen–Component
+  </div>
+  <div class="tab" data-t="d" onclick="switchTab('d')">
+    <span class="tab-pip"></span>DB–Screen
+  </div>
+</div>
+
+<div class="panels">
+
+  <!-- ── Tab 1: Rendering Architecture ── -->
+  <div id="p-r" class="panel active">
+    <div class="canvas-wrap" id="w-r">
+      <div class="canvas-inner" id="i-r">
+        <div class="diagram-svg" id="d-r"></div>
+      </div>
+    </div>
+    <div class="zoom-ctrl">
+      <button class="z-btn" onclick="zm('r',1.2)">+</button>
+      <button class="z-btn" onclick="zm('r',.833)">−</button>
+      <button class="z-btn" onclick="rz('r')" style="font-size:11px">⌂</button>
+    </div>
+  </div>
+
+  <!-- ── Tab 2: Screen–Component ── -->
+  <div id="p-s" class="panel">
+    <div class="legend">
+      <div class="legend-row"><div class="l-dot" style="background:#2563eb"></div>Route / Page</div>
+      <div class="legend-row"><div class="l-dot" style="background:#16a34a"></div>Component · SSR</div>
+      <div class="legend-row"><div class="l-dot" style="background:#c2410c"></div>Component · CSR</div>
+      <div class="legend-row"><div class="l-dot" style="background:#ca8a04"></div>API Route</div>
+    </div>
+    <div class="canvas-wrap" id="w-s">
+      <div class="canvas-inner" id="i-s">
+        <div class="diagram-svg" id="d-s"></div>
+      </div>
+    </div>
+    <div class="zoom-ctrl">
+      <button class="z-btn" onclick="zm('s',1.2)">+</button>
+      <button class="z-btn" onclick="zm('s',.833)">−</button>
+      <button class="z-btn" onclick="rz('s')" style="font-size:11px">⌂</button>
+    </div>
+  </div>
+
+  <!-- ── Tab 3: DB–Screen ── -->
+  <div id="p-d" class="panel">
+    <div class="db-wrap">
+      <div class="db-canvas-area">
+        <div class="canvas-wrap" id="w-d">
+          <div class="canvas-inner" id="i-d">
+            <div class="diagram-svg" id="d-d"></div>
+          </div>
+        </div>
+        <div class="zoom-ctrl">
+          <button class="z-btn" onclick="zm('d',1.2)">+</button>
+          <button class="z-btn" onclick="zm('d',.833)">−</button>
+          <button class="z-btn" onclick="rz('d')" style="font-size:11px">⌂</button>
+        </div>
+      </div>
+      <div class="db-sidebar">
+        <div class="sidebar-label">Tables</div>
+        <div class="table-card">
+          <div class="table-head"><span class="table-head-icon">◈</span>posts</div>
+          <div class="col-row"><span class="col-name">id</span><span class="col-pk">PK</span><span class="col-type">uuid</span></div>
+          <div class="col-row"><span class="col-name">title</span><span></span><span class="col-type">text</span></div>
+          <div class="col-row"><span class="col-name">content</span><span></span><span class="col-type">text</span></div>
+          <div class="col-row"><span class="col-name">author_id</span><span class="col-fk">FK</span><span class="col-type">uuid</span></div>
+          <div class="col-row"><span class="col-name">created_at</span><span></span><span class="col-type">timestamp</span></div>
+          <div class="table-refs">
+            <div class="refs-label">Used by</div>
+            <div class="ref-row"><span class="ref-screen">/ page</span><span class="ref-comp">PostList · CSR</span></div>
+            <div class="ref-row"><span class="ref-screen">/blog/[slug]</span><span class="ref-comp">BlogDetail · SSR</span></div>
+          </div>
+        </div>
+        <div class="table-card">
+          <div class="table-head"><span class="table-head-icon">◈</span>profiles</div>
+          <div class="col-row"><span class="col-name">id</span><span class="col-pk">PK</span><span class="col-type">uuid</span></div>
+          <div class="col-row"><span class="col-name">username</span><span></span><span class="col-type">varchar</span></div>
+          <div class="col-row"><span class="col-name">avatar_url</span><span></span><span class="col-type">varchar</span></div>
+          <div class="table-refs">
+            <div class="refs-label">Used by</div>
+            <div class="ref-row"><span class="ref-screen">/ page</span><span class="ref-comp">PostList · CSR (join)</span></div>
+          </div>
+        </div>
+        <div class="sidebar-section">
+          <div class="sidebar-label">Queries</div>
+          <div class="query-card">
+            <div class="query-name">PostList</div>
+            <div class="query-meta">CSR · / page · supabase.from('posts')</div>
+            <div class="query-meta" style="margin-top:3px">join: supabase.from('profiles')</div>
+          </div>
+          <div class="query-card">
+            <div class="query-name">BlogDetail</div>
+            <div class="query-meta">SSR · /blog/[slug] · supabase.from('posts')</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+// ── Diagram definitions ──
+const DIAGRAMS = {
+  r: `%%{init:{'theme':'base','themeVariables':{'background':'#060810','primaryColor':'#0c1a30','primaryTextColor':'#7dd3fc','primaryBorderColor':'#0e3a6e','lineColor':'#334155','secondaryColor':'#0f172a','clusterBkg':'#060c18','clusterBorder':'#1e3a5f','fontFamily':'JetBrains Mono'}}}%%
+graph TD
+  subgraph INFRA["☁ VERCEL · Edge Network"]
+    subgraph RUNTIME["⚙ Node.js 20 · Server Runtime"]
+      subgraph FRAMEWORK["▲ Next.js 15 · App Router"]
+        subgraph REACT["⚛ React 18 · SSR Engine"]
+          rl["(root) layout"]
+          rp["/ · home · SSR"]
+          ab["/about · SSR"]
+          pj["/projects · SSR"]
+          ct["/contact · SSR"]
+          bs["/blog/[slug] · SSR"]
+          ad["/admin · SSR"]
+          FETCH["(SSR data fetch)"]
+          rl ~~~ rp ~~~ ab ~~~ pj ~~~ ct ~~~ bs ~~~ ad ~~~ FETCH
+        end
+        api["/api/* · Route Handlers"]
+      end
+    end
+  end
+  subgraph DATA["🗄 DATA LAYER"]
+    subgraph SB["⚡ Supabase · BaaS"]
+      PG[("PostgreSQL v15 · RLS")]
+      AUTH["Auth · JWT"]
+    end
+  end
+  FETCH -.->|"supabase-js"| PG
+  ad -.->|"auth check"| AUTH
+  api -->|"server query"| PG`,
+
+  s: `%%{init:{'theme':'base','themeVariables':{'background':'#060810','primaryColor':'#0d1a0d','primaryTextColor':'#86efac','primaryBorderColor':'#166534','lineColor':'#334155','secondaryColor':'#0f172a','edgeLabelBackground':'#0a0e1a','fontFamily':'JetBrains Mono'}}}%%
+graph TD
+  classDef route fill:#0d1a2d,stroke:#2563eb,color:#93c5fd,rx:4
+  classDef ssr fill:#0d1a0d,stroke:#16a34a,color:#86efac,rx:4
+  classDef csr fill:#2d1200,stroke:#c2410c,color:#fb923c,rx:4
+  classDef api fill:#1a1a0d,stroke:#ca8a04,color:#fde047,rx:4
+
+  ROOT["🌐 Website Root"]:::route
+
+  ROOT --> rl["(root) layout"]:::ssr
+  ROOT --> APIS["/api/* · Route Handlers"]:::api
+
+  rl --> HDR["Header · SSR"]:::ssr
+  rl --> NAV["NavBar · SSR"]:::ssr
+
+  rl --> rp["/ · home · SSR"]:::ssr
+  rl --> ab["/about · SSR"]:::ssr
+  rl --> pj["/projects · SSR"]:::ssr
+  rl --> ct["/contact · SSR"]:::ssr
+  rl --> bs["/blog/[slug] · SSR"]:::ssr
+  rl --> ad["/admin · SSR"]:::ssr
+
+  rp --> PL["PostList · CSR"]:::csr
+  rp --> HERO["Hero · SSR"]:::ssr
+
+  ab --> AC["AboutContent · SSR"]:::ssr
+
+  pj --> PJLIST["ProjectList · SSR"]:::ssr
+  pj --> PJFILT["ProjectFilter · CSR"]:::csr
+
+  ct --> CF["ContactForm · CSR"]:::csr
+
+  bs --> BP["BlogPost · SSR"]:::ssr
+  bs --> CL["CommentList · CSR"]:::csr
+
+  ad --> ADMTBL["DataTable · CSR"]:::csr
+  ad --> ADMNAV["AdminNav · SSR"]:::ssr`,
+
+  d: `%%{init:{'theme':'base','themeVariables':{'background':'#060810','primaryColor':'#0a2030','primaryTextColor':'#e2e8f0','primaryBorderColor':'#1e4060','lineColor':'#f59e0b','secondaryColor':'#0f172a','tertiaryColor':'#1a0a20','attributeBackgroundColorEven':'#0f1e30','attributeBackgroundColorOdd':'#091624','nodeBorder':'#1e4060','clusterBkg':'#0a0e1a','fontFamily':'JetBrains Mono'}}}%%
+erDiagram
+  posts ||--o{ PostList : "queried by"
+  posts ||--o{ BlogDetail : "queried by"
+  profiles ||--o{ PostList : "joined"
+
+  posts {
+    uuid id PK
+    text title
+    text content
+    uuid author_id FK
+    timestamp created_at
+  }
+  profiles {
+    uuid id PK
+    varchar username
+    varchar avatar_url
+  }
+  PostList {
+    string screen "/ page"
+    string render "CSR"
+  }
+  BlogDetail {
+    string screen "/blog/slug"
+    string render "SSR"
+  }`
+};
+
+// ── Render all diagrams via mermaid.render() (avoids display:none issue) ──
+mermaid.initialize({
+  startOnLoad: false,
+  securityLevel: 'loose',
+  flowchart: { useMaxWidth: false },
+  er: { useMaxWidth: false },
+});
+
+async function renderAll() {
+  for (const [key, def] of Object.entries(DIAGRAMS)) {
+    const container = document.getElementById(`d-${key}`);
+    try {
+      const { svg } = await mermaid.render(`m-${key}`, def);
+      container.innerHTML = svg;
+      if (key === 'd') {
+        const svgEl = container.querySelector('svg');
+        if (svgEl) {
+          // odd row: light bg
+          svgEl.querySelectorAll('g.row-rect-odd path').forEach(el => el.setAttribute('fill', '#c4daf0'));
+          // even row: slightly darker light bg
+          svgEl.querySelectorAll('g.row-rect-even path').forEach(el => el.setAttribute('fill', '#b6cce6'));
+          // attribute text → dark
+          svgEl.querySelectorAll('g.label.attribute-type span, g.label.attribute-name span, g.label.attribute-keys span, g.label.attribute-comment span').forEach(el => { el.style.color = '#0d1f35'; });
+        }
+      }
+      fitToView(key);
+    } catch(e) {
+      container.innerHTML = `<div class="diagram-msg"><div class="icon">⚠</div><div>Render error: ${e.message}</div></div>`;
+    }
+  }
+}
+
+function fitToView(id) {
+  const container = document.getElementById(`d-${id}`);
+  const svg = container?.querySelector('svg');
+  if (!svg) return;
+
+  // For db panel, canvas area is ~60% of viewport width
+  const isDb = id === 'd';
+  const wrapW = isDb
+    ? (document.getElementById(`w-${id}`)?.clientWidth ?? window.innerWidth * 0.6)
+    : (document.getElementById(`w-${id}`)?.clientWidth ?? window.innerWidth);
+  const wrapH = document.getElementById(`w-${id}`)?.clientHeight ?? (window.innerHeight - 96);
+
+  const svgW = svg.getBoundingClientRect().width  || parseFloat(svg.getAttribute('width'))  || 800;
+  const svgH = svg.getBoundingClientRect().height || parseFloat(svg.getAttribute('height')) || 600;
+
+  const scaleX = (wrapW * 0.88) / svgW;
+  const scaleY = (wrapH * 0.88) / svgH;
+  const scale  = Math.min(scaleX, scaleY, 1.2); // cap max zoom at 1.2x
+
+  ST[id].s = scale;
+  ST[id].x = 0;
+  ST[id].y = 0;
+  applyT(id);
+}
+
+// Wait for JetBrains Mono to load so Mermaid measures text correctly
+document.fonts.ready.then(() => renderAll());
+
+// ── Tab switching ──
+function switchTab(id) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.querySelector(`.tab[data-t="${id}"]`).classList.add('active');
+  document.getElementById(`p-${id}`).classList.add('active');
+}
+
+// ── Zoom / Pan ──
+const ST = { r:{s:1,x:0,y:0}, s:{s:1,x:0,y:0}, d:{s:1,x:0,y:0} };
+
+function applyT(id) {
+  const {s,x,y} = ST[id];
+  const inner = document.getElementById(`i-${id}`);
+  if (inner) inner.style.transform = `translate(calc(-50% + ${x}px), calc(-50% + ${y}px)) scale(${s})`;
+}
+function zm(id, f) {
+  ST[id].s = Math.min(4, Math.max(0.2, ST[id].s * f));
+  applyT(id);
+}
+function rz(id) { ST[id] = {s:1,x:0,y:0}; applyT(id); }
+
+['r','s','d'].forEach(id => {
+  const wrap = document.getElementById(`w-${id}`);
+  if (!wrap) return;
+
+  wrap.addEventListener('wheel', e => {
+    e.preventDefault();
+    zm(id, e.deltaY < 0 ? 1.1 : 1/1.1);
+  }, { passive: false });
+
+  let drag = false, lx = 0, ly = 0;
+  wrap.addEventListener('mousedown', e => { drag = true; lx = e.clientX; ly = e.clientY; });
+  window.addEventListener('mouseup', () => { drag = false; });
+  window.addEventListener('mousemove', e => {
+    if (!drag) return;
+    ST[id].x += e.clientX - lx;
+    ST[id].y += e.clientY - ly;
+    lx = e.clientX; ly = e.clientY;
+    applyT(id);
+  });
+});
+</script>
+</body>
+</html>
