@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<title>CodeSight — dev-log-portfolio (LLM 분석)</title>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:#060810;color:#7dd3fc;font-family:'Fira Code',monospace;overflow:hidden}
+  .tabs{display:flex;border-bottom:1px solid #1e3a5f;background:#080f1a}
+  .tab{padding:10px 24px;cursor:pointer;color:#4b7fa8;font-size:13px;border-bottom:2px solid transparent;user-select:none}
+  .tab.active{color:#7dd3fc;border-bottom-color:#2563eb}
+  .panel{display:none;height:calc(100vh - 42px);overflow:hidden;position:relative}
+  .panel.active{display:block}
+  .diagram-wrap{width:100%;height:100%;overflow:hidden;position:relative;cursor:grab}
+  .diagram-wrap.dragging{cursor:grabbing}
+  .diagram-inner{position:absolute;top:50%;left:50%;transform-origin:center center}
+  .zoom-ctrl{position:absolute;bottom:16px;right:16px;display:flex;gap:6px;z-index:10}
+  .zoom-btn{background:#0c1a30;border:1px solid #1e3a5f;color:#7dd3fc;width:32px;height:32px;
+    border-radius:4px;cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center}
+  .zoom-btn:hover{background:#1e3a5f}
+  h2{font-size:12px;color:#4b7fa8;padding:10px 20px 0;letter-spacing:.05em}
+  .loading{color:#4b7fa8;padding:40px;font-style:italic}
+  svg{max-width:none!important}
+  .badge{background:#1e3a5f;color:#7dd3fc;font-size:10px;padding:2px 6px;border-radius:3px;margin-left:8px;vertical-align:middle}
+</style>
+</head>
+<body>
+<div class="tabs">
+  <div class="tab active" onclick="show(0)">Rendering Architecture</div>
+  <div class="tab" onclick="show(1)">Screen–Component <span class="badge">+20 LLM edges</span></div>
+  <div class="tab" onclick="show(2)">DB–Screen</div>
+</div>
+<div class="panel active" id="p0">
+  <h2>dev-log-portfolio / Rendering Architecture — LLM + 정적 분석</h2>
+  <div class="diagram-wrap" id="w0"><div class="diagram-inner" id="i0"><div class="loading">렌더링 중...</div></div></div>
+  <div class="zoom-ctrl"><button class="zoom-btn" onclick="zoom(0,1.3)">+</button><button class="zoom-btn" onclick="zoom(0,1/1.3)">−</button><button class="zoom-btn" onclick="reset(0)" title="reset">⊙</button></div>
+</div>
+<div class="panel" id="p1">
+  <h2>dev-log-portfolio / Screen–Component Mapping</h2>
+  <div class="diagram-wrap" id="w1"><div class="diagram-inner" id="i1"><div class="loading">렌더링 중...</div></div></div>
+  <div class="zoom-ctrl"><button class="zoom-btn" onclick="zoom(1,1.3)">+</button><button class="zoom-btn" onclick="zoom(1,1/1.3)">−</button><button class="zoom-btn" onclick="reset(1)" title="reset">⊙</button></div>
+</div>
+<div class="panel" id="p2">
+  <h2>dev-log-portfolio / DB–Screen</h2>
+  <div class="diagram-wrap" id="w2"><div class="diagram-inner" id="i2"><div class="loading">렌더링 중...</div></div></div>
+  <div class="zoom-ctrl"><button class="zoom-btn" onclick="zoom(2,1.3)">+</button><button class="zoom-btn" onclick="zoom(2,1/1.3)">−</button><button class="zoom-btn" onclick="reset(2)" title="reset">⊙</button></div>
+</div>
+<script>
+mermaid.initialize({startOnLoad:false,securityLevel:'loose'});
+const diagrams = ["%%{init:{'theme':'base','themeVariables':{'background':'#060810','primaryColor':'#0c1a30','primaryTextColor':'#7dd3fc','edgeLabelBackground':'#0c1a30','lineColor':'#2563eb'}}}%%\ngraph TD\n  classDef ssr fill:#0d1a0d,stroke:#16a34a,color:#86efac\n  classDef csr fill:#2d1200,stroke:#c2410c,color:#fb923c\n  classDef ssg fill:#1a0d1a,stroke:#7c3aed,color:#c4b5fd\n  classDef isr fill:#1a1a0d,stroke:#ca8a04,color:#fde047\n  classDef ppr fill:#0d1a2d,stroke:#2563eb,color:#93c5fd\n  classDef unk fill:#1a1a1a,stroke:#6b7280,color:#9ca3af\n  subgraph ABOUT_G[\"\ud83d\udc64 /about\"]\n    route_src_app_about_loading[\"/about \u00b7 SSR\"]:::ssr\n    route_src_app_about_page[\"/about \u00b7 ISR\"]:::isr\n  end\n  subgraph ADMIN_G[\"\u2699 /admin\"]\n    route_src_app_admin_dashboard_page[\"/admin/dashboard \u00b7 SSR\"]:::ssr\n    route_src_app_admin_layout[\"/admin \u00b7 SSR\"]:::ssr\n    route_src_app_admin_profile_page[\"/admin/profile \u00b7 CSR\"]:::csr\n    route_src_app_admin_projects_page[\"/admin/projects \u00b7 CSR\"]:::csr\n    route_src_app_admin_skills_page[\"/admin/skills \u00b7 CSR\"]:::csr\n  end\n  subgraph API_G[\"\u26a1 /api\"]\n    route_src_app_api_github_stats_route_handler[\"/api/github/stats \u00b7 SSR\"]:::ssr\n    route_src_app_api_mdx__slug__route_handler[\"/api/mdx/[slug] \u00b7 SSR\"]:::ssr\n    route_src_app_api_page_view_route_handler[\"/api/page-view \u00b7 SSR\"]:::ssr\n    route_src_app_api_spotify_now_playing_route_handler[\"/api/spotify/now-playing \u00b7 SSR\"]:::ssr\n  end\n  subgraph AUTH_G[\"\ud83d\udd10 /auth\"]\n    route_src_app_auth_callback_route_handler[\"/auth/callback \u00b7 SSR\"]:::ssr\n  end\n  subgraph BLOG_G[\"\ud83d\udcdd /blog\"]\n    route_src_app_blog__slug__page[\"/blog/[slug] \u00b7 SSR\"]:::ssr\n    route_src_app_blog_edit__id__page[\"/blog/edit/[id] \u00b7 SSR\"]:::ssr\n    route_src_app_blog_loading[\"/blog \u00b7 SSR\"]:::ssr\n    route_src_app_blog_new_page[\"/blog/new \u00b7 SSR\"]:::ssr\n    route_src_app_blog_page[\"/blog \u00b7 SSR\"]:::ssr\n  end\n  subgraph CONTACT_G[\"\ud83d\udcec /contact\"]\n    route_src_app_contact_loading[\"/contact \u00b7 SSR\"]:::ssr\n    route_src_app_contact_page[\"/contact \u00b7 SSR\"]:::ssr\n  end\n  route_src_app_error[\"/ \u00b7 CSR\"]:::csr\n  route_src_app_layout[\"/ \u00b7 SSR\"]:::ssr\n  route_src_app_loading[\"/ \u00b7 SSR\"]:::ssr\n  route_src_app_page[\"/ \u00b7 SSR\"]:::ssr\n  route_src_app_template[\"/ \u00b7 CSR\"]:::csr\n  subgraph LOGIN_G[\"\ud83d\udcc4 /login\"]\n    route_src_app_login_page[\"/login \u00b7 CSR\"]:::csr\n  end\n  subgraph PROJECTS_G[\"\ud83d\udcc1 /projects\"]\n    route_src_app_projects__slug__page[\"/projects/[slug] \u00b7 SSR\"]:::ssr\n    route_src_app_projects_loading[\"/projects \u00b7 SSR\"]:::ssr\n    route_src_app_projects_page[\"/projects \u00b7 ISR\"]:::isr\n  end","%%{init:{'theme':'base','themeVariables':{'background':'#060810','primaryColor':'#0c1a30','primaryTextColor':'#7dd3fc','edgeLabelBackground':'#0c1a30','lineColor':'#2563eb'}}}%%\ngraph LR\n  classDef ssr fill:#0d1a0d,stroke:#16a34a,color:#86efac\n  classDef csr fill:#2d1200,stroke:#c2410c,color:#fb923c\n  classDef ssg fill:#1a0d1a,stroke:#7c3aed,color:#c4b5fd\n  classDef isr fill:#1a1a0d,stroke:#ca8a04,color:#fde047\n  classDef ppr fill:#0d1a2d,stroke:#2563eb,color:#93c5fd\n  classDef unk fill:#1a1a1a,stroke:#6b7280,color:#9ca3af\n  subgraph ABOUT_S[\"\ud83d\udc64 /about\"]\n    route_src_app_about_loading[\"/about \u00b7 SSR\"]:::ssr\n    route_src_app_about_page[\"/about \u00b7 ISR\"]:::isr\n  end\n  subgraph ADMIN_S[\"\u2699 /admin\"]\n    route_src_app_admin_dashboard_page[\"/admin/dashboard \u00b7 SSR\"]:::ssr\n    route_src_app_admin_layout[\"/admin \u00b7 SSR\"]:::ssr\n    route_src_app_admin_profile_page[\"/admin/profile \u00b7 CSR\"]:::csr\n    route_src_app_admin_projects_page[\"/admin/projects \u00b7 CSR\"]:::csr\n    route_src_app_admin_skills_page[\"/admin/skills \u00b7 CSR\"]:::csr\n  end\n  subgraph API_S[\"\u26a1 /api\"]\n    route_src_app_api_github_stats_route_handler[\"/api/github/stats \u00b7 SSR\"]:::ssr\n    route_src_app_api_mdx__slug__route_handler[\"/api/mdx/[slug] \u00b7 SSR\"]:::ssr\n    route_src_app_api_page_view_route_handler[\"/api/page-view \u00b7 SSR\"]:::ssr\n    route_src_app_api_spotify_now_playing_route_handler[\"/api/spotify/now-playing \u00b7 SSR\"]:::ssr\n  end\n  subgraph AUTH_S[\"\ud83d\udd10 /auth\"]\n    route_src_app_auth_callback_route_handler[\"/auth/callback \u00b7 SSR\"]:::ssr\n  end\n  subgraph BLOG_S[\"\ud83d\udcdd /blog\"]\n    route_src_app_blog__slug__page[\"/blog/[slug] \u00b7 SSR\"]:::ssr\n    route_src_app_blog_edit__id__page[\"/blog/edit/[id] \u00b7 SSR\"]:::ssr\n    route_src_app_blog_loading[\"/blog \u00b7 SSR\"]:::ssr\n    route_src_app_blog_new_page[\"/blog/new \u00b7 SSR\"]:::ssr\n    route_src_app_blog_page[\"/blog \u00b7 SSR\"]:::ssr\n  end\n  subgraph CONTACT_S[\"\ud83d\udcec /contact\"]\n    route_src_app_contact_loading[\"/contact \u00b7 SSR\"]:::ssr\n    route_src_app_contact_page[\"/contact \u00b7 SSR\"]:::ssr\n  end\n  subgraph ROOT_S[\"\ud83c\udfe0 /root\"]\n    route_src_app_error[\"/ \u00b7 CSR\"]:::csr\n    route_src_app_layout[\"/ \u00b7 SSR\"]:::ssr\n    route_src_app_loading[\"/ \u00b7 SSR\"]:::ssr\n    route_src_app_page[\"/ \u00b7 SSR\"]:::ssr\n    route_src_app_template[\"/ \u00b7 CSR\"]:::csr\n  end\n  subgraph LOGIN_S[\"\ud83d\udcc4 /login\"]\n    route_src_app_login_page[\"/login \u00b7 CSR\"]:::csr\n  end\n  subgraph PROJECTS_S[\"\ud83d\udcc1 /projects\"]\n    route_src_app_projects__slug__page[\"/projects/[slug] \u00b7 SSR\"]:::ssr\n    route_src_app_projects_loading[\"/projects \u00b7 SSR\"]:::ssr\n    route_src_app_projects_page[\"/projects \u00b7 ISR\"]:::isr\n  end\n  component_src_app_error_tsx_error[\"error [CSR]\"]\n  component_src_app_layout_tsx_layout[\"layout\"]\n  component_src_app_loading_tsx_loading[\"loading\"]\n  component_src_app_page_tsx_page[\"page\"]\n  component_src_app_template_tsx_template[\"template [CSR]\"]\n  component_src_components_about_ExperienceTabsSection_tsx_ExperienceTabsSection[\"ExperienceTabsSection [CSR]\"]\n  component_src_components_about_ProfilePhotoCard_tsx_ProfilePhotoCard[\"ProfilePhotoCard [CSR]\"]\n  component_src_components_about_SkillCategoryCards_tsx_SkillCategoryCards[\"SkillCategoryCards [CSR]\"]\n  component_src_components_about_SkillsSection_tsx_SkillsSection[\"SkillsSection\"]\n  component_src_components_about_TimelineSection_tsx_TimelineSection[\"TimelineSection [CSR]\"]\n  component_src_components_admin_AdminHeader_tsx_AdminHeader[\"AdminHeader [CSR]\"]\n  component_src_components_admin_BlogEditor_tsx_BlogEditor[\"BlogEditor [CSR]\"]\n  component_src_components_admin_BlogEditorToolbar_tsx_BlogEditorToolbar[\"BlogEditorToolbar [CSR]\"]\n  component_src_components_admin_BlogManager_tsx_BlogManager[\"BlogManager [CSR]\"]\n  component_src_components_admin_EducationManager_tsx_EducationManager[\"EducationManager [CSR]\"]\n  component_src_components_admin_ExperienceManager_tsx_ExperienceManager[\"ExperienceManager [CSR]\"]\n  component_src_components_admin_LogoutButton_tsx_LogoutButton[\"LogoutButton [CSR]\"]\n  component_src_components_admin_ProfilePreview_tsx_ProfilePreview[\"ProfilePreview [CSR]\"]\n  component_src_components_admin_TechStackInput_tsx_TechStackInput[\"TechStackInput [CSR]\"]\n  component_src_components_admin_TrainingManager_tsx_TrainingManager[\"TrainingManager [CSR]\"]\n  component_src_components_blog_BlogEditForm_tsx_BlogEditForm[\"BlogEditForm [CSR]\"]\n  component_src_components_blog_BlogList_tsx_BlogList[\"BlogList [CSR]\"]\n  component_src_components_blog_BlogShareLinks_tsx_BlogShareLinks[\"BlogShareLinks [CSR]\"]\n  component_src_components_blog_BlogStatusDropdown_tsx_BlogStatusDropdown[\"BlogStatusDropdown [CSR]\"]\n  component_src_components_blog_GiscusComments_tsx_GiscusComments[\"GiscusComments [CSR]\"]\n  component_src_components_blog_MarkdownPreview_tsx_MarkdownPreview[\"MarkdownPreview [CSR]\"]\n  component_src_components_blog_PostNavigation_tsx_PostNavigation[\"PostNavigation [CSR]\"]\n  component_src_components_blog_ReadingProgressBar_tsx_ReadingProgressBar[\"ReadingProgressBar [CSR]\"]\n  component_src_components_blog_TableOfContents_tsx_TocItem[\"TocItem [CSR]\"]\n  component_src_components_common_AuthPanel_tsx_AuthPanel[\"AuthPanel\"]\n  component_src_components_common_CursorGlow_tsx_CursorGlow[\"CursorGlow [CSR]\"]\n  component_src_components_common_DynamicToaster_tsx_DynamicToaster[\"DynamicToaster [CSR]\"]\n  component_src_components_common_FloatingAdminButton_tsx_FloatingUserButton[\"FloatingUserButton [CSR]\"]\n  component_src_components_common_Logo_tsx_Logo[\"Logo\"]\n  component_src_components_common_PageHeader_tsx_PageHeader[\"PageHeader\"]\n  component_src_components_common_PageViewTracker_tsx_PageViewTracker[\"PageViewTracker [CSR]\"]\n  component_src_components_common_ScrollToTop_tsx_ScrollToTop[\"ScrollToTop [CSR]\"]\n  component_src_components_common_SilverButton_tsx_SilverButton[\"SilverButton [CSR]\"]\n  component_src_components_common_SkillIcon_tsx_SkillIcon[\"SkillIcon\"]\n  component_src_components_common_StatusBadge_tsx_StatusBadge[\"StatusBadge\"]\n  component_src_components_common_ThemeCard_tsx_THEME_CARD_CLASS[\"THEME_CARD_CLASS\"]\n  component_src_components_common_ThemeToggle_tsx_ThemeToggle[\"ThemeToggle [CSR]\"]\n  component_src_components_common_TopProgressBar_tsx_TopProgressBar[\"TopProgressBar [CSR]\"]\n  component_src_components_contact_ContactInfo_tsx_ContactInfo[\"ContactInfo [CSR]\"]\n  component_src_components_contact_GuestbookCommentSection_tsx_GuestbookCommentSection[\"GuestbookCommentSection [CSR]\"]\n  component_src_components_contact_GuestbookForm_tsx_GuestbookForm[\"GuestbookForm [CSR]\"]\n  component_src_components_contact_GuestbookList_tsx_GuestbookList[\"GuestbookList\"]\n  component_src_components_contact_GuestbookListClient_tsx_GuestbookListClient[\"GuestbookListClient [CSR]\"]\n  component_src_components_contact_LiveStatusWidget_tsx_LiveStatusWidget[\"LiveStatusWidget [CSR]\"]\n  component_src_components_home_AboutCTA_tsx_AboutCTA[\"AboutCTA [CSR]\"]\n  component_src_components_home_AboutLink_tsx_AboutLink[\"AboutLink [CSR]\"]\n  component_src_components_home_AIWorkflowSection_tsx_AIWorkflowSection[\"AIWorkflowSection\"]\n  component_src_components_home_BufferPhilosophySection_tsx_BufferPhilosophySection[\"BufferPhilosophySection\"]\n  component_src_components_home_ContactLink_tsx_ContactLink[\"ContactLink [CSR]\"]\n  component_src_components_home_HeroSection_tsx_HeroSection[\"HeroSection [CSR]\"]\n  component_src_components_home_MenuPreviewSection_tsx_MenuPreviewSection[\"MenuPreviewSection\"]\n  component_src_components_home_RecentBlogSection_tsx_RecentBlogSection[\"RecentBlogSection\"]\n  component_src_components_layout_Footer_tsx_Footer[\"Footer [CSR]\"]\n  component_src_components_layout_Header_tsx_Header[\"Header [CSR]\"]\n  component_src_components_mdx_MdxComponents_tsx_createMdxComponents[\"createMdxComponents\"]\n  component_src_components_projects_ProjectCard_tsx_ProjectCard[\"ProjectCard [CSR]\"]\n  component_src_components_projects_ProjectCardActions_tsx_ProjectCardActions[\"ProjectCardActions [CSR]\"]\n  component_src_components_projects_ProjectDetailModal_tsx_ProjectDetailModal[\"ProjectDetailModal [CSR]\"]\n  component_src_components_projects_ProjectList_tsx_ProjectList[\"ProjectList [CSR]\"]\n  component_src_components_projects_ProjectListSkeleton_tsx_ProjectListSkeleton[\"ProjectListSkeleton\"]\n  component_src_components_projects_ProjectsEmptyState_tsx_ProjectsEmptyState[\"ProjectsEmptyState [CSR]\"]\n  component_src_components_providers_AuthStateInitializer_tsx_AuthStateInitializer[\"AuthStateInitializer [CSR]\"]\n  component_src_components_providers_JotaiProvider_tsx_JotaiProvider[\"JotaiProvider [CSR]\"]\n  component_src_components_providers_ThemeProvider_tsx_ThemeProvider[\"ThemeProvider [CSR]\"]\n  component_src_components_ui_MonthPickerInput_tsx_MonthPickerInput[\"MonthPickerInput [CSR]\"]\n  component_src_app_about_loading_tsx_loading[\"loading\"]\n  component_src_app_about_page_tsx_page[\"page\"]\n  component_src_app_admin_layout_tsx_layout[\"layout\"]\n  component_src_app_blog_loading_tsx_loading[\"loading\"]\n  component_src_app_blog_page_tsx_page[\"page\"]\n  component_src_app_contact_loading_tsx_loading[\"loading\"]\n  component_src_app_contact_page_tsx_page[\"page\"]\n  component_src_app_login_page_tsx_page[\"page [CSR]\"]\n  component_src_app_projects_loading_tsx_loading[\"loading\"]\n  component_src_app_projects_page_tsx_page[\"page\"]\n  component_src_app_admin_dashboard_page_tsx_page[\"page\"]\n  component_src_app_admin_profile_page_tsx_page[\"page [CSR]\"]\n  component_src_app_admin_projects_page_tsx_page[\"page [CSR]\"]\n  component_src_app_admin_skills_page_tsx_page[\"page [CSR]\"]\n  component_src_app_blog__slug__page_tsx_page[\"page\"]\n  component_src_app_blog_new_page_tsx_page[\"page\"]\n  component_src_app_projects__slug__page_tsx_page[\"page\"]\n  component_src_app_blog_edit__id__page_tsx_page[\"page\"]\n  component_src_components_contact_GuestbookList_tsx_GuestbookList --> component_src_components_contact_GuestbookListClient_tsx_GuestbookListClient\n  component_src_components_contact_GuestbookListClient_tsx_GuestbookListClient --> component_src_components_contact_GuestbookCommentSection_tsx_GuestbookCommentSection\n  component_src_components_projects_ProjectCard_tsx_ProjectCard --> component_src_components_projects_ProjectCardActions_tsx_ProjectCardActions\n  component_src_components_projects_ProjectList_tsx_ProjectList --> component_src_components_projects_ProjectCard_tsx_ProjectCard\n  component_src_components_projects_ProjectList_tsx_ProjectList --> component_src_components_projects_ProjectDetailModal_tsx_ProjectDetailModal\n  route_src_app_page_tsx__ -.-> component_src_app_ProjectList_ProjectList\n  route_src_app_page_tsx__ -.-> component_src_app_PageHeader_PageHeader\n  route_src_app_page_tsx__ -.-> component_src_app_FloatingUserButton_FloatingUserButton\n  route_src_app_page_tsx__ -.-> component_src_app_AuthStateInitializerClient_AuthStateInitializerClient\n  route_src_app_about_page_tsx__about -.-> component_src_app_about_ProfilePhotoCard_ProfilePhotoCard\n  route_src_app_about_page_tsx__about -.-> component_src_app_about_SkillsSection_SkillsSection\n  route_src_app_about_page_tsx__about -.-> component_src_app_about_ExperienceTabsSection_ExperienceTabsSection\n  route_src_app_admin_dashboard_page_tsx__admin_dashboard -.-> component_src_app_admin_dashboard_AdminHeader_AdminHeader\n  route_src_app_admin_dashboard_page_tsx__admin_dashboard -.-> component_src_app_admin_dashboard_AdminSidebar_AdminSidebar\n  route_src_app_admin_dashboard_page_tsx__admin_dashboard -.-> component_src_app_admin_dashboard_StatCard_StatCard\n  route_src_app_admin_dashboard_page_tsx__admin_dashboard -.-> component_src_app_admin_dashboard_VisitorAnalyticsCard_VisitorAnalyticsCard\n  route_src_app_admin_dashboard_page_tsx__admin_dashboard -.-> component_src_app_admin_dashboard_QuickAction_QuickAction\n  route_src_app_admin_profile_page_tsx__admin_profile -.-> component_src_app_admin_profile_ProfilePreview_ProfilePreview\n  route_src_app_admin_profile_page_tsx__admin_profile -.-> component_src_app_admin_profile_ExperienceManager_ExperienceManager\n  route_src_app_admin_profile_page_tsx__admin_profile -.-> component_src_app_admin_profile_EducationManager_EducationManager\n  route_src_app_admin_profile_page_tsx__admin_profile -.-> component_src_app_admin_profile_TrainingManager_TrainingManager\n  route_src_app_admin_profile_page_tsx__admin_profile -.-> component_src_app_admin_profile_SilverSwitch_SilverSwitch\n  route_src_app_admin_projects_page_tsx__admin_projects -.-> component_src_app_admin_projects_TechStackInput_TechStackInput\n  route_src_app_admin_projects_page_tsx__admin_projects -.-> component_src_app_admin_projects_MonthPickerInput_MonthPickerInput\n  route_src_app_admin_skills_page_tsx__admin_skills -.-> component_src_app_admin_skills_SkillIcon_SkillIcon","erDiagram\n  blog_posts {\n    text author_id\n    text content\n    text created_at\n    text description\n    text id\n  }\n  about_profiles {\n    text created_at\n    text id\n    text intro_text\n    bool is_intro_visible\n    text main_copy\n  }\n  contact_links {\n    text created_at\n    text href\n    text icon_key\n    text id\n    bool is_copyable\n  }\n  educations {\n    text created_at\n    text end_date\n    int8 id\n    text major\n    text school_name\n  }\n  experiences {\n    text company_name\n    text created_at\n    text description\n    text end_date\n    int8 id\n  }\n  guestbook {\n    text avatar_url\n    text created_at\n    text emoji\n    int8 id\n    bool is_secret\n  }\n  guestbook_comments {\n    text avatar_url\n    text created_at\n    int8 guestbook_id\n    int8 id\n    text message\n  }\n  guestbook_likes {\n    int8 id\n    int8 guestbook_id\n    text user_id\n    text created_at\n  }\n  guestbook_comment_likes {\n    int8 comment_id\n    text created_at\n    int8 id\n    text user_id\n  }\n  inquiries {\n    text content\n    text created_at\n    text id\n    bool is_public\n    text password\n  }\n  profile {\n    text id\n    text introduction\n    text main_copy\n    text profile_image_url\n    Json story_json\n  }\n  profiles {\n    text avatar_url\n    text bio\n    text full_name\n    text id\n    text password\n  }\n  projects {\n    text category\n    text company_name\n    text created_at\n    text description\n    string[] detailed_tasks\n  }\n  page_views {\n    int8 id\n    text path\n    text visitor_id\n    text created_at\n  }\n  skills {\n    text category\n    text created_at\n    text icon_name\n    int8 id\n    text name\n  }\n  trainings {\n    text acquired_date\n    text created_at\n    text description\n    text end_date\n    int8 id\n  }\n  AuthPanel {\n    string name\n  }\n  GuestbookList {\n    string name\n  }\n  AuthStateInitializer {\n    string name\n  }\n  page {\n    string name\n  }\n  page {\n    string name\n  }\n  page {\n    string name\n  }\n  page {\n    string name\n  }\n  AuthPanel }|--|| profiles : \"queries\"\n  GuestbookList }|--|| guestbook : \"queries\"\n  GuestbookList }|--|| guestbook_comments : \"queries\"\n  GuestbookList }|--|| guestbook_likes : \"queries\"\n  AuthStateInitializer }|--|| profiles : \"queries\"\n  page }|--|| about_profiles : \"queries\"\n  page }|--|| contact_links : \"queries\"\n  page }|--|| profiles : \"queries\"\n  page }|--|| contact_links : \"queries\"\n  page }|--|| projects : \"queries\"\n  page }|--|| projects : \"queries\"\n  page }|--|| skills : \"queries\""];
+const rendered = [false,false,false];
+const ST = [{s:1,x:0,y:0},{s:1,x:0,y:0},{s:1,x:0,y:0}];
+
+async function renderTab(idx) {
+  if(rendered[idx]) return;
+  rendered[idx]=true;
+  const inner = document.getElementById('i'+idx);
+  try {
+    const {svg} = await mermaid.render('svg'+idx+'_'+Date.now(), diagrams[idx]);
+    inner.innerHTML = svg;
+    const svgEl = inner.querySelector('svg');
+    if(svgEl){svgEl.style.maxWidth='none';}
+    fitToView(idx);
+  } catch(e) {
+    inner.innerHTML='<pre style="color:#fb923c;padding:20px">Error: '+e.message+'</pre>';
+  }
+}
+
+function fitToView(idx) {
+  const wrap = document.getElementById('w'+idx);
+  const inner = document.getElementById('i'+idx);
+  const svg = inner.querySelector('svg');
+  if(!svg) return;
+  const wW=wrap.clientWidth, wH=wrap.clientHeight;
+  const sW=svg.getBBox?.()?.width||svg.clientWidth||800;
+  const sH=svg.getBBox?.()?.height||svg.clientHeight||600;
+  const s=Math.min(wW*0.9/sW, wH*0.9/sH, 1.2);
+  ST[idx]={s,x:0,y:0};
+  applyTransform(idx);
+}
+
+function applyTransform(idx) {
+  const {s,x,y} = ST[idx];
+  document.getElementById('i'+idx).style.transform=`translate(calc(-50% + ${x}px), calc(-50% + ${y}px)) scale(${s})`;
+}
+
+function zoom(idx,factor) {
+  ST[idx].s=Math.max(0.1, Math.min(5, ST[idx].s*factor));
+  applyTransform(idx);
+}
+
+function reset(idx) { fitToView(idx); }
+
+// Drag pan
+let drag=null;
+document.querySelectorAll('.diagram-wrap').forEach((wrap,idx)=>{
+  wrap.addEventListener('mousedown',e=>{drag={idx,sx:e.clientX-ST[idx].x,sy:e.clientY-ST[idx].y};wrap.classList.add('dragging')});
+  wrap.addEventListener('wheel',e=>{
+    e.preventDefault();
+    zoom(idx, e.deltaY<0?1.1:1/1.1);
+  },{passive:false});
+});
+document.addEventListener('mousemove',e=>{
+  if(!drag) return;
+  ST[drag.idx].x=e.clientX-drag.sx;
+  ST[drag.idx].y=e.clientY-drag.sy;
+  applyTransform(drag.idx);
+});
+document.addEventListener('mouseup',()=>{
+  if(drag) document.getElementById('w'+drag.idx).classList.remove('dragging');
+  drag=null;
+});
+
+async function show(idx) {
+  document.querySelectorAll('.tab').forEach((t,i)=>t.classList.toggle('active',i===idx));
+  document.querySelectorAll('.panel').forEach((p,i)=>p.classList.toggle('active',i===idx));
+  await renderTab(idx);
+}
+
+renderTab(0);
+</script>
+</body></html>
