@@ -111,4 +111,41 @@ urlpatterns = [path('users/', views.UserListView.as_view())]
     expect(nodes[0]!.provenance.adapter).toBe('django@0.1')
     expect(nodes[0]!.provenance.analyzerVersion).toBe('codebase-viz@0.1.0')
   })
+
+  it('include() prefix 합성 2-pass → /api/users (inferred)', async () => {
+    await writeFile('config/urls.py', `
+from django.urls import path, include
+urlpatterns = [
+    path('api/', include('api.urls')),
+]
+`)
+    await writeFile('api/urls.py', `
+from django.urls import path
+from . import views
+urlpatterns = [
+    path('users/', views.UserListView.as_view()),
+    path('users/<int:pk>/', views.UserDetailView.as_view()),
+]
+`)
+    const nodes = await parseUrls(tmpDir)
+    expect(nodes).toHaveLength(2)
+    const paths = nodes.map(n => n.path).sort()
+    expect(paths).toEqual(['/api/users', '/api/users/:pk'].sort())
+    nodes.forEach(n => {
+      expect(n.confidence).toBe('inferred')
+      if (n.confidence === 'inferred') {
+        expect(n.inferenceChain).toBeDefined()
+        expect(n.inferenceChain![0]).toContain('include()')
+      }
+    })
+  })
+
+  it('include() 대상 파일 없으면 결과 없음', async () => {
+    await writeFile('config/urls.py', `
+from django.urls import path, include
+urlpatterns = [path('api/', include('missing.urls'))]
+`)
+    const nodes = await parseUrls(tmpDir)
+    expect(nodes).toHaveLength(0)
+  })
 })

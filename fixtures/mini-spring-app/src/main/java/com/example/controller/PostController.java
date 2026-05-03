@@ -16,4 +16,9 @@ public class PostController {
     public Object getPost(@PathVariable Long postId) {
         return null;
     }
+
+    @GetMapping({"/featured", "/pinned"})
+    public List<Object> getFeaturedOrPinned() {
+        return List.of();
+    }
 }

@@ -98,4 +98,36 @@ public class UserService {
     const nodes = await parseAnnotations(tmpDir)
     expect(nodes).toHaveLength(0)
   })
+
+  it('@GetMapping({"/a", "/b"}) 배열 → 두 RouteNode 생성', async () => {
+    await writeFile('PostController.java', `
+@RestController
+@RequestMapping("/api/posts")
+public class PostController {
+    @GetMapping({"/featured", "/pinned"})
+    public List<Object> getFeaturedOrPinned() { return null; }
+}
+`)
+    const nodes = await parseAnnotations(tmpDir)
+    expect(nodes).toHaveLength(2)
+    const paths = nodes.map(n => n.path).sort()
+    expect(paths).toContain('/api/posts/featured')
+    expect(paths).toContain('/api/posts/pinned')
+    nodes.forEach(n => expect(n.confidence).toBe('verified'))
+  })
+
+  it('value={"/a"} element_value_pair 배열 → RouteNode 생성', async () => {
+    await writeFile('AltController.java', `
+@RestController
+public class AltController {
+    @GetMapping(value = {"/items", "/things"})
+    public List<Object> list() { return null; }
+}
+`)
+    const nodes = await parseAnnotations(tmpDir)
+    expect(nodes).toHaveLength(2)
+    const paths = nodes.map(n => n.path).sort()
+    expect(paths).toContain('/items')
+    expect(paths).toContain('/things')
+  })
 })

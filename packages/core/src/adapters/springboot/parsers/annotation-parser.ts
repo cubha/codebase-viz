@@ -35,8 +35,18 @@ async function findJavaFiles(repoRoot: string): Promise<string[]> {
   return results
 }
 
-// Extracts string_fragment from string_literal → annotation_argument_list
-function getAnnotationStringArg(annotation: Parser.SyntaxNode): string | undefined {
+function extractStringFragment(node: Parser.SyntaxNode): string | undefined {
+  for (let k = 0; k < node.childCount; k++) {
+    const frag = node.child(k)
+    if (frag !== null && frag.type === 'string_fragment') return frag.text
+  }
+  return undefined
+}
+
+// Extracts all string paths from annotation_argument_list.
+// Handles single string, array {"/a","/b"}, and value="/a" element_value_pair forms.
+function getAnnotationStringArgs(annotation: Parser.SyntaxNode): string[] {
+  const paths: string[] = []
   for (let i = 0; i < annotation.childCount; i++) {
     const child = annotation.child(i)
     if (child === null || child.type !== 'annotation_argument_list') continue
@@ -44,31 +54,45 @@ function getAnnotationStringArg(annotation: Parser.SyntaxNode): string | undefin
       const arg = child.child(j)
       if (arg === null) continue
       if (arg.type === 'string_literal') {
+        const v = extractStringFragment(arg)
+        if (v !== undefined) paths.push(v)
+      }
+      if (arg.type === 'element_value_array_initializer') {
         for (let k = 0; k < arg.childCount; k++) {
-          const frag = arg.child(k)
-          if (frag !== null && frag.type === 'string_fragment') return frag.text
+          const el = arg.child(k)
+          if (el !== null && el.type === 'string_literal') {
+            const v = extractStringFragment(el)
+            if (v !== undefined) paths.push(v)
+          }
         }
       }
-      // element_value_pair: value = "..."
       if (arg.type === 'element_value_pair') {
         for (let k = 0; k < arg.childCount; k++) {
           const val = arg.child(k)
-          if (val !== null && val.type === 'string_literal') {
+          if (val === null) continue
+          if (val.type === 'string_literal') {
+            const v = extractStringFragment(val)
+            if (v !== undefined) paths.push(v)
+          }
+          if (val.type === 'element_value_array_initializer') {
             for (let m = 0; m < val.childCount; m++) {
-              const frag = val.child(m)
-              if (frag !== null && frag.type === 'string_fragment') return frag.text
+              const el = val.child(m)
+              if (el !== null && el.type === 'string_literal') {
+                const v = extractStringFragment(el)
+                if (v !== undefined) paths.push(v)
+              }
             }
           }
         }
       }
     }
   }
-  return undefined
+  return paths
 }
 
 interface AnnotationInfo {
   name: string
-  pathArg?: string
+  pathArgs: string[]
   row: number
   col: number
 }
@@ -82,10 +106,8 @@ function extractAnnotations(modifiers: Parser.SyntaxNode): AnnotationInfo[] {
       const nameNode = node.child(1) // @ + name
       if (nameNode === null) continue
       const name = nameNode.text
-      const pathArg = getAnnotationStringArg(node)
-      const info: AnnotationInfo = { name, row: node.startPosition.row, col: node.startPosition.column }
-      if (pathArg !== undefined) info.pathArg = pathArg
-      infos.push(info)
+      const pathArgs = getAnnotationStringArgs(node)
+      infos.push({ name, pathArgs, row: node.startPosition.row, col: node.startPosition.column })
     }
   }
   return infos
@@ -132,8 +154,8 @@ export async function parseAnnotations(
           const annotations = extractAnnotations(child)
           for (const ann of annotations) {
             if (CONTROLLER_ANNOTATIONS.has(ann.name)) isController = true
-            if (ann.name === 'RequestMapping' && ann.pathArg !== undefined) {
-              classPrefix = ann.pathArg
+            if (ann.name === 'RequestMapping' && ann.pathArgs.length > 0 && ann.pathArgs[0] !== undefined) {
+              classPrefix = ann.pathArgs[0]
               prefixRow = ann.row
               prefixCol = ann.col
             }
@@ -165,31 +187,34 @@ export async function parseAnnotations(
               for (const ann of annotations) {
                 if (!HTTP_MAPPING_ANNOTATIONS.has(ann.name) && ann.name !== 'RequestMapping') continue
 
-                const methodSuffix = ann.pathArg ?? ''
-                const rawPath = composePath(classPrefix, methodSuffix)
-                if (rawPath === '') continue
-
-                const urlPath = normalizeUrlPath(rawPath)
+                const methodSuffixes = ann.pathArgs.length > 0 ? ann.pathArgs : ['']
                 const row = ann.row !== undefined ? ann.row : prefixRow
 
-                routes.push(
-                  createRouteNode({
-                    id: makeNodeId('route', relPath, `${urlPath}:${ann.name}`),
-                    path: urlPath,
-                    filePath: relPath,
-                    routeFileKind: 'route-handler',
-                    dynamicSegmentType: getDynamicSegmentType(urlPath),
-                    isGroupRoute: false,
-                    renderingMode: 'SSR',
-                    provenance: astToProvenance(
-                      relPath,
-                      { row, column: ann.col },
-                      'springboot@0.1',
-                      analyzerVersion,
-                    ),
-                    confidence: 'verified',
-                  }),
-                )
+                for (const methodSuffix of methodSuffixes) {
+                  const rawPath = composePath(classPrefix, methodSuffix)
+                  if (rawPath === '') continue
+
+                  const urlPath = normalizeUrlPath(rawPath)
+
+                  routes.push(
+                    createRouteNode({
+                      id: makeNodeId('route', relPath, `${urlPath}:${ann.name}`),
+                      path: urlPath,
+                      filePath: relPath,
+                      routeFileKind: 'page',
+                      dynamicSegmentType: getDynamicSegmentType(urlPath),
+                      isGroupRoute: false,
+                      renderingMode: 'SSR',
+                      provenance: astToProvenance(
+                        relPath,
+                        { row, column: ann.col },
+                        'springboot@0.1',
+                        analyzerVersion,
+                      ),
+                      confidence: 'verified',
+                    }),
+                  )
+                }
               }
             }
           }

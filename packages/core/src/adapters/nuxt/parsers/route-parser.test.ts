@@ -124,4 +124,44 @@ describe('NuxtAdapter parseRoutes', () => {
     expect(nodes).toHaveLength(1)
     expect(nodes[0]!.path).toBe('/api')
   })
+
+  it('definePageMeta({ ssr: false }) → renderingMode: CSR', async () => {
+    await writeFile('pages/client.vue', `
+<template><div>Client</div></template>
+<script setup lang="ts">
+definePageMeta({
+  ssr: false,
+})
+</script>
+`)
+    const nodes = await parseRoutes(tmpDir)
+    expect(nodes).toHaveLength(1)
+    expect(nodes[0]!.renderingMode).toBe('CSR')
+  })
+
+  it('definePageMeta({ ssr: true }) → renderingMode: SSR', async () => {
+    await writeFile('pages/ssr-explicit.vue', `
+<template><div>SSR</div></template>
+<script setup lang="ts">
+definePageMeta({ ssr: true })
+</script>
+`)
+    const nodes = await parseRoutes(tmpDir)
+    expect(nodes).toHaveLength(1)
+    expect(nodes[0]!.renderingMode).toBe('SSR')
+  })
+
+  it('definePageMeta 없으면 renderingMode: SSR (기본값)', async () => {
+    await writeFile('pages/default.vue')
+    const nodes = await parseRoutes(tmpDir)
+    expect(nodes).toHaveLength(1)
+    expect(nodes[0]!.renderingMode).toBe('SSR')
+  })
+
+  it('.ts 파일은 definePageMeta 파싱 없이 SSR 기본값', async () => {
+    await writeFile('pages/api.ts', 'export default defineEventHandler(() => {})')
+    const nodes = await parseRoutes(tmpDir)
+    expect(nodes).toHaveLength(1)
+    expect(nodes[0]!.renderingMode).toBe('SSR')
+  })
 })

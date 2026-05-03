@@ -114,4 +114,62 @@ def list_users():
     const nodes = await parseDecorators(tmpDir)
     expect(nodes.length).toBeGreaterThanOrEqual(2)
   })
+
+  it('APIRouter(prefix="/users") intra-file prefix 합성 → /users/list (verified)', async () => {
+    await writeFile('api.py', `
+from fastapi import APIRouter
+router = APIRouter(prefix='/users')
+
+@router.get('/list')
+def list_users():
+    return []
+
+@router.get('/{user_id}')
+def get_user(user_id: int):
+    return {}
+`)
+    const nodes = await parseDecorators(tmpDir)
+    expect(nodes).toHaveLength(2)
+    const paths = nodes.map(n => n.path).sort()
+    expect(paths).toContain('/users/list')
+    expect(paths).toContain('/users/:user_id')
+    nodes.forEach(n => expect(n.confidence).toBe('verified'))
+  })
+
+  it('include_router(X.router, prefix="/api") cross-file → /api/users (inferred)', async () => {
+    await writeFile('main.py', `
+from fastapi import FastAPI
+from routers import users
+
+app = FastAPI()
+app.include_router(users.router, prefix='/api')
+
+@app.get('/health')
+def health():
+    return {}
+`)
+    await writeFile('routers/users.py', `
+from fastapi import APIRouter
+router = APIRouter()
+
+@router.get('/users')
+def list_users():
+    return []
+
+@router.get('/users/{user_id}')
+def get_user(user_id: int):
+    return {}
+`)
+    const nodes = await parseDecorators(tmpDir)
+    const paths = nodes.map(n => n.path)
+    expect(paths).toContain('/health')
+    expect(paths).toContain('/api/users')
+    expect(paths).toContain('/api/users/:user_id')
+
+    const inferredRoutes = nodes.filter(n => n.confidence === 'inferred')
+    expect(inferredRoutes.length).toBeGreaterThanOrEqual(2)
+    if (inferredRoutes[0]?.confidence === 'inferred') {
+      expect(inferredRoutes[0].inferenceChain).toBeDefined()
+    }
+  })
 })

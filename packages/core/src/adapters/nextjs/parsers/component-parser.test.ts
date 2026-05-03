@@ -89,4 +89,43 @@ describe('parseComponents', () => {
 
     expect(edges).toHaveLength(0)
   })
+
+  it('@/ alias import → tsconfig paths 읽어서 IREdge 생성', async () => {
+    await fs.writeFile(
+      path.join(tmpDir, 'tsconfig.json'),
+      JSON.stringify({ compilerOptions: { paths: { '@/*': ['./*'] } } }),
+    )
+    await fs.mkdir(path.join(tmpDir, 'components'), { recursive: true })
+    await fs.writeFile(
+      path.join(tmpDir, 'components', 'Header.tsx'),
+      `export default function Header() { return <header/> }`,
+    )
+    await fs.writeFile(
+      path.join(tmpDir, 'Page.tsx'),
+      `import Header from '@/components/Header'\nexport default function Page() { return <Header/> }`,
+    )
+
+    const { nodes, edges } = await parseComponents(tmpDir)
+
+    expect(nodes).toHaveLength(2)
+    expect(edges).toHaveLength(1)
+    const edge = edges[0]!
+    expect(edge.kind).toBe('imports')
+    expect(edge.confidence).toBe('verified')
+  })
+
+  it('tsconfig.json 없으면 @/ alias 무시 → edge 없음', async () => {
+    await fs.writeFile(
+      path.join(tmpDir, 'Button.tsx'),
+      `export default function Button() { return <button/> }`,
+    )
+    await fs.writeFile(
+      path.join(tmpDir, 'Page.tsx'),
+      `import Button from '@/Button'\nexport default function Page() { return <Button/> }`,
+    )
+
+    const { edges } = await parseComponents(tmpDir)
+
+    expect(edges).toHaveLength(0)
+  })
 })

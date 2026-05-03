@@ -138,7 +138,7 @@ export async function parseControllers(
             id: makeNodeId('route', relPath, `${className}.${methodName}`),
             path: routePath,
             filePath: relPath,
-            routeFileKind: 'route-handler',
+            routeFileKind: 'page',
             dynamicSegmentType: getDynamicSegmentType(routePath),
             isGroupRoute: false,
             renderingMode: 'SSR',

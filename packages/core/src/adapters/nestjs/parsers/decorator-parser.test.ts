@@ -83,7 +83,7 @@ describe('parseControllers', () => {
     const dynamicCount = routes.filter(r => r.dynamicSegmentType === 'dynamic').length
     expect(dynamicCount).toBe(2)
 
-    expect(routes.every(r => r.routeFileKind === 'route-handler')).toBe(true)
+    expect(routes.every(r => r.routeFileKind === 'page')).toBe(true)
     expect(routes.every(r => r.renderingMode === 'SSR')).toBe(true)
     expect(routes.every(r => r.confidence === 'verified')).toBe(true)
   })

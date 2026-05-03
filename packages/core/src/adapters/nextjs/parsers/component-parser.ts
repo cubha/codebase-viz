@@ -14,6 +14,32 @@ import {
 
 const EXCLUDE_DIRS = new Set(['node_modules', '.next', '.git', 'dist'])
 
+// aliasPrefix → absolute resolved dir  (e.g. "@/" → "/repo/src")
+type PathsMap = Map<string, string>
+
+async function loadTsConfigPaths(repoRoot: string): Promise<PathsMap> {
+  for (const name of ['tsconfig.json', 'jsconfig.json']) {
+    try {
+      const raw = await fs.readFile(path.join(repoRoot, name), 'utf-8')
+      const parsed = JSON.parse(raw) as { compilerOptions?: { paths?: Record<string, string[]> } }
+      const tsPathsRecord = parsed.compilerOptions?.paths
+      if (tsPathsRecord == null) continue
+      const map: PathsMap = new Map()
+      for (const [alias, targets] of Object.entries(tsPathsRecord)) {
+        const firstTarget = targets[0]
+        if (firstTarget === undefined) continue
+        const aliasPrefix = alias.endsWith('/*') ? alias.slice(0, -2) : alias
+        const targetDir = firstTarget.endsWith('/*') ? firstTarget.slice(0, -2) : firstTarget
+        map.set(aliasPrefix, path.resolve(repoRoot, targetDir))
+      }
+      return map
+    } catch {
+      // not found or unparseable — try next
+    }
+  }
+  return new Map()
+}
+
 async function collectTsxFiles(dir: string): Promise<string[]> {
   const results: string[] = []
 
@@ -36,21 +62,40 @@ async function collectTsxFiles(dir: string): Promise<string[]> {
   return results
 }
 
+function resolveModuleSpecifier(
+  moduleSpecifier: string,
+  fromFileDir: string,
+  normalizedRoot: string,
+  aliasPaths: PathsMap,
+): string | undefined {
+  if (moduleSpecifier.startsWith('.')) {
+    return path.resolve(fromFileDir, moduleSpecifier)
+  }
+  for (const [aliasPrefix, targetDir] of aliasPaths) {
+    if (moduleSpecifier === aliasPrefix || moduleSpecifier.startsWith(aliasPrefix + '/')) {
+      const rest = moduleSpecifier.slice(aliasPrefix.length)
+      return path.join(targetDir, rest)
+    }
+  }
+  return undefined
+}
+
 function findTsxCandidate(
   moduleSpecifier: string,
   fromFileDir: string,
   tsxRelSet: Set<string>,
   normalizedRoot: string,
+  aliasPaths: PathsMap,
 ): string | undefined {
-  if (!moduleSpecifier.startsWith('.')) return undefined
+  const base = resolveModuleSpecifier(moduleSpecifier, fromFileDir, normalizedRoot, aliasPaths)
+  if (base === undefined) return undefined
 
-  const resolved = path.resolve(fromFileDir, moduleSpecifier)
   const candidates = [
-    resolved,
-    resolved.replace(/\.js$/, '.tsx'),
-    resolved.replace(/\.js$/, '.ts'),
-    resolved + '.tsx',
-    resolved + '.ts',
+    base,
+    base.replace(/\.js$/, '.tsx'),
+    base.replace(/\.js$/, '.ts'),
+    base + '.tsx',
+    base + '.ts',
   ]
 
   for (const candidate of candidates) {
@@ -67,6 +112,7 @@ export async function parseComponents(
   repoRoot: string,
 ): Promise<{ nodes: ComponentNode[]; edges: IREdge[] }> {
   const normalizedRoot = path.resolve(repoRoot)
+  const aliasPaths = await loadTsConfigPaths(normalizedRoot)
   const tsxAbsFiles = await collectTsxFiles(normalizedRoot)
 
   const tsxRelSet = new Set(
@@ -161,6 +207,7 @@ export async function parseComponents(
         fileDir,
         tsxRelSet,
         normalizedRoot,
+        aliasPaths,
       )
       if (targetRelPath === undefined) continue
 

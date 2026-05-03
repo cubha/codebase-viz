@@ -6,9 +6,21 @@ import {
   type RouteNode,
   type DynamicSegmentType,
   type Provenance,
+  type RenderingMode,
 } from '@codebase-viz/types'
 
 const NUXT_EXTENSIONS = new Set(['.vue', '.ts', '.tsx', '.js', '.jsx'])
+
+const DEFINE_PAGE_META_SSR_RE = /definePageMeta\s*\(\s*\{[^}]*?\bssr\s*:\s*(true|false)/s
+
+async function getVueRenderingMode(absFilePath: string): Promise<RenderingMode> {
+  if (!absFilePath.endsWith('.vue')) return 'SSR'
+  const content = await fs.readFile(absFilePath, 'utf-8').catch(() => null)
+  if (content === null) return 'SSR'
+  const match = DEFINE_PAGE_META_SSR_RE.exec(content)
+  if (match === null) return 'SSR'
+  return match[1] === 'false' ? 'CSR' : 'SSR'
+}
 
 async function walkDir(dir: string): Promise<string[]> {
   const entries = await fs.readdir(dir, { withFileTypes: true })
@@ -109,6 +121,8 @@ export async function parseRoutes(repoRoot: string, analyzerVersion = 'codebase-
       analyzerVersion,
     }
 
+    const renderingMode = await getVueRenderingMode(absFilePath)
+
     nodes.push(
       createRouteNode({
         id: makeNodeId('route', repoRelativeDir, path.basename(absFilePath)),
@@ -117,7 +131,7 @@ export async function parseRoutes(repoRoot: string, analyzerVersion = 'codebase-
         routeFileKind: 'page',
         dynamicSegmentType,
         isGroupRoute: false,
-        renderingMode: 'SSR',
+        renderingMode,
         provenance,
         confidence: 'verified',
       })
