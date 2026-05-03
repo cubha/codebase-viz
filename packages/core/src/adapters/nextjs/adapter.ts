@@ -9,6 +9,7 @@ import { parseRoutes } from './parsers/route-parser.js'
 import { parseComponents } from './parsers/component-parser.js'
 import { parseTables } from './parsers/db-parser.js'
 import { mapScreenToTable, mapServerFilesToTable } from './mapper/screen-mapper.js'
+import { detectTsOrmTables } from '../../db/index.js'
 
 export class NextJsAdapter implements IAdapter {
   readonly id = 'nextjs-app-router'
@@ -18,11 +19,13 @@ export class NextJsAdapter implements IAdapter {
   async analyze(ctx: AdapterContext): Promise<AdapterResult> {
     const { repoRoot, analyzerVersion } = ctx
 
-    const [routeNodes, components, tableNodes] = await Promise.all([
+    const [routeNodes, components, supabaseTables, ormTables] = await Promise.all([
       parseRoutes(repoRoot),
       parseComponents(repoRoot),
       parseTables(repoRoot),
+      detectTsOrmTables(repoRoot, analyzerVersion),
     ])
+    const tableNodes = [...supabaseTables, ...ormTables]
 
     // mapScreenToTable expects IRGraph; build an in-memory graph just for mapping.
     const tempGraph = createIRGraph({

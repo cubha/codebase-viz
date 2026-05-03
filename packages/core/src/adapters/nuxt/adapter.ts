@@ -4,6 +4,7 @@ import {
   type AdapterResult,
 } from '@codebase-viz/types'
 import { parseRoutes } from './parsers/route-parser.js'
+import { parseNuxtComponents } from './parsers/component-parser.js'
 
 export class NuxtAdapter implements IAdapter {
   readonly id = 'nuxt'
@@ -12,11 +13,14 @@ export class NuxtAdapter implements IAdapter {
 
   async analyze(ctx: AdapterContext): Promise<AdapterResult> {
     const { repoRoot, analyzerVersion } = ctx
-    const routeNodes = await parseRoutes(repoRoot, analyzerVersion)
+    const [routeNodes, components] = await Promise.all([
+      parseRoutes(repoRoot, analyzerVersion),
+      parseNuxtComponents(repoRoot, analyzerVersion),
+    ])
     return {
       routeNodes,
-      componentNodes: [],
-      componentEdges: [],
+      componentNodes: components.nodes,
+      componentEdges: components.edges,
       tableNodes: [],
       mapperEdges: [],
     }

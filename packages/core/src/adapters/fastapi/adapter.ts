@@ -5,6 +5,8 @@ import {
   EMPTY_ADAPTER_RESULT,
 } from '@codebase-viz/types'
 import { parseDecorators } from './parsers/decorator-parser.js'
+import { parseFastapiComponents } from './parsers/component-parser.js'
+import { parseSqlAlchemyModels } from './parsers/orm-parser.js'
 
 export class FastApiAdapter implements IAdapter {
   readonly id = 'fastapi'
@@ -13,10 +15,16 @@ export class FastApiAdapter implements IAdapter {
 
   async analyze(ctx: AdapterContext): Promise<AdapterResult> {
     const { repoRoot, analyzerVersion } = ctx
-    const routeNodes = await parseDecorators(repoRoot, analyzerVersion)
+    const [routeNodes, componentNodes, tableNodes] = await Promise.all([
+      parseDecorators(repoRoot, analyzerVersion),
+      parseFastapiComponents(repoRoot, analyzerVersion),
+      parseSqlAlchemyModels(repoRoot, analyzerVersion),
+    ])
     return {
       ...EMPTY_ADAPTER_RESULT,
       routeNodes,
+      componentNodes,
+      tableNodes,
     }
   }
 }

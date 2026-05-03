@@ -4,6 +4,7 @@ import {
   type AdapterResult,
 } from '@codebase-viz/types'
 import { parseControllers, parseModulesAndProviders } from './parsers/decorator-parser.js'
+import { detectTsOrmTables } from '../../db/index.js'
 
 export class NestJsAdapter implements IAdapter {
   readonly id = 'nestjs'
@@ -12,9 +13,10 @@ export class NestJsAdapter implements IAdapter {
 
   async analyze(ctx: AdapterContext): Promise<AdapterResult> {
     const { repoRoot, analyzerVersion } = ctx
-    const [controllerResult, moduleResult] = await Promise.all([
+    const [controllerResult, moduleResult, tableNodes] = await Promise.all([
       parseControllers(repoRoot, analyzerVersion),
       parseModulesAndProviders(repoRoot, analyzerVersion),
+      detectTsOrmTables(repoRoot, analyzerVersion),
     ])
     return {
       routeNodes: controllerResult.routes,
@@ -24,7 +26,7 @@ export class NestJsAdapter implements IAdapter {
         ...moduleResult.services,
       ],
       componentEdges: moduleResult.edges,
-      tableNodes: [],
+      tableNodes,
       mapperEdges: [],
     }
   }

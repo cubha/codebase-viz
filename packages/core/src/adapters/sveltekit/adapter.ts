@@ -4,6 +4,8 @@ import {
   type AdapterResult,
 } from '@codebase-viz/types'
 import { parseRoutes } from './parsers/route-parser.js'
+import { parseSvelteComponents } from './parsers/component-parser.js'
+import { detectTsOrmTables } from '../../db/index.js'
 
 export class SvelteKitAdapter implements IAdapter {
   readonly id = 'sveltekit'
@@ -12,8 +14,18 @@ export class SvelteKitAdapter implements IAdapter {
 
   async analyze(ctx: AdapterContext): Promise<AdapterResult> {
     const { repoRoot, analyzerVersion } = ctx
-    const routeNodes = await parseRoutes(repoRoot, analyzerVersion)
-    return { routeNodes, componentNodes: [], componentEdges: [], tableNodes: [], mapperEdges: [] }
+    const [routeNodes, components, tableNodes] = await Promise.all([
+      parseRoutes(repoRoot, analyzerVersion),
+      parseSvelteComponents(repoRoot, analyzerVersion),
+      detectTsOrmTables(repoRoot, analyzerVersion),
+    ])
+    return {
+      routeNodes,
+      componentNodes: components.nodes,
+      componentEdges: components.edges,
+      tableNodes,
+      mapperEdges: [],
+    }
   }
 }
 
