@@ -1,0 +1,9 @@
+{
+  "name": "mini-angular-app",
+  "version": "0.1.0",
+  "dependencies": {
+    "@angular/core": "^17.0.0",
+    "@angular/router": "^17.0.0",
+    "@angular/common": "^17.0.0"
+  }
+}

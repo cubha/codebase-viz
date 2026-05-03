@@ -54,4 +54,34 @@ describe('detectStack', () => {
     expect(info.parsingLevel).toBe('L2')
     expect(info.llmRecommended).toBe(true)
   })
+
+  it('Flask 프로젝트를 flask로 감지한다', async () => {
+    const info = await detectStack(path.join(FIXTURES, 'mini-flask-app'))
+    expect(info.framework).toBe('flask')
+    expect(info.adapterId).toBe('flask')
+  })
+
+  it('Next.js Pages Router를 nextjs-pages로 감지한다', async () => {
+    const info = await detectStack(path.join(FIXTURES, 'mini-nextpages-app'))
+    expect(info.framework).toBe('nextjs-pages')
+    expect(info.adapterId).toBe('nextjs-pages')
+  })
+
+  it('Vue SPA 프로젝트를 vue-spa로 감지한다', async () => {
+    const info = await detectStack(path.join(FIXTURES, 'mini-vue-spa-app'))
+    expect(info.framework).toBe('vue-spa')
+    expect(info.adapterId).toBe('vue-spa')
+  })
+
+  it('Remix 프로젝트를 remix로 감지한다', async () => {
+    const info = await detectStack(path.join(FIXTURES, 'mini-remix-app'))
+    expect(info.framework).toBe('remix')
+    expect(info.adapterId).toBe('remix')
+  })
+
+  it('Angular 프로젝트를 angular로 감지한다', async () => {
+    const info = await detectStack(path.join(FIXTURES, 'mini-angular-app'))
+    expect(info.framework).toBe('angular')
+    expect(info.adapterId).toBe('angular')
+  })
 })

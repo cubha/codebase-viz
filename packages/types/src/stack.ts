@@ -10,7 +10,11 @@ export type FrameworkKind =
   | 'nestjs'
   | 'django'
   | 'fastapi'
+  | 'flask'
   | 'springboot'
+  | 'vue-spa'
+  | 'remix'
+  | 'angular'
   | 'unknown'
 
 export interface StackInfo {

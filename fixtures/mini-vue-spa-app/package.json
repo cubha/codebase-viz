@@ -1,0 +1,9 @@
+{
+  "name": "mini-vue-spa-app",
+  "version": "0.1.0",
+  "type": "module",
+  "dependencies": {
+    "vue": "^3.4.0",
+    "vue-router": "^4.3.0"
+  }
+}

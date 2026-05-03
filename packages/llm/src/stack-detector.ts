@@ -22,7 +22,11 @@ const FRAMEWORK_PROFILES: Record<FrameworkKind, FrameworkProfile> = {
   'nestjs':            { adapterId: 'nestjs',            parsingLevel: 'L2', llmRecommended: false },
   'django':            { adapterId: 'django',            parsingLevel: 'L1', llmRecommended: false },
   'fastapi':           { adapterId: 'fastapi',           parsingLevel: 'L2', llmRecommended: false },
+  'flask':             { adapterId: 'flask',             parsingLevel: 'L2', llmRecommended: false },
   'springboot':        { adapterId: 'springboot',        parsingLevel: 'L2', llmRecommended: false },
+  'vue-spa':           { adapterId: 'vue-spa',           parsingLevel: 'L2', llmRecommended: false },
+  'remix':             { adapterId: 'remix',             parsingLevel: 'L1', llmRecommended: false },
+  'angular':           { adapterId: 'angular',           parsingLevel: 'L2', llmRecommended: false },
   'unknown':           {                                  parsingLevel: 'L3', llmRecommended: true  },
 }
 
@@ -90,11 +94,19 @@ export async function detectStack(repoRoot: string): Promise<StackInfo> {
     framework = 'vite-react'
   } else if ('@nestjs/core' in deps || '@nestjs/common' in deps) {
     framework = 'nestjs'
+  } else if ('@remix-run/react' in deps || ('react-router' in deps && !('next' in deps))) {
+    framework = 'remix'
+  } else if ('@angular/core' in deps) {
+    framework = 'angular'
+  } else if ('vue' in deps && !('nuxt' in deps)) {
+    framework = 'vue-spa'
   } else {
     const reqContent = await fs.readFile(path.join(repoRoot, 'requirements.txt'), 'utf8').catch(() => '')
     const reqLower = reqContent.toLowerCase()
     if (reqLower.includes('fastapi')) {
       framework = 'fastapi'
+    } else if (reqLower.includes('flask')) {
+      framework = 'flask'
     } else if (reqLower.includes('django') || await hasPath(repoRoot, 'manage.py')) {
       framework = 'django'
     } else if (await hasPath(repoRoot, 'pom.xml') || await hasPath(repoRoot, 'build.gradle') || await hasPath(repoRoot, 'build.gradle.kts')) {
