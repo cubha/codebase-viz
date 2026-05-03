@@ -7,6 +7,7 @@ import { PanelProvider } from './panelProvider.js'
 import { runAnalysis } from './analyzer.js'
 import { detectStack } from '@codebase-viz/llm'
 import type { IRGraph } from '@codebase-viz/types'
+import { setWasmDir } from '@codebase-viz/core'
 import type { DiagramSet } from '@codebase-viz/renderer'
 
 async function getStackStatus(workspaceRoot: string): Promise<Pick<StatusInfo, 'framework' | 'parsingLevel' | 'llmRecommended'>> {
@@ -149,6 +150,7 @@ async function doAnalyze(
 }
 
 export function activate(context: vscode.ExtensionContext): void {
+  setWasmDir(path.join(context.extensionPath, 'dist', 'wasm'))
   sidebarProvider = new SidebarProvider(context.extensionUri)
   context.subscriptions.push(
     vscode.window.registerWebviewViewProvider(SidebarProvider.viewType, sidebarProvider),

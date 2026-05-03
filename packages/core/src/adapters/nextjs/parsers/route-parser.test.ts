@@ -35,13 +35,13 @@ describe('parseRoutes', () => {
     expect(node!.confidence).toBe('verified')
   })
 
-  it('동적 라우트: app/blog/[slug]/page.tsx → dynamicSegmentType="dynamic"', async () => {
+  it('동적 라우트: app/blog/[slug]/page.tsx → path="/blog/:slug", dynamicSegmentType="dynamic"', async () => {
     await writeFile('app/blog/[slug]/page.tsx')
     const nodes = await parseRoutes(tmpDir)
     expect(nodes).toHaveLength(1)
     const node = nodes[0]
     expect(node).toBeDefined()
-    expect(node!.path).toBe('/blog/[slug]')
+    expect(node!.path).toBe('/blog/:slug')
     expect(node!.dynamicSegmentType).toBe('dynamic')
     expect(node!.isGroupRoute).toBe(false)
   })
@@ -92,14 +92,14 @@ describe('parseRoutes', () => {
     expect(layoutNode!.id).toBe('route:app:layout')
   })
 
-  it('중첩 동적: app/[lang]/[...slug]/page.tsx → dynamicSegmentType="catch-all"', async () => {
+  it('중첩 동적: app/[lang]/[...slug]/page.tsx → path="/:lang/:slug*", dynamicSegmentType="catch-all"', async () => {
     await writeFile('app/[lang]/[...slug]/page.tsx')
     const nodes = await parseRoutes(tmpDir)
     expect(nodes).toHaveLength(1)
     const node = nodes[0]
     expect(node).toBeDefined()
     expect(node!.dynamicSegmentType).toBe('catch-all')
-    expect(node!.path).toBe('/[lang]/[...slug]')
+    expect(node!.path).toBe('/:lang/:slug*')
   })
 
   it('renderingMode: SSG 감지', async () => {

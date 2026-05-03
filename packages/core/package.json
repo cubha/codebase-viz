@@ -10,7 +10,9 @@
   },
   "dependencies": {
     "@codebase-viz/types": "workspace:*",
-    "ts-morph": "^23.0.0"
+    "tree-sitter-wasms": "^0.1.13",
+    "ts-morph": "^23.0.0",
+    "web-tree-sitter": "^0.20.8"
   },
   "devDependencies": {
     "typescript": "*",

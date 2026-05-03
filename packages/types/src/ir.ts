@@ -4,6 +4,13 @@
 export type NodeId = string & { readonly __brand: 'NodeId' }
 export type EdgeId = string & { readonly __brand: 'EdgeId' }
 
+// ─── SourceLocation ──────────────────────────────────────────────────────────
+// Zero-based row/column from tree-sitter AST nodes.
+export interface SourceLocation {
+  row: number     // 0-based
+  column: number  // 0-based
+}
+
 // ─── Provenance ──────────────────────────────────────────────────────────────
 // All `file` paths are repo-relative. The absolute base lives on IRGraph.repoRoot.
 export interface Provenance {
@@ -11,6 +18,21 @@ export interface Provenance {
   line: number            // 1-based
   adapter: string         // e.g. "nextjs-app-router@0.1"
   analyzerVersion: string // e.g. "codebase-viz@0.1.0"
+}
+
+// Converts a tree-sitter AST node start position to Provenance.
+export function astToProvenance(
+  repoRelativePath: string,
+  startPosition: SourceLocation,
+  adapter: string,
+  analyzerVersion: string,
+): Provenance {
+  return {
+    file: repoRelativePath,
+    line: startPosition.row + 1,
+    adapter,
+    analyzerVersion,
+  }
 }
 
 // ─── Confidence (discriminated) ───────────────────────────────────────────────

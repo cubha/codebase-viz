@@ -9,6 +9,7 @@ import {
   type RenderingMode,
   type Provenance,
 } from '@codebase-viz/types'
+import { normalizeSegment } from '../../_shared/url-path-normalizer.js'
 
 const ROUTE_FILES: Record<string, RouteFileKind> = {
   '+page.svelte': 'page',
@@ -41,11 +42,11 @@ function getDynamicSegmentType(segments: string[]): DynamicSegmentType {
   return 'static'
 }
 
-// SvelteKit URL path: strip (group) segments from directory path
+// SvelteKit URL path: strip (group) segments, normalize [param] → :param
 function buildUrlPath(dirRelToRoutes: string): string {
   if (dirRelToRoutes === '') return '/'
   const segments = dirRelToRoutes.split('/')
-  const urlSegments = segments.filter(s => !/^\(.*\)$/.test(s))
+  const urlSegments = segments.filter(s => !/^\(.*\)$/.test(s)).map(normalizeSegment)
   return urlSegments.length === 0 ? '/' : '/' + urlSegments.join('/')
 }
 

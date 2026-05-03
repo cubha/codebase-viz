@@ -46,13 +46,13 @@ describe('parseRoutes (SvelteKit)', () => {
     expect(node!.dynamicSegmentType).toBe('static')
   })
 
-  it('동적 라우트: src/routes/blog/[slug]/+page.svelte → path="/blog/[slug]", dynamicSegmentType="dynamic"', async () => {
+  it('동적 라우트: src/routes/blog/[slug]/+page.svelte → path="/blog/:slug", dynamicSegmentType="dynamic"', async () => {
     await writeFile('src/routes/blog/[slug]/+page.svelte')
     const nodes = await parseRoutes(tmpDir)
     expect(nodes).toHaveLength(1)
     const node = nodes[0]
     expect(node).toBeDefined()
-    expect(node!.path).toBe('/blog/[slug]')
+    expect(node!.path).toBe('/blog/:slug')
     expect(node!.routeFileKind).toBe('page')
     expect(node!.dynamicSegmentType).toBe('dynamic')
   })
@@ -107,7 +107,7 @@ describe('parseRoutes (SvelteKit)', () => {
     expect(aboutPage).toBeDefined()
     expect(aboutPage!.routeFileKind).toBe('page')
 
-    const blogPage = nodes.find(n => n.path === '/blog/[slug]')
+    const blogPage = nodes.find(n => n.path === '/blog/:slug')
     expect(blogPage).toBeDefined()
     expect(blogPage!.routeFileKind).toBe('page')
     expect(blogPage!.dynamicSegmentType).toBe('dynamic')

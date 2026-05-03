@@ -1,1 +1,1 @@
-export { AdapterRegistry, createDefaultRegistry, NextJsAdapter, nextJsAdapter } from './adapters/index.js'
+export { AdapterRegistry, createDefaultRegistry, NextJsAdapter, nextJsAdapter, setWasmDir } from './adapters/index.js'

@@ -9,6 +9,7 @@ import {
   type RenderingMode,
   type Provenance,
 } from '@codebase-viz/types'
+import { normalizeSegment } from '../../_shared/url-path-normalizer.js'
 
 const ROUTE_FILES: Record<string, RouteFileKind> = {
   'page.tsx': 'page',
@@ -47,7 +48,7 @@ function getDynamicSegmentType(segments: string[]): DynamicSegmentType {
 function buildUrlPath(dirRelToApp: string): string {
   if (dirRelToApp === '') return '/'
   const segments = dirRelToApp.split('/')
-  const urlSegments = segments.filter(s => !/^\(.*\)$/.test(s))
+  const urlSegments = segments.filter(s => !/^\(.*\)$/.test(s)).map(normalizeSegment)
   return urlSegments.length === 0 ? '/' : '/' + urlSegments.join('/')
 }
 
