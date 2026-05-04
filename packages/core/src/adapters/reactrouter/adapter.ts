@@ -4,17 +4,22 @@ import {
   type AdapterResult,
   EMPTY_ADAPTER_RESULT,
 } from '@codebase-viz/types'
-import { parseReactRoutes } from './parsers/route-parser.js'
+import { parseReactRouterFull } from './parsers/route-parser.js'
 
 export class ReactRouterAdapter implements IAdapter {
   readonly id = 'react-router'
   readonly framework = 'react-router' as const
-  readonly parsingLevel = 'L1' as const
+  readonly parsingLevel = 'L2' as const
 
   async analyze(ctx: AdapterContext): Promise<AdapterResult> {
     const { repoRoot, analyzerVersion } = ctx
-    const routeNodes = await parseReactRoutes(repoRoot, analyzerVersion)
-    return { ...EMPTY_ADAPTER_RESULT, routeNodes }
+    const { routeNodes, componentNodes, rendersEdges } = await parseReactRouterFull(repoRoot, analyzerVersion)
+    return {
+      ...EMPTY_ADAPTER_RESULT,
+      routeNodes,
+      componentNodes,
+      componentEdges: rendersEdges,
+    }
   }
 }
 

@@ -113,6 +113,7 @@ export async function parseJpaEntities(
 
             let hasColumn = false
             let isPrimary = false
+            let isManyToOne = false
             let nullable: boolean = true
             let joinColumnName: string | undefined
 
@@ -166,9 +167,14 @@ export async function parseJpaEntities(
                   }
                 }
                 if (annotName === 'Id' || annotName === 'GeneratedValue') isPrimary = true
+                if (annotName === 'ManyToOne' || annotName === 'ManyToMany') {
+                  hasColumn = true
+                  isManyToOne = true
+                }
               }
             }
 
+            if (isPrimary) nullable = false
             if (!hasColumn && !isPrimary) continue
 
             const declarators = member.descendantsOfType('variable_declarator')
@@ -177,8 +183,14 @@ export async function parseJpaEntities(
               if (nameChild !== null) {
                 const typeNode = member.childForFieldName('type')
                 const colType = typeNode?.text ?? 'unknown'
-                const colName = joinColumnName ?? nameChild.text
-                columns.push({ name: colName, type: colType, nullable, isPrimaryKey: isPrimary })
+                const colName = joinColumnName ?? (isManyToOne ? nameChild.text + '_id' : nameChild.text)
+                columns.push({
+                  name: colName,
+                  type: colType,
+                  nullable,
+                  isPrimaryKey: isPrimary,
+                  ...(isManyToOne && colType !== 'unknown' ? { references: { table: colType, column: 'id' } } : {}),
+                })
               }
             }
           }

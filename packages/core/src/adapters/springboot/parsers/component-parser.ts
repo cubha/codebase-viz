@@ -54,9 +54,11 @@ export async function parseSpringComponents(
     const source = await fs.readFile(filePath, 'utf-8').catch(() => null)
     if (source === null) continue
 
-    const hasComponent = COMPONENT_ANNOTATIONS.size > 0 && source.includes('@Service')
+    const hasComponent = source.includes('@Service')
       || source.includes('@Component')
       || source.includes('@Repository')
+      || source.includes('@Controller')
+      || source.includes('@RestController')
     if (!hasComponent) continue
 
     const relPath = path.relative(repoRoot, filePath).replace(/\\/g, '/')

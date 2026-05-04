@@ -233,4 +233,90 @@ public class User {
     const tables = await parseJpaEntities(tmpDir, 'test')
     expect(tables[0]?.id).toBe('table:src/User.java:users')
   })
+
+  it('@Id 필드 nullable=false (II-A-4)', async () => {
+    await writeFile('User.java', `
+import jakarta.persistence.*;
+
+@Entity
+public class User {
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    @Column
+    private String name;
+}
+`)
+    const tables = await parseJpaEntities(tmpDir, 'test')
+    expect(tables).toHaveLength(1)
+    const idCol = (tables[0]?.columns ?? []).find(c => c.name === 'id')
+    expect(idCol?.nullable).toBe(false)
+    const nameCol = (tables[0]?.columns ?? []).find(c => c.name === 'name')
+    expect(nameCol?.nullable).toBe(true)
+  })
+
+  it('@ManyToOne → references 채우기 + JPA convention column name (II-A-3)', async () => {
+    await writeFile('Post.java', `
+import jakarta.persistence.*;
+
+@Entity
+public class Post {
+    @Id
+    private Long id;
+
+    @ManyToOne
+    private User author;
+}
+`)
+    const tables = await parseJpaEntities(tmpDir, 'test')
+    expect(tables).toHaveLength(1)
+    const fkCol = (tables[0]?.columns ?? []).find(c => c.name === 'author_id')
+    expect(fkCol).toBeDefined()
+    expect(fkCol?.references?.table).toBe('User')
+    expect(fkCol?.references?.column).toBe('id')
+  })
+
+  it('@ManyToOne + @JoinColumn → JoinColumn name + references (II-A-3)', async () => {
+    await writeFile('Post.java', `
+import jakarta.persistence.*;
+
+@Entity
+public class Post {
+    @Id
+    private Long id;
+
+    @ManyToOne
+    @JoinColumn(name = "author_id")
+    private User author;
+}
+`)
+    const tables = await parseJpaEntities(tmpDir, 'test')
+    expect(tables).toHaveLength(1)
+    const fkCol = (tables[0]?.columns ?? []).find(c => c.name === 'author_id')
+    expect(fkCol).toBeDefined()
+    expect(fkCol?.references?.table).toBe('User')
+    expect(fkCol?.references?.column).toBe('id')
+  })
+
+  it('@OneToMany 필드는 FK 컬럼 없음 (inverse side 스킵)', async () => {
+    await writeFile('User.java', `
+import jakarta.persistence.*;
+import java.util.List;
+
+@Entity
+public class User {
+    @Id
+    private Long id;
+
+    @OneToMany(mappedBy = "author")
+    private List<Post> posts;
+}
+`)
+    const tables = await parseJpaEntities(tmpDir, 'test')
+    expect(tables).toHaveLength(1)
+    const names = (tables[0]?.columns ?? []).map(c => c.name)
+    expect(names).not.toContain('posts')
+    expect(names).not.toContain('posts_id')
+  })
 })

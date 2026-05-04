@@ -107,4 +107,40 @@ public class UserService {}
     const nodes = await parseSpringComponents(tmpDir, 'test')
     expect(nodes[0]?.id).toBe('component:src/UserService.java:UserService')
   })
+
+  it('@Controller 클래스 추출', async () => {
+    await writeFile('UserController.java', `
+import org.springframework.stereotype.Controller;
+
+@Controller
+public class UserController {
+}
+`)
+    const nodes = await parseSpringComponents(tmpDir, 'test')
+    expect(nodes).toHaveLength(1)
+    expect(nodes[0]?.name).toBe('UserController')
+    expect(nodes[0]?.runtime).toBe('server')
+  })
+
+  it('@RestController 클래스 추출', async () => {
+    await writeFile('ApiController.java', `
+import org.springframework.web.bind.annotation.RestController;
+
+@RestController
+public class ApiController {
+}
+`)
+    const nodes = await parseSpringComponents(tmpDir, 'test')
+    expect(nodes).toHaveLength(1)
+    expect(nodes[0]?.name).toBe('ApiController')
+  })
+
+  it('mini-spring-app fixture — Controller/Service 모두 추출', async () => {
+    const FIXTURE = path.resolve(process.cwd(), 'fixtures/mini-spring-app')
+    const nodes = await parseSpringComponents(FIXTURE, 'test')
+    const names = nodes.map(n => n.name)
+    expect(names).toContain('UserController')
+    expect(names).toContain('PostController')
+    expect(names).toContain('UserService')
+  })
 })

@@ -26,7 +26,7 @@ const FRAMEWORK_PROFILES: Record<FrameworkKind, FrameworkProfile> = {
   'nextjs-pages':      { adapterId: 'nextjs-pages',      parsingLevel: 'L1', llmRecommended: false },
   'flask':             { adapterId: 'flask',             parsingLevel: 'L1', llmRecommended: false },
   'vue-spa':           { adapterId: 'vue-spa',           parsingLevel: 'L1', llmRecommended: false },
-  'react-router':      { adapterId: 'react-router',      parsingLevel: 'L1', llmRecommended: false },
+  'react-router':      { adapterId: 'react-router',      parsingLevel: 'L2', llmRecommended: false },
   'remix':             { adapterId: 'remix',             parsingLevel: 'L1', llmRecommended: false },
   'angular':           { adapterId: 'angular',           parsingLevel: 'L1', llmRecommended: false },
   'expo':              { adapterId: 'expo',              parsingLevel: 'L1', llmRecommended: true  },

@@ -1,6 +1,6 @@
 import * as path from 'node:path'
 import { describe, it, expect } from 'vitest'
-import { parseReactRoutes } from './route-parser.js'
+import { parseReactRoutes, parseReactRouterFull } from './route-parser.js'
 
 const FIXTURE = path.resolve(process.cwd(), 'fixtures/mini-react-router-app')
 
@@ -34,5 +34,42 @@ describe('parseReactRoutes — mini-react-router-app fixture', () => {
   it('routeFileKind는 page', async () => {
     const routes = await parseReactRoutes(FIXTURE, 'test@0.1')
     for (const r of routes) expect(r.routeFileKind).toBe('page')
+  })
+})
+
+describe('parseReactRouterFull — renders 엣지 (II-A-1)', () => {
+  it('4개 라우트에 대해 ComponentNode 생성', async () => {
+    const { componentNodes } = await parseReactRouterFull(FIXTURE, 'test@0.1')
+    expect(componentNodes.length).toBeGreaterThanOrEqual(4)
+    const names = componentNodes.map(n => n.name)
+    expect(names).toContain('HomePage')
+    expect(names).toContain('AboutPage')
+    expect(names).toContain('UserListPage')
+    expect(names).toContain('UserDetailPage')
+  })
+
+  it('renders 엣지: 라우트→컴포넌트 수가 routeNodes 수와 동일', async () => {
+    const { routeNodes, rendersEdges } = await parseReactRouterFull(FIXTURE, 'test@0.1')
+    expect(rendersEdges.length).toBeGreaterThanOrEqual(routeNodes.length)
+  })
+
+  it('renders 엣지 kind는 renders', async () => {
+    const { rendersEdges } = await parseReactRouterFull(FIXTURE, 'test@0.1')
+    for (const e of rendersEdges) expect(e.kind).toBe('renders')
+  })
+
+  it('ComponentNode.runtime은 client', async () => {
+    const { componentNodes } = await parseReactRouterFull(FIXTURE, 'test@0.1')
+    for (const c of componentNodes) expect(c.runtime).toBe('client')
+  })
+
+  it('/ 라우트 → HomePage renders 엣지 존재', async () => {
+    const { routeNodes, rendersEdges, componentNodes } = await parseReactRouterFull(FIXTURE, 'test@0.1')
+    const homeRoute = routeNodes.find(r => r.path === '/')
+    const homeComp = componentNodes.find(c => c.name === 'HomePage')
+    expect(homeRoute).toBeDefined()
+    expect(homeComp).toBeDefined()
+    const edge = rendersEdges.find(e => e.from === homeRoute?.id && e.to === homeComp?.id)
+    expect(edge).toBeDefined()
   })
 })
