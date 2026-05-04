@@ -119,11 +119,29 @@ export async function detectStack(repoRoot: string): Promise<StackInfo> {
 
   const profile = FRAMEWORK_PROFILES[framework]
 
+  // ORM detection — Python
+  const reqContentForOrm = await fs.readFile(path.join(repoRoot, 'requirements.txt'), 'utf8').catch(() => '')
+  const pyprojectContent = await fs.readFile(path.join(repoRoot, 'pyproject.toml'), 'utf8').catch(() => '')
+  const hasSQLAlchemy = reqContentForOrm.toLowerCase().includes('sqlalchemy') || pyprojectContent.toLowerCase().includes('sqlalchemy')
+
+  // ORM detection — Spring (build.gradle / build.gradle.kts / pom.xml)
+  const buildGradleContent = await fs.readFile(path.join(repoRoot, 'build.gradle'), 'utf8').catch(() => '')
+  const buildGradleKtsContent = await fs.readFile(path.join(repoRoot, 'build.gradle.kts'), 'utf8').catch(() => '')
+  const pomContent = await fs.readFile(path.join(repoRoot, 'pom.xml'), 'utf8').catch(() => '')
+  const hasSpringDataJpa = [buildGradleContent, buildGradleKtsContent, pomContent].some(c =>
+    c.includes('spring-data-jpa') || c.includes('spring-boot-starter-data-jpa')
+  )
+
   return {
     framework,
     hasSupabase: '@supabase/supabase-js' in deps || '@supabase/ssr' in deps,
     hasPrisma: '@prisma/client' in deps,
     hasDexie: 'dexie' in deps,
+    hasDrizzle: 'drizzle-orm' in deps,
+    hasTypeOrm: 'typeorm' in deps || '@typeorm/core' in deps,
+    hasSQLAlchemy,
+    hasDjangoORM: framework === 'django',
+    hasSpringDataJpa,
     isMonorepo,
     appDirs,
     ...(profile.adapterId !== undefined ? { adapterId: profile.adapterId } : {}),

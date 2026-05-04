@@ -1,5 +1,7 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, afterEach } from 'vitest'
 import * as path from 'node:path'
+import * as fs from 'node:fs/promises'
+import * as os from 'node:os'
 import { fileURLToPath } from 'node:url'
 import { detectStack } from './stack-detector.js'
 
@@ -83,5 +85,107 @@ describe('detectStack', () => {
     const info = await detectStack(path.join(FIXTURES, 'mini-angular-app'))
     expect(info.framework).toBe('angular')
     expect(info.adapterId).toBe('angular')
+  })
+})
+
+describe('detectStack — ORM 플래그 감지', () => {
+  const tmpDirs: string[] = []
+
+  async function makeTmpDir(): Promise<string> {
+    const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'codebase-viz-orm-test-'))
+    tmpDirs.push(dir)
+    return dir
+  }
+
+  afterEach(async () => {
+    for (const dir of tmpDirs.splice(0)) {
+      await fs.rm(dir, { recursive: true, force: true }).catch(() => undefined)
+    }
+  })
+
+  it('drizzle-orm → hasDrizzle: true', async () => {
+    const dir = await makeTmpDir()
+    await fs.writeFile(
+      path.join(dir, 'package.json'),
+      JSON.stringify({
+        dependencies: { 'drizzle-orm': '^0.29.0', 'vite': '^5.0.0', 'react': '^18.0.0' },
+      }),
+    )
+    const info = await detectStack(dir)
+    expect(info.hasDrizzle).toBe(true)
+    expect(info.hasTypeOrm).toBe(false)
+  })
+
+  it('typeorm → hasTypeOrm: true', async () => {
+    const dir = await makeTmpDir()
+    await fs.writeFile(
+      path.join(dir, 'package.json'),
+      JSON.stringify({
+        dependencies: { 'typeorm': '^0.3.0', 'vite': '^5.0.0', 'react': '^18.0.0' },
+      }),
+    )
+    const info = await detectStack(dir)
+    expect(info.hasTypeOrm).toBe(true)
+    expect(info.hasDrizzle).toBe(false)
+  })
+
+  it('requirements.txt에 sqlalchemy → hasSQLAlchemy: true', async () => {
+    const dir = await makeTmpDir()
+    await fs.writeFile(path.join(dir, 'requirements.txt'), 'SQLAlchemy>=2.0\nfastapi>=0.100\n')
+    const info = await detectStack(dir)
+    expect(info.hasSQLAlchemy).toBe(true)
+    expect(info.framework).toBe('fastapi')
+  })
+
+  it('pyproject.toml에 sqlalchemy → hasSQLAlchemy: true', async () => {
+    const dir = await makeTmpDir()
+    await fs.writeFile(
+      path.join(dir, 'pyproject.toml'),
+      '[tool.poetry.dependencies]\nsqlalchemy = "^2.0"\nflask = "^3.0"\n',
+    )
+    const info = await detectStack(dir)
+    expect(info.hasSQLAlchemy).toBe(true)
+  })
+
+  it('django 프레임워크 → hasDjangoORM: true', async () => {
+    const info = await detectStack(path.join(FIXTURES, 'mini-django-app'))
+    expect(info.framework).toBe('django')
+    expect(info.hasDjangoORM).toBe(true)
+  })
+
+  it('build.gradle에 spring-boot-starter-data-jpa → hasSpringDataJpa: true', async () => {
+    const dir = await makeTmpDir()
+    await fs.writeFile(
+      path.join(dir, 'build.gradle'),
+      "dependencies {\n  implementation 'org.springframework.boot:spring-boot-starter-data-jpa:3.2.0'\n}\n",
+    )
+    const info = await detectStack(dir)
+    expect(info.hasSpringDataJpa).toBe(true)
+    expect(info.framework).toBe('springboot')
+  })
+
+  it('pom.xml에 spring-data-jpa → hasSpringDataJpa: true', async () => {
+    const dir = await makeTmpDir()
+    await fs.writeFile(
+      path.join(dir, 'pom.xml'),
+      '<project><dependencies><dependency><artifactId>spring-data-jpa</artifactId></dependency></dependencies></project>',
+    )
+    const info = await detectStack(dir)
+    expect(info.hasSpringDataJpa).toBe(true)
+  })
+
+  it('ORM 의존성 없으면 모두 false', async () => {
+    const dir = await makeTmpDir()
+    await fs.writeFile(
+      path.join(dir, 'package.json'),
+      JSON.stringify({ dependencies: { 'next': '^15.0.0', 'react': '^18.0.0' } }),
+    )
+    await fs.mkdir(path.join(dir, 'app'), { recursive: true })
+    const info = await detectStack(dir)
+    expect(info.hasDrizzle).toBe(false)
+    expect(info.hasTypeOrm).toBe(false)
+    expect(info.hasSQLAlchemy).toBe(false)
+    expect(info.hasDjangoORM).toBe(false)
+    expect(info.hasSpringDataJpa).toBe(false)
   })
 })

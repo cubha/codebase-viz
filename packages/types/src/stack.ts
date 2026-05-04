@@ -22,6 +22,11 @@ export interface StackInfo {
   hasSupabase: boolean
   hasPrisma: boolean
   hasDexie: boolean
+  hasDrizzle: boolean
+  hasTypeOrm: boolean
+  hasSQLAlchemy: boolean
+  hasDjangoORM: boolean
+  hasSpringDataJpa: boolean
   isMonorepo: boolean
   appDirs: string[]
   adapterId?: string          // undefined → no static adapter; LLM-only
