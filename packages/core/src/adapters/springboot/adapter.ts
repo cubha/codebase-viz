@@ -16,9 +16,9 @@ export class SpringBootAdapter implements IAdapter {
   async analyze(ctx: AdapterContext): Promise<AdapterResult> {
     const { repoRoot, analyzerVersion } = ctx
     const [routeNodes, componentNodes, tableNodes] = await Promise.all([
-      parseAnnotations(repoRoot, analyzerVersion),
-      parseSpringComponents(repoRoot, analyzerVersion),
-      parseJpaEntities(repoRoot, analyzerVersion),
+      parseAnnotations(repoRoot, analyzerVersion).catch(() => []),
+      parseSpringComponents(repoRoot, analyzerVersion).catch(() => []),
+      parseJpaEntities(repoRoot, analyzerVersion).catch(() => []),
     ])
     return {
       ...EMPTY_ADAPTER_RESULT,

@@ -16,9 +16,9 @@ export class DjangoAdapter implements IAdapter {
   async analyze(ctx: AdapterContext): Promise<AdapterResult> {
     const { repoRoot, analyzerVersion } = ctx
     const [routeNodes, componentNodes, tableNodes] = await Promise.all([
-      parseUrls(repoRoot, analyzerVersion),
-      parseDjangoComponents(repoRoot, analyzerVersion),
-      parseDjangoOrmModels(repoRoot, analyzerVersion),
+      parseUrls(repoRoot, analyzerVersion).catch(() => []),
+      parseDjangoComponents(repoRoot, analyzerVersion).catch(() => []),
+      parseDjangoOrmModels(repoRoot, analyzerVersion).catch(() => []),
     ])
     return {
       ...EMPTY_ADAPTER_RESULT,

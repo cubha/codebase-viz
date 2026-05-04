@@ -16,9 +16,9 @@ export class FastApiAdapter implements IAdapter {
   async analyze(ctx: AdapterContext): Promise<AdapterResult> {
     const { repoRoot, analyzerVersion } = ctx
     const [routeNodes, componentNodes, tableNodes] = await Promise.all([
-      parseDecorators(repoRoot, analyzerVersion),
-      parseFastapiComponents(repoRoot, analyzerVersion),
-      parseSqlAlchemyModels(repoRoot, analyzerVersion),
+      parseDecorators(repoRoot, analyzerVersion).catch(() => []),
+      parseFastapiComponents(repoRoot, analyzerVersion).catch(() => []),
+      parseSqlAlchemyModels(repoRoot, analyzerVersion).catch(() => []),
     ])
     return {
       ...EMPTY_ADAPTER_RESULT,

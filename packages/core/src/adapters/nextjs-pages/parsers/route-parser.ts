@@ -5,6 +5,7 @@ import {
   makeNodeId,
   type RouteNode,
   type DynamicSegmentType,
+  type RenderingMode,
   type Provenance,
 } from '@codebase-viz/types'
 
@@ -36,6 +37,16 @@ function fileToRoute(relToPages: string): { urlPath: string; dynamicSegmentType:
     clean.includes(':') ? 'dynamic' : 'static'
 
   return { urlPath: clean, dynamicSegmentType }
+}
+
+function detectRenderingMode(source: string): RenderingMode {
+  const hasGetStaticProps = /export\s+(async\s+)?function\s+getStaticProps\b/.test(source)
+  const hasGetServerSideProps = /export\s+(async\s+)?function\s+getServerSideProps\b/.test(source)
+  const hasRevalidate = /\brevalidate\s*:/.test(source)
+
+  if (hasGetServerSideProps) return 'SSR'
+  if (hasGetStaticProps) return hasRevalidate ? 'ISR' : 'SSG'
+  return 'SSR'
 }
 
 async function walkPages(pagesDir: string): Promise<string[]> {
@@ -81,6 +92,9 @@ export async function parseNextPagesRoutes(
     const routeInfo = fileToRoute(relToPages)
     if (routeInfo === null) continue
 
+    const source = await fs.readFile(filePath, 'utf-8').catch(() => '')
+    const renderingMode = detectRenderingMode(source)
+
     const relPath = path.relative(repoRoot, filePath).replace(/\\/g, '/')
     const provenance: Provenance = {
       file: relPath,
@@ -97,7 +111,7 @@ export async function parseNextPagesRoutes(
         routeFileKind: 'page',
         dynamicSegmentType: routeInfo.dynamicSegmentType,
         isGroupRoute: false,
-        renderingMode: 'SSR',
+        renderingMode,
         provenance,
         confidence: 'verified',
       }),
