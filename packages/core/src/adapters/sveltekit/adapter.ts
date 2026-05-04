@@ -6,6 +6,7 @@ import {
 import { parseRoutes } from './parsers/route-parser.js'
 import { parseSvelteComponents } from './parsers/component-parser.js'
 import { detectTsOrmTables } from '../../db/index.js'
+import { buildMapperEdges } from '../_shared/mapper-utils.js'
 
 export class SvelteKitAdapter implements IAdapter {
   readonly id = 'sveltekit'
@@ -21,12 +22,13 @@ export class SvelteKitAdapter implements IAdapter {
       parseSvelteComponents(repoRoot, analyzerVersion),
       hasAnyTsOrm ? detectTsOrmTables(repoRoot, analyzerVersion) : Promise.resolve([]),
     ])
+    const mapperEdges = buildMapperEdges(routeNodes, components.nodes, tableNodes, analyzerVersion)
     return {
       routeNodes,
       componentNodes: components.nodes,
       componentEdges: components.edges,
       tableNodes,
-      mapperEdges: [],
+      mapperEdges,
     }
   }
 }

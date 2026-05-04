@@ -5,6 +5,7 @@ import {
 } from '@codebase-viz/types'
 import { parseControllers, parseModulesAndProviders } from './parsers/decorator-parser.js'
 import { detectTsOrmTables } from '../../db/index.js'
+import { buildMapperEdges } from '../_shared/mapper-utils.js'
 
 export class NestJsAdapter implements IAdapter {
   readonly id = 'nestjs'
@@ -20,16 +21,18 @@ export class NestJsAdapter implements IAdapter {
       parseModulesAndProviders(repoRoot, analyzerVersion),
       hasAnyTsOrm ? detectTsOrmTables(repoRoot, analyzerVersion) : Promise.resolve([]),
     ])
+    const allComponents = [
+      ...controllerResult.controllers,
+      ...moduleResult.modules,
+      ...moduleResult.services,
+    ]
+    const mapperEdges = buildMapperEdges(controllerResult.routes, allComponents, tableNodes, analyzerVersion)
     return {
       routeNodes: controllerResult.routes,
-      componentNodes: [
-        ...controllerResult.controllers,
-        ...moduleResult.modules,
-        ...moduleResult.services,
-      ],
+      componentNodes: allComponents,
       componentEdges: moduleResult.edges,
       tableNodes,
-      mapperEdges: [],
+      mapperEdges,
     }
   }
 }
