@@ -33,6 +33,89 @@ async function findPyFiles(repoRoot: string): Promise<string[]> {
   return results
 }
 
+function extractStringContent(node: import('web-tree-sitter').SyntaxNode): string | undefined {
+  for (let i = 0; i < node.childCount; i++) {
+    const child = node.child(i)
+    if (child !== null && child.type === 'string_content') return child.text
+  }
+  return undefined
+}
+
+/**
+ * call의 argument_list에서 keyword_argument를 탐색하여 nullable 값을 추출한다.
+ * 기본값: true (SQLAlchemy Column/mapped_column 기본값)
+ */
+function parseNullable(callNode: import('web-tree-sitter').SyntaxNode): boolean {
+  const argList = callNode.childForFieldName('arguments')
+  if (argList === null) return true
+
+  for (let i = 0; i < argList.childCount; i++) {
+    const arg = argList.child(i)
+    if (arg === null || arg.type !== 'keyword_argument') continue
+
+    const key = arg.child(0)
+    const val = arg.child(2)
+    if (key?.text === 'nullable' && val !== null) {
+      if (val.text === 'True') return true
+      if (val.text === 'False') return false
+    }
+  }
+
+  return true
+}
+
+/**
+ * call의 argument_list에서 첫 번째 positional argument(타입명)를 추출한다.
+ * ForeignKey(...)가 있으면 타입명 뒤 →FK를 붙인다.
+ * 추출 실패 시 funcName(fallback)을 반환한다.
+ */
+function parseColumnType(
+  callNode: import('web-tree-sitter').SyntaxNode,
+  fallback: string,
+): string {
+  const argList = callNode.childForFieldName('arguments')
+  if (argList === null) return fallback
+
+  let firstPositionalType: string | undefined
+  let hasForeignKey = false
+
+  for (let i = 0; i < argList.childCount; i++) {
+    const arg = argList.child(i)
+    if (arg === null) continue
+
+    // keyword_argument는 건너뜀
+    if (arg.type === 'keyword_argument') continue
+    // 쉼표·괄호 등 punctuation은 건너뜀
+    if (arg.type === ',') continue
+
+    if (arg.type === 'call') {
+      // ForeignKey(...) call 여부 확인
+      const funcNode = arg.childForFieldName('function')
+      const callName =
+        funcNode?.type === 'attribute' ? funcNode.lastChild?.text : funcNode?.text
+      if (callName === 'ForeignKey') {
+        hasForeignKey = true
+        continue
+      }
+      // 다른 call 형태 (예: Mapped[...]) — positional 타입으로 사용하지 않음
+      continue
+    }
+
+    if (arg.type === 'identifier' || arg.type === 'attribute') {
+      if (firstPositionalType === undefined) {
+        const typeName =
+          arg.type === 'attribute' ? (arg.lastChild?.text ?? arg.text) : arg.text
+        firstPositionalType = typeName
+      }
+      continue
+    }
+  }
+
+  if (firstPositionalType === undefined) return fallback
+
+  return hasForeignKey ? `${firstPositionalType}→FK` : firstPositionalType
+}
+
 export async function parseSqlAlchemyModels(
   repoRoot: string,
   analyzerVersion: string,
@@ -77,9 +160,32 @@ export async function parseSqlAlchemyModels(
 
       const className = nameNode.text
       const columns: ColumnDef[] = []
+      let tableName: string = className // 기본값: 클래스명
 
       const body = node.childForFieldName('body')
       if (body !== null) {
+        // 1패스: __tablename__ 추출
+        for (let j = 0; j < body.childCount; j++) {
+          const stmt = body.child(j)
+          if (stmt === null || stmt.type !== 'expression_statement') continue
+
+          const assign = stmt.child(0)
+          if (assign === null || assign.type !== 'assignment') continue
+
+          const left = assign.childForFieldName('left')
+          const right = assign.childForFieldName('right')
+          if (left === null || right === null) continue
+
+          if (left.type === 'identifier' && left.text === '__tablename__') {
+            if (right.type === 'string') {
+              const extracted = extractStringContent(right)
+              if (extracted !== undefined) tableName = extracted
+            }
+            break
+          }
+        }
+
+        // 2패스: Column/mapped_column 필드 추출
         for (let j = 0; j < body.childCount; j++) {
           const stmt = body.child(j)
           if (stmt === null) continue
@@ -92,6 +198,7 @@ export async function parseSqlAlchemyModels(
             if (left === null || right === null || left.type !== 'identifier') continue
 
             const fieldName = left.text
+            if (fieldName === '__tablename__') continue
             if (right.type !== 'call') continue
             const funcNode = right.childForFieldName('function')
             if (funcNode === null) continue
@@ -99,7 +206,10 @@ export async function parseSqlAlchemyModels(
             const funcName = funcNode.type === 'attribute' ? funcNode.lastChild?.text : funcNode.text
             if (funcName !== 'Column' && funcName !== 'mapped_column') continue
 
-            columns.push({ name: fieldName, type: funcName, nullable: false })
+            const nullable = parseNullable(right)
+            const colType = parseColumnType(right, funcName ?? 'Column')
+
+            columns.push({ name: fieldName, type: colType, nullable })
           }
         }
       }
@@ -116,7 +226,7 @@ export async function parseSqlAlchemyModels(
       tables.push(
         createTableNode({
           id: makeNodeId('table', relPath, className),
-          name: className,
+          name: tableName,
           columns,
           provenance,
           confidence: 'inferred',
