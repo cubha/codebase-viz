@@ -31,6 +31,51 @@ afterAll(async () => {
   await fs.rm(tmpDir, { recursive: true, force: true })
 })
 
+describe('parseAngularRoutes — RouterModule.forChild (B-6)', () => {
+  it('RouterModule.forChild routes 추출', async () => {
+    const tmpDir2 = await fs.mkdtemp(path.join(os.tmpdir(), 'cv-ng-b6-'))
+    await fs.mkdir(path.join(tmpDir2, 'src', 'app', 'users'), { recursive: true })
+    await fs.writeFile(
+      path.join(tmpDir2, 'src', 'app', 'users', 'users.module.ts'),
+      `import { NgModule } from '@angular/core'
+import { RouterModule } from '@angular/router'
+import { UsersComponent } from './users.component'
+import { UserDetailComponent } from './user-detail.component'
+
+@NgModule({
+  imports: [
+    RouterModule.forChild([
+      { path: '', component: UsersComponent },
+      { path: ':id', component: UserDetailComponent },
+    ]),
+  ],
+})
+export class UsersModule {}`,
+    )
+    const routes = await parseAngularRoutes(tmpDir2, 'test@0.1')
+    const paths = routes.map(r => r.path)
+    expect(paths).toContain('/')
+    expect(paths).toContain('/:id')
+    await fs.rm(tmpDir2, { recursive: true, force: true })
+  })
+})
+
+describe('parseAngularRoutes — mini-angular-app fixture', () => {
+  it('mini-angular-app: forRoot + forChild 라우트 모두 추출', async () => {
+    const FIXTURE = path.resolve(process.cwd(), 'fixtures/mini-angular-app')
+    const routes = await parseAngularRoutes(FIXTURE, 'test@0.1')
+    const paths = routes.map(r => r.path)
+    // forRoot routes
+    expect(paths).toContain('/')
+    expect(paths).toContain('/about')
+    expect(paths).toContain('/users')
+    expect(paths).toContain('/users/:id')
+    // forChild route from user-detail.module.ts (path: '' → /)
+    // The forChild { path: '' } creates an additional '/' route
+    expect(routes.length).toBeGreaterThanOrEqual(4)
+  })
+})
+
 describe('parseAngularRoutes', () => {
   it('provideRouter(routes) 배열에서 path를 추출한다', async () => {
     const routes = await parseAngularRoutes(tmpDir, 'test@0.1')

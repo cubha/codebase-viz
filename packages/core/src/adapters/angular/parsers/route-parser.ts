@@ -66,6 +66,7 @@ export async function parseAngularRoutes(
   for (const f of allFiles) {
     const content = await fs.readFile(f, 'utf-8').catch(() => '')
     if (content.includes('provideRouter') || content.includes('RouterModule.forRoot')
+      || content.includes('RouterModule.forChild')
       || (content.includes('Routes') && content.includes('path:'))) {
       routerFiles.push(f)
     }
@@ -92,7 +93,7 @@ export async function parseAngularRoutes(
     // Find provideRouter(routes) or RouterModule.forRoot(routes) calls
     for (const callExpr of sourceFile.getDescendantsOfKind(SyntaxKind.CallExpression)) {
       const exprText = callExpr.getExpression().getText()
-      if (exprText !== 'provideRouter' && exprText !== 'RouterModule.forRoot') continue
+      if (exprText !== 'provideRouter' && exprText !== 'RouterModule.forRoot' && exprText !== 'RouterModule.forChild') continue
 
       const args = callExpr.getArguments()
       if (args.length === 0) continue

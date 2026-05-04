@@ -53,10 +53,11 @@ function remixRelPathToRoute(
   // 폴더 구분자는 이미 /가 있으므로, 각 세그먼트의 dot-notation만 변환
   const segments = p.split('/')
   const processedSegments = segments.map(seg => {
-    return seg
-      .replace(/^_/, '')           // leading underscore = pathless layout
-      .replace(/\$(\w+)/g, ':$1') // $id → :id
-      .replace(/\./g, '/')        // blog.posts → blog/posts
+    const parts = seg.split('.')
+    const routeParts = parts
+      .filter(part => !part.startsWith('_'))  // strip pathless layout prefixes like _auth
+      .map(part => part.replace(/\$(\w+)/g, ':$1'))  // $id → :id
+    return routeParts.join('/')
   })
 
   const joined = processedSegments.filter(Boolean).join('/')
@@ -72,14 +73,13 @@ export async function parseRemixRoutes(
   analyzerVersion: string,
 ): Promise<RouteNode[]> {
   const routesDir = await (async () => {
-    for (const candidate of ['app/routes', 'app']) {
-      const p = path.join(repoRoot, candidate)
-      try {
-        await fs.access(p)
-        return p
-      } catch { /* skip */ }
+    const p = path.join(repoRoot, 'app/routes')
+    try {
+      await fs.access(p)
+      return p
+    } catch {
+      return null
     }
-    return null
   })()
 
   if (routesDir === null) return []
