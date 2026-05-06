@@ -1,8 +1,8 @@
 {
   "name": "codebase-arch-viz",
   "displayName": "Codebase Architecture Visualizer",
-  "description": "Static codebase analysis for 13 frameworks. Routes + Components + DB for all adapters — no API key needed. TypeORM/Django FK references, CBV method detection, Flask SQLAlchemy.",
-  "version": "0.8.0",
+  "description": "Static codebase analysis for 13 frameworks. Routes + Components + DB for all adapters — no API key needed. MyBatis mapper XML support, large diagram rendering, bug fixes.",
+  "version": "0.8.1",
   "publisher": "cubha",
   "license": "MIT",
   "icon": "media/icon.png",

@@ -417,12 +417,6 @@ function buildDbScreenDiagram(graph: IRGraph): string {
     lines.push(`  ${srcLabel} }|--|| ${sanitizeId(tblNode.name)} : "queries"`)
   }
 
-  if (tableNodes.length === 0) {
-    lines.push('  NoTables {')
-    lines.push('    string placeholder')
-    lines.push('  }')
-  }
-
   return lines.join('\n')
 }
 

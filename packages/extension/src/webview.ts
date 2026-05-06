@@ -220,7 +220,7 @@ svg{max-width:100%;}
 <script>
 const D = ${diagramsJson};
 const keys = ['rendering','screenComponent','dbScreen'];
-mermaid.initialize({startOnLoad:false,securityLevel:'loose',theme:'dark'});
+mermaid.initialize({startOnLoad:false,securityLevel:'loose',theme:'dark',maxTextSize:1000000,maxEdges:2000});
 async function renderAll(){
   for(let i=0;i<3;i++){
     try{const{svg}=await mermaid.render('m'+i,D[keys[i]]);document.getElementById('d'+i).innerHTML=svg;}

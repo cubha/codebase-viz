@@ -1,5 +1,24 @@
 # Changelog
 
+## [0.8.1] — 2026-05-05
+
+### Added
+
+**Spring Boot — MyBatis support:**
+- Mapper XML (`*Mapper.xml`) parsing: `<resultMap>` column extraction + SQL `FROM/INTO/UPDATE` table name extraction
+- Tier 1: single-table `<select resultMap="X">` → columns from resultMap linked to real table name
+- Tier 1 fallback: unmatched resultMaps → class simple name as table name (with columns)
+- Tier 2: multi-table JOINs and insert/update statements → table names registered (no columns)
+- `@Mapper` Java interface supplement: SQL string literals scanned for additional table references
+- Oracle-specific: schema-qualified `SCHEMA.TABLE` names → table part only; `DUAL`/`SYSDATE` filtered
+
+### Fixed
+
+- **Mermaid large diagram crash** (`maximum text size in diagram exceeded`): `maxTextSize: 1000000` and `maxEdges: 2000` added to `mermaid.initialize()` in both `viewer.html` and `webview.ts`
+- **DB–Screen "Other NoTables" phantom entry**: removed `NoTables { string placeholder }` ERD fallback — empty DB tab now shows `(No data)` via existing viewer fallback
+
+---
+
 ## [0.8.0] — 2026-05-05
 
 ### Added

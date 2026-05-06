@@ -228,7 +228,7 @@ const DIAGRAMS = {
 };
 
 // ── Runtime ──────────────────────────────────────────────────────────────────
-mermaid.initialize({startOnLoad: false, securityLevel: 'loose'});
+mermaid.initialize({startOnLoad: false, securityLevel: 'loose', maxTextSize: 1000000, maxEdges: 2000});
 
 const rendered = {r:false,s:false,d:false};
 const ST = {r:{s:1,x:0,y:0}, s:{s:1,x:0,y:0}, d:{s:1,x:0,y:0}};
