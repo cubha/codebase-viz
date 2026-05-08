@@ -16,7 +16,7 @@ Open a project in VS Code → click **Analyze**. CodeSight produces:
 |---|---|
 | **Rendering Architecture** | Route hierarchy with URL-based hierarchical grouping, SSR / CSR / ISR / SSG labels, HTTP method badges |
 | **Screen–Component** | Route → component import graph, runtime tags (client / shared / server) |
-| **DB–Screen** | Table schema (Supabase, Prisma, Drizzle, TypeORM, Django ORM, SQLAlchemy, JPA, **Flyway DDL**) + which pages query each table, grouped by schema/module |
+| **DB–Screen** | Table schema (Supabase, Prisma, Drizzle, TypeORM, Django ORM, SQLAlchemy, JPA, **Flyway DDL**) + 4-toggle view: **All** · **FK relations** (ERD with TH/TD distinction) · **Page queries** (route → table flow graph) · **Server actions** (action → table flow graph) |
 
 Results are cached in `.codesight/cache.json`. Re-analyze on demand.
 

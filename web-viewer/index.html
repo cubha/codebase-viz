@@ -117,7 +117,7 @@
       width: 100%; height: 100%;
       overflow: hidden; cursor: grab; position: relative;
     }
-    .canvas-wrap:active { cursor: grabbing; }
+    .canvas-wrap.dragging { cursor: grabbing; }
     .canvas-inner {
       position: absolute;
       top: 50%; left: 50%;
@@ -155,7 +155,30 @@
 
     /* ── DB SPLIT LAYOUT ── */
     .db-wrap { display: grid; grid-template-columns: 1fr 300px; height: 100%; }
-    .db-canvas-area { position: relative; overflow: hidden; }
+    .db-canvas-area { display: flex; flex-direction: column; overflow: hidden; }
+    .db-inner-canvas { flex: 1; position: relative; overflow: hidden; }
+
+    /* ── DB TOGGLE BAR ── */
+    .db-toggle-bar {
+      display: flex; align-items: center; gap: 6px; padding: 8px 14px;
+      background: rgba(6,8,16,.9); border-bottom: 1px solid var(--border);
+      flex-shrink: 0; flex-wrap: wrap;
+    }
+    .db-toggle-label { font-size: 9px; color: var(--text-muted); letter-spacing: 1px; text-transform: uppercase; margin-right: 4px; }
+    .tb-btn {
+      display: flex; align-items: center; gap: 5px;
+      padding: 4px 10px; border-radius: 4px; cursor: pointer;
+      font-family: var(--font); font-size: 10px; font-weight: 500; letter-spacing: 0.3px;
+      border: 1px solid var(--border); background: rgba(13,18,32,.7);
+      color: var(--text-muted); transition: all .15s; user-select: none;
+    }
+    .tb-btn:hover { color: var(--text-sec); border-color: var(--text-muted); }
+    .tb-btn.active[data-v="fk"]     { color: #38bdf8; border-color: #38bdf8; background: rgba(56,189,248,.1); }
+    .tb-btn.active[data-v="routes"] { color: #4ade80; border-color: #4ade80; background: rgba(74,222,128,.1); }
+    .tb-btn.active[data-v="actions"]{ color: #f59e0b; border-color: #f59e0b; background: rgba(245,158,11,.1); }
+    .tb-btn.active[data-v="all"]    { color: #e2e8f0; border-color: #475569; background: rgba(255,255,255,.06); }
+    .tb-pip { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+    .tb-sep { width: 1px; height: 16px; background: var(--border); margin: 0 4px; }
     .db-sidebar {
       border-left: 1px solid var(--border);
       background: rgba(10,14,26,.8); backdrop-filter: blur(10px);
@@ -297,15 +320,25 @@
   <div id="p-d" class="panel">
     <div class="db-wrap">
       <div class="db-canvas-area">
-        <div class="canvas-wrap" id="w-d">
-          <div class="canvas-inner" id="i-d">
-            <div class="diagram-svg" id="d-d"></div>
-          </div>
+        <div class="db-toggle-bar">
+          <span class="db-toggle-label">View</span>
+          <button class="tb-btn active" data-v="all" onclick="setDbView('all')"><span class="tb-pip" style="background:linear-gradient(135deg,#38bdf8 33%,#4ade80 66%,#f59e0b 100%)"></span>전체</button>
+          <div class="tb-sep"></div>
+          <button class="tb-btn" data-v="fk" onclick="setDbView('fk')"><span class="tb-pip" style="background:#38bdf8"></span>FK 관계</button>
+          <button class="tb-btn" data-v="routes" onclick="setDbView('routes')"><span class="tb-pip" style="background:#4ade80"></span>페이지 쿼리</button>
+          <button class="tb-btn" data-v="actions" onclick="setDbView('actions')"><span class="tb-pip" style="background:#f59e0b"></span>서버 액션</button>
         </div>
-        <div class="zoom-ctrl">
-          <button class="z-btn" onclick="zm('d',1.2)">+</button>
-          <button class="z-btn" onclick="zm('d',.833)">−</button>
-          <button class="z-btn" onclick="rz('d')" style="font-size:11px">⌂</button>
+        <div class="db-inner-canvas">
+          <div class="canvas-wrap" id="w-d">
+            <div class="canvas-inner" id="i-d">
+              <div class="diagram-svg" id="d-d"></div>
+            </div>
+          </div>
+          <div class="zoom-ctrl">
+            <button class="z-btn" onclick="zm('d',1.2)">+</button>
+            <button class="z-btn" onclick="zm('d',.833)">−</button>
+            <button class="z-btn" onclick="rz('d')" style="font-size:11px">⌂</button>
+          </div>
         </div>
       </div>
       <div class="db-sidebar">
@@ -697,10 +730,119 @@ erDiagram
   AboutPage {
     string render SSR
     string cache ISR
-  }`
+  }`,
+
+  d_fk: `%%{init:{'theme':'base','themeVariables':{'background':'#060810','primaryColor':'#0a2030','primaryTextColor':'#e2e8f0','primaryBorderColor':'#1e4060','lineColor':'#38bdf8','secondaryColor':'#0f172a','tertiaryColor':'#1a0a20','attributeBackgroundColorEven':'#ffffff','attributeBackgroundColorOdd':'#f1f5f9','nodeBorder':'#1e4060','clusterBkg':'#0a0e1a','fontFamily':'JetBrains Mono'}}}%%
+erDiagram
+  blog_posts {
+    uuid id PK
+    uuid author_id FK
+    varchar slug
+    text title
+    text status
+    text[] tags
+    timestamptz published_at
+  }
+  projects {
+    uuid id PK
+    uuid profile_id FK
+    text title
+    text[] tech_stack
+    boolean is_featured
+    text status
+  }
+  profiles {
+    uuid id PK
+    varchar username
+    text full_name
+    text avatar_url
+    text role
+    text bio
+  }
+  skills {
+    uuid id PK
+    text name
+    text category
+    text icon_name
+  }
+  guestbook {
+    bigserial id PK
+    text nickname
+    text message
+    text emoji
+    text user_id
+  }
+  inquiries {
+    uuid id PK
+    text title
+    text content
+    boolean is_public
+    text reply
+  }
+  about_profiles {
+    uuid id PK
+    jsonb story_json
+    text profile_photo_url
+  }
+  contact_links {
+    uuid id PK
+    text icon_key
+    text value
+  }
+  page_views {
+    bigserial id PK
+    text path
+    timestamptz viewed_at
+  }
+  blog_posts }o--|| profiles : "author_id"
+  projects }o--|| profiles : "profile_id"`,
+
+  d_routes: `%%{init:{'theme':'base','themeVariables':{'background':'#060810','primaryColor':'#0a180a','primaryTextColor':'#4ade80','primaryBorderColor':'#166534','lineColor':'#4ade80','secondaryColor':'#0f172a','clusterBkg':'#060c18','clusterBorder':'#1e3a5f','fontFamily':'JetBrains Mono','edgeLabelBackground':'#060810'}}}%%
+graph LR
+  classDef tbl fill:#0c1a30,stroke:#1e4060,color:#7dd3fc,rx:4
+  classDef route fill:#0a180a,stroke:#166534,color:#4ade80,rx:3
+  subgraph BLOG_G["📝 Blog"]
+    blog_posts["blog_posts"]:::tbl
+  end
+  subgraph PROFILE_G["👤 Profile"]
+    profiles["profiles"]:::tbl
+    about_profiles["about_profiles"]:::tbl
+    contact_links["contact_links"]:::tbl
+  end
+  subgraph CONTENT_G["📦 Content"]
+    projects["projects"]:::tbl
+    skills["skills"]:::tbl
+  end
+  subgraph ENGAGE_G["💬 Engage"]
+    guestbook["guestbook"]:::tbl
+    inquiries["inquiries"]:::tbl
+  end
+  subgraph ANALYTICS_G["📊 Analytics"]
+    page_views["page_views"]:::tbl
+  end
+  blog_r["⬡ /blog"]:::route --> blog_posts
+  blog_slug_r["⬡ /blog/[slug]"]:::route --> blog_posts
+  about_r["⬡ /about"]:::route --> profiles
+  about_r --> about_profiles
+  about_r --> contact_links
+  about_r --> skills
+  contact_r["⬡ /contact"]:::route --> guestbook
+  contact_r --> inquiries
+  contact_r --> contact_links
+  projects_r["⬡ /projects"]:::route --> projects
+  admin_r["⬡ /admin/dashboard"]:::route --> blog_posts
+  admin_r --> projects
+  admin_r --> page_views
+  admin_prof_r["⬡ /admin/profile"]:::route --> profiles
+  admin_prof_r --> about_profiles
+  admin_proj_r["⬡ /admin/projects"]:::route --> projects
+  admin_skills_r["⬡ /admin/skills"]:::route --> skills`,
+
+  d_actions: `%%{init:{'theme':'base','themeVariables':{'background':'#060810','primaryColor':'#1a0e00','primaryTextColor':'#fbbf24','primaryBorderColor':'#92400e','lineColor':'#334155','secondaryColor':'#0f172a','fontFamily':'JetBrains Mono'}}}%%
+graph LR
+  empty["(서버 액션 없음 — CSR에서 supabase-js 직접 호출)"]`
 };
 
-// ── Render all diagrams via mermaid.render() (avoids display:none issue) ──
 mermaid.initialize({
   startOnLoad: false,
   securityLevel: 'loose',
@@ -708,59 +850,38 @@ mermaid.initialize({
   er: { useMaxWidth: false },
 });
 
-async function renderAll() {
-  for (const [key, def] of Object.entries(DIAGRAMS)) {
-    const container = document.getElementById(`d-${key}`);
-    try {
-      const { svg } = await mermaid.render(`m-${key}`, def);
-      container.innerHTML = svg;
-      if (key === 'd') {
-        const svgEl = container.querySelector('svg');
-        if (svgEl) {
-          // odd row: light bg
-          svgEl.querySelectorAll('g.row-rect-odd path').forEach(el => el.setAttribute('fill', '#c4daf0'));
-          // even row: slightly darker light bg
-          svgEl.querySelectorAll('g.row-rect-even path').forEach(el => el.setAttribute('fill', '#b6cce6'));
-          // attribute text → dark
-          svgEl.querySelectorAll('g.label.attribute-type span, g.label.attribute-name span, g.label.attribute-keys span, g.label.attribute-comment span').forEach(el => { el.style.color = '#0d1f35'; });
-        }
-      }
-      fitToView(key);
-    } catch(e) {
-      container.innerHTML = `<div class="diagram-msg"><div class="icon">⚠</div><div>Render error: ${e.message}</div></div>`;
-    }
-  }
+const ST = { r:{s:1,x:0,y:0}, s:{s:1,x:0,y:0}, d:{s:1,x:0,y:0} };
+const drag = {t:null, sx:0, sy:0, ox:0, oy:0};
+let dbCurrentView = 'all';
+
+function applyT(id) {
+  const {s,x,y} = ST[id];
+  const inner = document.getElementById(`i-${id}`);
+  if (inner) inner.style.transform = `translate(calc(-50% + ${x}px), calc(-50% + ${y}px)) scale(${s})`;
 }
 
 function fitToView(id) {
-  const container = document.getElementById(`d-${id}`);
-  const svg = container?.querySelector('svg');
-  if (!svg) return;
-
-  // For db panel, canvas area is ~60% of viewport width
-  const isDb = id === 'd';
-  const wrapW = isDb
-    ? (document.getElementById(`w-${id}`)?.clientWidth ?? window.innerWidth * 0.6)
-    : (document.getElementById(`w-${id}`)?.clientWidth ?? window.innerWidth);
-  const wrapH = document.getElementById(`w-${id}`)?.clientHeight ?? (window.innerHeight - 96);
-
-  const svgW = svg.getBoundingClientRect().width  || parseFloat(svg.getAttribute('width'))  || 800;
-  const svgH = svg.getBoundingClientRect().height || parseFloat(svg.getAttribute('height')) || 600;
-
-  const scaleX = (wrapW * 0.88) / svgW;
-  const scaleY = (wrapH * 0.88) / svgH;
-  const scale  = Math.min(scaleX, scaleY, 1.2); // cap max zoom at 1.2x
-
-  ST[id].s = scale;
-  ST[id].x = 0;
-  ST[id].y = 0;
+  const wrap = document.getElementById(`w-${id}`);
+  const inner = document.getElementById(`i-${id}`);
+  const svg = inner?.querySelector('svg');
+  if (!svg || !wrap) return;
+  const wW = wrap.clientWidth, wH = wrap.clientHeight;
+  let sW = parseFloat(svg.getAttribute('width')) || svg.clientWidth || 800;
+  let sH = parseFloat(svg.getAttribute('height')) || svg.clientHeight || 600;
+  if (sW < 10) sW = 800;
+  if (sH < 10) sH = 600;
+  const s = Math.min(wW * 0.88 / sW, wH * 0.88 / sH, 1.2);
+  ST[id] = {s, x:0, y:0};
   applyT(id);
 }
 
-// Wait for JetBrains Mono to load so Mermaid measures text correctly
-document.fonts.ready.then(() => renderAll());
+function zm(id, f) {
+  ST[id].s = Math.min(5, Math.max(0.1, ST[id].s * f));
+  applyT(id);
+}
 
-// ── Tab switching ──
+function rz(id) { fitToView(id); }
+
 function switchTab(id) {
   document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
   document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
@@ -768,40 +889,63 @@ function switchTab(id) {
   document.getElementById(`p-${id}`).classList.add('active');
 }
 
-// ── Zoom / Pan ──
-const ST = { r:{s:1,x:0,y:0}, s:{s:1,x:0,y:0}, d:{s:1,x:0,y:0} };
-
-function applyT(id) {
-  const {s,x,y} = ST[id];
-  const inner = document.getElementById(`i-${id}`);
-  if (inner) inner.style.transform = `translate(calc(-50% + ${x}px), calc(-50% + ${y}px)) scale(${s})`;
+async function renderDiagram(id, def) {
+  const container = document.getElementById(`d-${id}`);
+  try {
+    const { svg } = await mermaid.render(`m-${id}-${Date.now()}`, def);
+    container.innerHTML = svg;
+    if (def.includes('erDiagram')) {
+      const svgEl = container.querySelector('svg');
+      if (svgEl) {
+        svgEl.querySelectorAll('g.row-rect-odd path').forEach(el => el.setAttribute('fill', '#ffffff'));
+        svgEl.querySelectorAll('g.row-rect-even path').forEach(el => el.setAttribute('fill', '#f1f5f9'));
+        svgEl.querySelectorAll('g.label.attribute-type span, g.label.attribute-name span, g.label.attribute-keys span, g.label.attribute-comment span').forEach(el => { el.style.color = '#1e293b'; });
+      }
+    }
+    fitToView(id);
+  } catch(e) {
+    container.innerHTML = `<div class="diagram-msg"><div class="icon">⚠</div><div>Render error: ${e.message}</div></div>`;
+  }
 }
-function zm(id, f) {
-  ST[id].s = Math.min(4, Math.max(0.2, ST[id].s * f));
-  applyT(id);
-}
-function rz(id) { ST[id] = {s:1,x:0,y:0}; applyT(id); }
 
-['r','s','d'].forEach(id => {
-  const wrap = document.getElementById(`w-${id}`);
+async function renderAll() {
+  for (const id of ['r', 's']) await renderDiagram(id, DIAGRAMS[id]);
+  await renderDiagram('d', DIAGRAMS.d);
+}
+
+function setDbView(view) {
+  dbCurrentView = view;
+  document.querySelectorAll('.tb-btn').forEach(b => b.classList.toggle('active', b.dataset.v === view));
+  const key = view === 'all' ? 'd' : `d_${view}`;
+  renderDiagram('d', DIAGRAMS[key]);
+}
+
+document.addEventListener('mousedown', e => {
+  const wrap = e.target.closest('.canvas-wrap');
   if (!wrap) return;
-
+  const id = wrap.id.slice(2);
+  drag.t = id; drag.sx = e.clientX; drag.sy = e.clientY;
+  drag.ox = ST[id].x; drag.oy = ST[id].y;
+  wrap.classList.add('dragging');
+});
+document.addEventListener('mousemove', e => {
+  if (!drag.t) return;
+  ST[drag.t].x = drag.ox + (e.clientX - drag.sx);
+  ST[drag.t].y = drag.oy + (e.clientY - drag.sy);
+  applyT(drag.t);
+});
+document.addEventListener('mouseup', () => {
+  if (drag.t) document.getElementById(`w-${drag.t}`)?.classList.remove('dragging');
+  drag.t = null;
+});
+document.querySelectorAll('.canvas-wrap').forEach(wrap => {
   wrap.addEventListener('wheel', e => {
     e.preventDefault();
-    zm(id, e.deltaY < 0 ? 1.1 : 1/1.1);
+    zm(wrap.id.slice(2), e.deltaY < 0 ? 1.1 : 1/1.1);
   }, { passive: false });
-
-  let drag = false, lx = 0, ly = 0;
-  wrap.addEventListener('mousedown', e => { drag = true; lx = e.clientX; ly = e.clientY; });
-  window.addEventListener('mouseup', () => { drag = false; });
-  window.addEventListener('mousemove', e => {
-    if (!drag) return;
-    ST[id].x += e.clientX - lx;
-    ST[id].y += e.clientY - ly;
-    lx = e.clientX; ly = e.clientY;
-    applyT(id);
-  });
 });
+
+document.fonts.ready.then(() => renderAll());
 </script>
 </body>
 </html>
