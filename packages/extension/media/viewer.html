@@ -120,6 +120,13 @@
     .tb-btn.active[data-v="all"]    { color: #e2e8f0; border-color: #475569; background: rgba(255,255,255,.06); }
     .tb-pip { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
     .tb-sep { width: 1px; height: 16px; background: var(--border); margin: 0 4px; }
+    .chunk-nav { position: absolute; top: 8px; left: 50%; transform: translateX(-50%);
+      z-index: 30; display: flex; align-items: center;
+      padding: 3px 12px; border-radius: 4px;
+      background: rgba(6,8,16,.88); border: 1px solid var(--border); backdrop-filter: blur(10px); }
+    .cn-label { font-size: 10px; color: var(--text-muted); }
+    .canvas-wrap.row-mode { overflow-y: auto; overflow-x: hidden; cursor: default; }
+    .row-diagram { width: 100%; }
   </style>
 </head>
 <body>
@@ -150,6 +157,7 @@
       <div class="legend-row"><div class="l-dot" style="background:transparent;border:1px dashed #7dd3fc;border-radius:2px"></div>FE→BE 연결 (dashed)</div>
     </div>
     <div class="canvas-wrap" id="w-r"><div class="canvas-inner" id="i-r"><div class="loading-msg">렌더링 중...</div></div></div>
+    <div id="cnav-r" class="chunk-nav" style="display:none"><span class="cn-label"></span></div>
     <div class="zoom-ctrl">
       <button class="z-btn" onclick="zm('r',1.2)">+</button>
       <button class="z-btn" onclick="zm('r',.833)">−</button>
@@ -165,6 +173,7 @@
       <div class="legend-row"><div class="l-dot" style="background:#6b7280;border:1px dashed #7dd3fc;border-radius:2px"></div>inferred (LLM)</div>
     </div>
     <div class="canvas-wrap" id="w-s"><div class="canvas-inner" id="i-s"><div class="loading-msg">렌더링 중...</div></div></div>
+    <div id="cnav-s" class="chunk-nav" style="display:none"><span class="cn-label"></span></div>
     <div class="zoom-ctrl">
       <button class="z-btn" onclick="zm('s',1.2)">+</button>
       <button class="z-btn" onclick="zm('s',.833)">−</button>
@@ -192,6 +201,7 @@
         </div>
         <div class="db-canvas-wrap">
           <div class="canvas-wrap" id="w-d"><div class="canvas-inner" id="i-d"><div class="loading-msg">렌더링 중...</div></div></div>
+          <div id="cnav-d" class="chunk-nav" style="display:none"><span class="cn-label"></span></div>
           <div class="zoom-ctrl">
             <button class="z-btn" onclick="zm('d',1.2)">+</button>
             <button class="z-btn" onclick="zm('d',.833)">−</button>
@@ -242,6 +252,8 @@ function splitChunks(diagram) {
     .filter(c => c && c.trim());
 }
 
+const GROUPS_PER_ROW = 5;
+
 async function renderChunked(idPrefix, diagram) {
   const chunks = splitChunks(diagram);
   if (chunks.length <= 1) {
@@ -250,12 +262,54 @@ async function renderChunked(idPrefix, diagram) {
   }
   let combined = '';
   for (let i = 0; i < chunks.length; i++) {
-    const chunk = chunks[i];
-    const {svg} = await mermaid.render(idPrefix+'_c'+i+'_'+Date.now(), chunk);
-    combined += '<div class="chunk-label" style="padding:8px 0;color:#94a3b8;font-size:11px;border-top:1px solid #1e3a5f;margin-top:8px">Chunk '+(i+1)+'/'+chunks.length+'</div>';
-    combined += svg;
+    try {
+      const {svg} = await mermaid.render(idPrefix+'_c'+i+'_'+Date.now(), chunks[i]);
+      combined += '<div class="row-diagram">'+svg+'</div>';
+    } catch(e) {
+      combined += '<div class="row-diagram"><pre style="color:#fb923c;font-size:11px;padding:8px">Row '+(i+1)+' error: '+e.message+'</pre></div>';
+    }
   }
   return combined;
+}
+
+function setSvgDimensions(inner) {
+  const svgEl = inner.querySelector('svg');
+  if (!svgEl) return;
+  const vb = svgEl.viewBox.baseVal;
+  if (vb && vb.width > 0) { svgEl.setAttribute('width', vb.width); svgEl.setAttribute('height', vb.height); }
+  svgEl.style.maxWidth = 'none';
+}
+
+function activateRowMode(t, inner) {
+  const wrap = document.getElementById('w-'+t);
+  wrap.classList.add('row-mode');
+  inner.style.cssText = 'position:relative;top:0;left:0;transform:none;display:flex;flex-direction:column;padding:16px;gap:16px;width:100%';
+  scaleRowSvgs(wrap, inner);
+  const rows = inner.querySelectorAll('.row-diagram');
+  const bar = document.getElementById('cnav-'+t);
+  if (bar && rows.length > 1) {
+    bar.style.display = 'flex';
+    bar.querySelector('.cn-label').textContent = rows.length + ' rows';
+  }
+}
+
+function scaleRowSvgs(wrap, inner) {
+  const containerWidth = wrap.clientWidth - 32;
+  inner.querySelectorAll('.row-diagram').forEach(row => {
+    const svg = row.querySelector('svg');
+    if (!svg) return;
+    const vb = svg.viewBox.baseVal;
+    const natW = (vb && vb.width > 0) ? vb.width : (parseFloat(svg.getAttribute('width')) || 800);
+    const natH = (vb && vb.height > 0) ? vb.height : (parseFloat(svg.getAttribute('height')) || 600);
+    if (natW > containerWidth) {
+      svg.setAttribute('width', containerWidth);
+      svg.setAttribute('height', natH * (containerWidth / natW));
+    } else {
+      svg.setAttribute('width', natW);
+      svg.setAttribute('height', natH);
+    }
+    svg.style.maxWidth = 'none';
+  });
 }
 
 const rendered = {r:false,s:false,d:false};
@@ -280,15 +334,14 @@ async function renderTab(t) {
   const inner = document.getElementById('i-'+t);
   if (!DIAGRAMS[t]) { inner.innerHTML = '<div class="loading-msg">No data</div>'; return; }
   try {
-    const svg = await renderChunked('msvg_'+t, DIAGRAMS[t]);
-    inner.innerHTML = svg;
-    const svgEl = inner.querySelector('svg');
-    if (svgEl) {
-      const vb = svgEl.viewBox.baseVal;
-      if (vb && vb.width > 0) { svgEl.setAttribute('width', vb.width); svgEl.setAttribute('height', vb.height); }
-      svgEl.style.maxWidth = 'none';
+    const html = await renderChunked('msvg_'+t, DIAGRAMS[t]);
+    inner.innerHTML = html;
+    if (inner.querySelector('.row-diagram')) {
+      activateRowMode(t, inner);
+    } else {
+      setSvgDimensions(inner);
+      fitToView(t);
     }
-    fitToView(t);
   } catch(e) {
     inner.innerHTML = '<pre style="color:#fb923c;padding:20px;font-size:11px">Render error: '+e.message+'</pre>';
   }
@@ -395,30 +448,47 @@ function buildDbGraph(data, showFk, showRoutes, showActions) {
       groups[d].push(name);
     }
   }
+  const groupEntries = Object.entries(groups);
+  if (groupEntries.length > GROUPS_PER_ROW) {
+    const rows = [];
+    for (let i = 0; i < groupEntries.length; i += GROUPS_PER_ROW) rows.push(groupEntries.slice(i, i + GROUPS_PER_ROW));
+    return rows.map(r => buildSingleDbGraph(r, sgPrefix, fkEdges, routeEdges, actionEdges, showFk, showRoutes, showActions)).join('\n'+CHUNK_SEP+'\n');
+  }
+  return buildSingleDbGraph(groupEntries, sgPrefix, fkEdges, routeEdges, actionEdges, showFk, showRoutes, showActions);
+}
+
+function buildSingleDbGraph(groupEntries, sgPrefix, fkEdges, routeEdges, actionEdges, showFk, showRoutes, showActions) {
+  const rowSet = new Set(groupEntries.flatMap(([,names]) => names));
   const lines = [FLOW_INIT, 'graph LR'];
   lines.push('  classDef tbl fill:#0c1a30,stroke:#334155,color:#7dd3fc,rx:4');
   lines.push('  classDef route fill:#0a180a,stroke:#166534,color:#4ade80,rx:3');
   lines.push('  classDef action fill:#1a0e00,stroke:#92400e,color:#fbbf24,rx:3');
   let dgIdx = 0;
-  for (const [label, names] of Object.entries(groups)) {
+  for (const [label, names] of groupEntries) {
     const id = sgPrefix === 'DG' ? 'DG'+dgIdx++ : sgPrefix+sanitizeSgId(label);
     lines.push('  subgraph '+id+'["'+label+'"]');
     for (const n of names) lines.push('    '+n+'["'+n+'"]:::tbl');
     lines.push('  end');
   }
   const srcs = new Set();
-  if (showRoutes) for (const e of routeEdges) srcs.add(e.from+'|route');
-  if (showActions) for (const e of actionEdges) srcs.add(e.from+'|action');
+  if (showRoutes) for (const e of routeEdges) { if (rowSet.has(e.to)) srcs.add(e.from+'|route'); }
+  if (showActions) for (const e of actionEdges) { if (rowSet.has(e.to)) srcs.add(e.from+'|action'); }
   for (const s of srcs) {
     const [name,kind] = s.split('|');
     lines.push('  '+name+'["'+(kind==='route'?'⬡ ':'⚡ ')+name+'"]:::'+kind);
   }
   const edgeColors = [];
-  if (showFk) for (const e of fkEdges) { lines.push('  '+e.from+' -->|"'+e.col+'"| '+e.to); edgeColors.push('#38bdf8'); }
-  if (showRoutes) for (const e of routeEdges) { lines.push('  '+e.from+' --> '+e.to); edgeColors.push('#4ade80'); }
-  if (showActions) for (const e of actionEdges) { lines.push('  '+e.from+' --> '+e.to); edgeColors.push('#f59e0b'); }
+  if (showFk) for (const e of fkEdges) {
+    if (rowSet.has(e.from) && rowSet.has(e.to)) { lines.push('  '+e.from+' -->|"'+e.col+'"| '+e.to); edgeColors.push('#38bdf8'); }
+  }
+  if (showRoutes) for (const e of routeEdges) {
+    if (rowSet.has(e.to)) { lines.push('  '+e.from+' --> '+e.to); edgeColors.push('#4ade80'); }
+  }
+  if (showActions) for (const e of actionEdges) {
+    if (rowSet.has(e.to)) { lines.push('  '+e.from+' --> '+e.to); edgeColors.push('#f59e0b'); }
+  }
   edgeColors.forEach((c,i) => lines.push('  linkStyle '+i+' stroke:'+c+',stroke-width:2px'));
-  if (!edgeColors.length && Object.keys(tables).length===0) lines.push('  empty["(No data)"]');
+  if (!edgeColors.length && groupEntries.length===0) lines.push('  empty["(No data)"]');
   return lines.join('\n');
 }
 
@@ -438,15 +508,14 @@ async function renderDbView(view) {
       };
     }
     const diag = dbGraphs[view] || dbGraphs.fk;
-    const svg = await renderChunked('dbsvg_'+view, diag);
-    inner.innerHTML = svg;
-    const svgEl = inner.querySelector('svg');
-    if (svgEl) {
-      const vb = svgEl.viewBox.baseVal;
-      if (vb && vb.width > 0) { svgEl.setAttribute('width',vb.width); svgEl.setAttribute('height',vb.height); }
-      svgEl.style.maxWidth = 'none';
+    const html = await renderChunked('dbsvg_'+view, diag);
+    inner.innerHTML = html;
+    if (inner.querySelector('.row-diagram')) {
+      activateRowMode('d', inner);
+    } else {
+      setSvgDimensions(inner);
+      fitToView('d');
     }
-    fitToView('d');
   } catch(e) {
     inner.innerHTML = '<pre style="color:#fb923c;padding:20px;font-size:11px">'+e.message+'</pre>';
   }
@@ -455,6 +524,9 @@ async function renderDbView(view) {
 function setDbView(view) {
   dbCurrentView = view;
   document.querySelectorAll('.tb-btn').forEach(b => b.classList.toggle('active', b.dataset.v===view));
+  const wrap = document.getElementById('w-d');
+  wrap.classList.remove('row-mode');
+  document.getElementById('i-d').style.cssText = '';
   ST.d = {s:1,x:0,y:0};
   renderDbView(view);
 }
@@ -479,12 +551,29 @@ function applyTransform(t) {
     'translate(calc(-50% + '+x+'px), calc(-50% + '+y+'px)) scale('+s+')';
 }
 
-function zm(t, f) { ST[t].s = Math.max(0.1, Math.min(ST[t].s*f, 5)); applyTransform(t); }
-function rz(t) { fitToView(t); }
+function zm(t, f) {
+  const wrap = document.getElementById('w-'+t);
+  if (wrap && wrap.classList.contains('row-mode')) {
+    const inner = document.getElementById('i-'+t);
+    inner.querySelectorAll('.row-diagram svg').forEach(svg => {
+      svg.setAttribute('width', (parseFloat(svg.getAttribute('width'))||800)*f);
+      svg.setAttribute('height', (parseFloat(svg.getAttribute('height'))||600)*f);
+    });
+    return;
+  }
+  ST[t].s = Math.max(0.1, Math.min(ST[t].s*f, 5)); applyTransform(t);
+}
+function rz(t) {
+  const wrap = document.getElementById('w-'+t);
+  if (wrap && wrap.classList.contains('row-mode')) {
+    scaleRowSvgs(wrap, document.getElementById('i-'+t)); return;
+  }
+  fitToView(t);
+}
 
 document.addEventListener('mousedown', e => {
   const wrap = e.target.closest('.canvas-wrap');
-  if (!wrap) return;
+  if (!wrap || wrap.classList.contains('row-mode')) return;
   const t = wrap.id.slice(2);
   drag.t=t; drag.sx=e.clientX; drag.sy=e.clientY; drag.ox=ST[t].x; drag.oy=ST[t].y;
   wrap.classList.add('dragging');
@@ -501,6 +590,7 @@ document.addEventListener('mouseup', () => {
 });
 document.querySelectorAll('.canvas-wrap').forEach(w => {
   w.addEventListener('wheel', e => {
+    if (w.classList.contains('row-mode')) return;
     e.preventDefault();
     zm(w.id.slice(2), e.deltaY<0?1.1:0.9);
   }, {passive:false});

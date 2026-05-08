@@ -30,7 +30,7 @@ const FRAMEWORK_PROFILES: Record<FrameworkKind, FrameworkProfile> = {
   'angular':           { adapterId: 'angular',           parsingLevel: 'L2', llmRecommended: false },
   'expo':              { adapterId: 'expo',              parsingLevel: 'L1', llmRecommended: true  },
   // L3: LLM-only (no static adapter)
-  'vite-react':        { adapterId: 'vite-react',        parsingLevel: 'L3', llmRecommended: true  },
+  'vite-react':        {                                  parsingLevel: 'L3', llmRecommended: true  },
   'unknown':           {                                  parsingLevel: 'L3', llmRecommended: true  },
 }
 
@@ -94,14 +94,14 @@ export async function detectStack(repoRoot: string): Promise<StackInfo> {
     framework = 'expo'
   } else if ('@sveltejs/kit' in deps) {
     framework = 'sveltekit'
-  } else if ('vite' in deps && ('react' in deps || '@types/react' in deps)) {
-    framework = 'vite-react'
   } else if ('@nestjs/core' in deps || '@nestjs/common' in deps) {
     framework = 'nestjs'
   } else if ('@remix-run/react' in deps) {
     framework = 'remix'
-  } else if ('react-router-dom' in deps && !('@remix-run/react' in deps)) {
+  } else if ('react-router-dom' in deps) {
     framework = 'react-router'
+  } else if ('vite' in deps && ('react' in deps || '@types/react' in deps)) {
+    framework = 'vite-react'
   } else if ('@angular/core' in deps) {
     framework = 'angular'
   } else if ('vue' in deps && !('nuxt' in deps)) {

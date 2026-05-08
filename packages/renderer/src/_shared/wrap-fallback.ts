@@ -8,9 +8,10 @@ import {
   type RouteNode,
   type NodeId,
 } from '@codebase-viz/types'
-import { groupRoutesByUrl } from '../url-grouper.js'
+import { groupRoutesByUrl, type NestedGroup } from '../url-grouper.js'
 
 export const DEFAULT_CHUNK_THRESHOLD = 1_000_000
+export const DEFAULT_NODE_THRESHOLD = 100
 export const CHUNK_SEPARATOR = '%%--CHUNK--%%'
 
 export interface ChunkOptions {
@@ -18,8 +19,13 @@ export interface ChunkOptions {
   maxDepth: number
 }
 
-export function shouldChunk(diagramText: string, threshold = DEFAULT_CHUNK_THRESHOLD): boolean {
-  return diagramText.length > threshold
+export function shouldChunk(
+  diagramText: string,
+  textThreshold = DEFAULT_CHUNK_THRESHOLD,
+  nodeCount = 0,
+  nodeThreshold = DEFAULT_NODE_THRESHOLD,
+): boolean {
+  return diagramText.length > textThreshold || (nodeCount > 0 && nodeCount > nodeThreshold)
 }
 
 export function wrapDiagramHeader(chunkIndex: number, total: number): string {
@@ -51,6 +57,19 @@ function chunkArray<T>(items: T[], size: number): T[][] {
   return result
 }
 
+function collectLeafRouteArrays(groups: NestedGroup[]): RouteNode[][] {
+  const result: RouteNode[][] = []
+  for (const g of groups) {
+    if (g.children.length === 0) {
+      if (g.routes.length > 0) result.push(g.routes)
+    } else {
+      if (g.routes.length > 0) result.push(g.routes)
+      result.push(...collectLeafRouteArrays(g.children))
+    }
+  }
+  return result
+}
+
 export function chunkByGroups(graph: IRGraph, opts: ChunkOptions): IRGraph[] {
   if (graph.nodes.length === 0) return [graph]
 
@@ -60,8 +79,9 @@ export function chunkByGroups(graph: IRGraph, opts: ChunkOptions): IRGraph[] {
 
   if (routes.length > 0) {
     const groups = groupRoutesByUrl(routes)
+    const leafArrays = collectLeafRouteArrays(groups)
     const subGraphs: IRGraph[] = []
-    for (const { routes: groupRoutes } of groups) {
+    for (const groupRoutes of leafArrays) {
       const routeChunks = chunkArray(groupRoutes, opts.maxNodesPerGroup)
       for (const chunk of routeChunks) {
         const routeIds = new Set<NodeId>(chunk.map(r => r.id))

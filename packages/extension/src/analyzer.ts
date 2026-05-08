@@ -1,3 +1,4 @@
+import * as fs from 'node:fs/promises'
 import * as path from 'node:path'
 import * as os from 'node:os'
 import { createDefaultRegistry, extractFeCalls, matchFeCallsToBeRoutes, remapCrossEdgeFromIds } from '@codebase-viz/core'
@@ -44,16 +45,31 @@ export async function runAnalysis(
     : (options ?? {})
   const llmOptions = opts.llm
   const grouping: GroupingOptions = { ...DEFAULT_GROUPING, ...(opts.grouping ?? {}) }
+
+  if (llmOptions === undefined && opts.pairRepoRoot === undefined) {
+    const cached = await loadCachedGraph(repoRoot)
+    if (cached !== null) {
+      return { graph: cached, diagrams: buildDiagrams(cached, { grouping }) }
+    }
+  }
+
   const stack = await detectStack(repoRoot)
   const registry = createDefaultRegistry()
+
+  if (stack.adapterId === undefined && stack.llmRecommended && llmOptions === undefined) {
+    throw new Error(
+      `이 프레임워크(${stack.framework})는 LLM 분석이 필요합니다. API Key를 설정해 주세요.`,
+    )
+  }
+
   const adapter = registry.get(stack.adapterId)
 
   const result = adapter !== undefined
-    ? await adapter.analyze({ repoRoot, stack, analyzerVersion: 'codebase-viz@0.1.0' })
+    ? await adapter.analyze({ repoRoot, stack, analyzerVersion: ANALYZER_VERSION })
     : EMPTY_ADAPTER_RESULT
 
   let finalGraph: IRGraph = createIRGraph({
-    analyzerVersion: 'codebase-viz@0.1.0',
+    analyzerVersion: ANALYZER_VERSION,
     repoRoot,
     projectName: path.basename(repoRoot),
     metadata: {
@@ -86,7 +102,7 @@ export async function runAnalysis(
     })
 
     const { routeNodes: llmRoutes, componentNodes: llmComponents, tableNodes: llmTables, edges: llmEdges } =
-      convertToIR(llmResult, repoRoot, 'codebase-viz@0.1.0')
+      convertToIR(llmResult, repoRoot, ANALYZER_VERSION)
 
     const allLLMNodes = [...llmRoutes, ...llmComponents, ...llmTables]
     const { verified } = await verifyNodes(allLLMNodes, repoRoot)
@@ -110,6 +126,7 @@ export async function runAnalysis(
 
   const outputDir = path.join(repoRoot, '.codesight')
   await renderMermaid(finalGraph, outputDir).catch(() => { /* best-effort */ })
+  await saveCachedGraph(repoRoot, finalGraph)
 
   if (opts.pairRepoRoot !== undefined) {
     const pairResult = await buildPairResult(finalGraph, opts.pairRepoRoot, grouping)
@@ -128,11 +145,11 @@ async function buildPairResult(
   const registry = createDefaultRegistry()
   const pairAdapter = registry.get(pairStack.adapterId)
   const pairAdapterResult = pairAdapter !== undefined
-    ? await pairAdapter.analyze({ repoRoot: pairRepoRoot, stack: pairStack, analyzerVersion: 'codebase-viz@0.1.0' })
+    ? await pairAdapter.analyze({ repoRoot: pairRepoRoot, stack: pairStack, analyzerVersion: ANALYZER_VERSION })
     : EMPTY_ADAPTER_RESULT
 
   const beGraph = createIRGraph({
-    analyzerVersion: 'codebase-viz@0.1.0',
+    analyzerVersion: ANALYZER_VERSION,
     repoRoot: pairRepoRoot,
     projectName: path.basename(pairRepoRoot),
     metadata: {
@@ -160,17 +177,46 @@ async function buildPairResult(
     .filter(isComponentNode)
     .map(n => path.join(feGraph.repoRoot, n.filePath))
 
-  const feCalls = await extractFeCalls(feComponentFiles, feGraph.repoRoot, 'codebase-viz@0.1.0')
+  const feCalls = await extractFeCalls(feComponentFiles, feGraph.repoRoot, ANALYZER_VERSION)
 
   const beRoutes = beGraph.nodes.filter(isRouteNode)
   const rawEdges = matchFeCallsToBeRoutes(feCalls, beRoutes, {
     fromRepoRoot: feGraph.repoRoot,
     toRepoRoot: pairRepoRoot,
-    analyzerVersion: 'codebase-viz@0.1.0',
+    analyzerVersion: ANALYZER_VERSION,
   })
   const crossEdges = remapCrossEdgeFromIds(rawEdges, feGraph)
 
   return { graph: beGraph, crossEdges }
+}
+
+export const ANALYZER_VERSION = 'codebase-viz@1.1.1'
+
+interface CacheEntry {
+  analyzerVersion: string
+  graph: IRGraph
+}
+
+export async function loadCachedGraph(repoRoot: string): Promise<IRGraph | null> {
+  try {
+    const raw = await fs.readFile(path.join(repoRoot, '.codesight', 'cache.json'), 'utf8')
+    const entry = JSON.parse(raw) as CacheEntry
+    if (entry.analyzerVersion !== ANALYZER_VERSION) return null
+    return entry.graph
+  } catch {
+    return null
+  }
+}
+
+export async function saveCachedGraph(repoRoot: string, graph: IRGraph): Promise<void> {
+  try {
+    const dir = path.join(repoRoot, '.codesight')
+    await fs.mkdir(dir, { recursive: true })
+    const entry: CacheEntry = { analyzerVersion: ANALYZER_VERSION, graph }
+    await fs.writeFile(path.join(dir, 'cache.json'), JSON.stringify(entry), 'utf8')
+  } catch {
+    // best-effort
+  }
 }
 
 export async function getCacheDir(): Promise<string> {

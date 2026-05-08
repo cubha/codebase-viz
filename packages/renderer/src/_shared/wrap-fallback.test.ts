@@ -18,6 +18,7 @@ import {
   joinChunks,
   CHUNK_SEPARATOR,
   DEFAULT_CHUNK_THRESHOLD,
+  DEFAULT_NODE_THRESHOLD,
 } from './wrap-fallback.js'
 
 const PROV: Provenance = { file: 'app/x.tsx', line: 1, adapter: 'test', analyzerVersion: 't@0.1' }
@@ -61,6 +62,21 @@ describe('shouldChunk', () => {
   it('respects custom threshold', () => {
     expect(shouldChunk('a'.repeat(50), 10)).toBe(true)
     expect(shouldChunk('a'.repeat(5), 10)).toBe(false)
+  })
+
+  it('returns true when nodeCount exceeds nodeThreshold even if text is short (B2)', () => {
+    expect(shouldChunk('short', DEFAULT_CHUNK_THRESHOLD, 101, 100)).toBe(true)
+  })
+
+  it('returns false when nodeCount is at or below nodeThreshold (B2)', () => {
+    expect(shouldChunk('short', DEFAULT_CHUNK_THRESHOLD, 100, 100)).toBe(false)
+    expect(shouldChunk('short', DEFAULT_CHUNK_THRESHOLD, 0, 100)).toBe(false)
+  })
+
+  it('uses DEFAULT_NODE_THRESHOLD=100 when not specified (B2)', () => {
+    expect(DEFAULT_NODE_THRESHOLD).toBe(100)
+    expect(shouldChunk('short', DEFAULT_CHUNK_THRESHOLD, 101)).toBe(true)
+    expect(shouldChunk('short', DEFAULT_CHUNK_THRESHOLD, 100)).toBe(false)
   })
 })
 
@@ -206,5 +222,27 @@ describe('buildDiagrams chunk fallback integration', () => {
     const graph = makeGraphWith(routes)
     const out = buildDiagrams(graph, { chunkThreshold: 500 })
     expect(out.rendering).not.toContain(CHUNK_SEPARATOR)
+  })
+
+  it('chunks 110 flat routes by nodeThreshold even when text < 1M chars (B2)', async () => {
+    const { buildDiagrams } = await import('../mermaid-renderer.js')
+    // 110 routes with no shared LCP — each is its own cluster
+    const routes = Array.from({ length: 110 }, (_, i) => makeRoute(`/r${i}`))
+    const graph = makeGraphWith(routes)
+    const out = buildDiagrams(graph, {
+      nodeThreshold: 80,
+      grouping: { maxNodesPerGroup: 30, maxDepth: 8 },
+    })
+    expect(out.rendering.length).toBeLessThan(DEFAULT_CHUNK_THRESHOLD)
+    expect(out.rendering).toContain(CHUNK_SEPARATOR)
+  })
+
+  it('row-batches flat routes when top-level groups exceed GROUPS_PER_ROW (B2)', async () => {
+    const { buildDiagrams } = await import('../mermaid-renderer.js')
+    const routes = Array.from({ length: 50 }, (_, i) => makeRoute(`/r${i}`))
+    const graph = makeGraphWith(routes)
+    const out = buildDiagrams(graph, { nodeThreshold: 80 })
+    // 50 flat routes → 50 top-level groups → row batching kicks in (GROUPS_PER_ROW=5)
+    expect(out.rendering).toContain(CHUNK_SEPARATOR)
   })
 })

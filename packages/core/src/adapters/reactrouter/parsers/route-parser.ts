@@ -160,6 +160,111 @@ function flattenRoutesEnriched(entries: RouteEntry[], parentPath = ''): FlatRout
   return result
 }
 
+// --- JSX <Routes> helpers ---
+
+function getJsxAttrString(
+  attrs: import('ts-morph').JsxAttributeLike[],
+  attrName: string,
+): string | undefined {
+  for (const a of attrs) {
+    if (!a.isKind(SyntaxKind.JsxAttribute)) continue
+    const jxa = a.asKindOrThrow(SyntaxKind.JsxAttribute)
+    if (jxa.getNameNode().getText() !== attrName) continue
+    const init = jxa.getInitializer()
+    if (init?.isKind(SyntaxKind.StringLiteral)) return init.getLiteralValue()
+  }
+  return undefined
+}
+
+function hasJsxAttrFlag(
+  attrs: import('ts-morph').JsxAttributeLike[],
+  attrName: string,
+): boolean {
+  return attrs.some(
+    a => a.isKind(SyntaxKind.JsxAttribute) && a.asKindOrThrow(SyntaxKind.JsxAttribute).getNameNode().getText() === attrName,
+  )
+}
+
+function extractJsxElementComponent(
+  attrs: import('ts-morph').JsxAttributeLike[],
+): string | undefined {
+  for (const a of attrs) {
+    if (!a.isKind(SyntaxKind.JsxAttribute)) continue
+    const jxa = a.asKindOrThrow(SyntaxKind.JsxAttribute)
+    if (jxa.getNameNode().getText() !== 'element') continue
+    const init = jxa.getInitializer()
+    if (!init?.isKind(SyntaxKind.JsxExpression)) continue
+    const expr = init.asKindOrThrow(SyntaxKind.JsxExpression).getExpression()
+    if (expr?.isKind(SyntaxKind.JsxSelfClosingElement)) {
+      const tag = expr.asKindOrThrow(SyntaxKind.JsxSelfClosingElement).getTagNameNode().getText()
+      if (tag[0] !== undefined && tag[0] !== tag[0].toLowerCase()) return tag
+    } else if (expr?.isKind(SyntaxKind.JsxElement)) {
+      const tag = expr.asKindOrThrow(SyntaxKind.JsxElement).getOpeningElement().getTagNameNode().getText()
+      if (tag[0] !== undefined && tag[0] !== tag[0].toLowerCase()) return tag
+    }
+  }
+  return undefined
+}
+
+interface JsxRouteRaw {
+  routePath: string
+  elementComponent: string | undefined
+  line: number
+}
+
+function extractJsxRouteChildren(
+  children: import('ts-morph').JsxChild[],
+  parentPath: string,
+): JsxRouteRaw[] {
+  const results: JsxRouteRaw[] = []
+  for (const child of children) {
+    let tagName: string | undefined
+    let attrs: import('ts-morph').JsxAttributeLike[] = []
+    let nested: import('ts-morph').JsxChild[] = []
+    let line = 1
+
+    if (child.isKind(SyntaxKind.JsxElement)) {
+      const el = child.asKindOrThrow(SyntaxKind.JsxElement)
+      tagName = el.getOpeningElement().getTagNameNode().getText()
+      attrs = el.getOpeningElement().getAttributes()
+      nested = el.getJsxChildren()
+      line = el.getStartLineNumber()
+    } else if (child.isKind(SyntaxKind.JsxSelfClosingElement)) {
+      const el = child.asKindOrThrow(SyntaxKind.JsxSelfClosingElement)
+      tagName = el.getTagNameNode().getText()
+      attrs = el.getAttributes()
+      line = el.getStartLineNumber()
+    }
+
+    if (tagName !== 'Route') continue
+
+    const isIndex = hasJsxAttrFlag(attrs, 'index')
+    const pathAttr = getJsxAttrString(attrs, 'path')
+    const elementComponent = extractJsxElementComponent(attrs)
+
+    let routePath: string
+    if (isIndex) {
+      routePath = parentPath || '/'
+    } else if (pathAttr !== undefined && pathAttr !== '') {
+      if (pathAttr === '*') {
+        routePath = parentPath ? `${parentPath}/*` : '/*'
+      } else {
+        const seg = pathAttr.startsWith('/') ? pathAttr : `/${pathAttr}`
+        routePath = `${parentPath}${seg}`.replace(/\/+/g, '/') || '/'
+      }
+    } else {
+      routePath = parentPath || '/'
+    }
+
+    results.push({ routePath, elementComponent, line })
+
+    if (nested.length > 0) {
+      results.push(...extractJsxRouteChildren(nested, routePath))
+    }
+  }
+  return results
+}
+
 export interface ReactRouterFullResult {
   routeNodes: RouteNode[]
   componentNodes: ComponentNode[]
@@ -174,13 +279,16 @@ export async function parseReactRouterFull(
   if (allFiles.length === 0) return { routeNodes: [], componentNodes: [], rendersEdges: [] }
 
   const routerFiles: string[] = []
+  const jsxRouterFiles: string[] = []
   for (const f of allFiles) {
     const content = await fs.readFile(f, 'utf-8').catch(() => '')
     if (content.includes('createBrowserRouter') || content.includes('createHashRouter') || content.includes('createMemoryRouter')) {
       routerFiles.push(f)
+    } else if (content.includes('<Routes')) {
+      jsxRouterFiles.push(f)
     }
   }
-  if (routerFiles.length === 0) return { routeNodes: [], componentNodes: [], rendersEdges: [] }
+  if (routerFiles.length === 0 && jsxRouterFiles.length === 0) return { routeNodes: [], componentNodes: [], rendersEdges: [] }
 
   const project = new Project({
     compilerOptions: { target: 99, allowJs: true, strict: false, jsx: 4 },
@@ -338,6 +446,97 @@ export async function parseReactRouterFull(
     }
   }
 
+  if (jsxRouterFiles.length > 0) {
+    const jsxProject = new Project({
+      compilerOptions: { target: 99, allowJs: true, strict: false, jsx: 4 },
+      skipAddingFilesFromTsConfig: true,
+    })
+    for (const f of jsxRouterFiles) jsxProject.addSourceFileAtPath(f)
+
+    for (const sourceFile of jsxProject.getSourceFiles()) {
+      const filePath = sourceFile.getFilePath()
+      const relPath = path.relative(repoRoot, filePath).replace(/\\/g, '/')
+      const routerDir = path.dirname(filePath)
+
+      const importMap = new Map<string, string>()
+      for (const importDecl of sourceFile.getImportDeclarations()) {
+        const defaultImport = importDecl.getDefaultImport()
+        if (defaultImport !== undefined) {
+          importMap.set(defaultImport.getText(), importDecl.getModuleSpecifierValue())
+        }
+      }
+
+      for (const jsxEl of sourceFile.getDescendantsOfKind(SyntaxKind.JsxElement)) {
+        const tagName = jsxEl.getOpeningElement().getTagNameNode().getText()
+        if (tagName !== 'Routes') continue
+
+        const rawItems = extractJsxRouteChildren(jsxEl.getJsxChildren(), '')
+        for (const item of rawItems) {
+          const { urlPath, dynamicSegmentType } = normalizePath(item.routePath)
+          const provenance: Provenance = {
+            file: relPath,
+            line: item.line,
+            adapter: 'react-router@0.1',
+            analyzerVersion,
+          }
+
+          const routeNode = createRouteNode({
+            id: makeNodeId('route', relPath, urlPath),
+            path: urlPath,
+            filePath: relPath,
+            routeFileKind: 'page',
+            dynamicSegmentType,
+            isGroupRoute: false,
+            renderingMode: 'CSR',
+            provenance,
+            confidence: 'verified',
+          })
+          routeNodes.push(routeNode)
+
+          if (item.elementComponent !== undefined) {
+            const moduleSpec = importMap.get(item.elementComponent)
+            if (moduleSpec !== undefined && moduleSpec.startsWith('.')) {
+              const absBase = path.resolve(routerDir, moduleSpec)
+              let compAbsPath: string | undefined
+              for (const ext of ['.tsx', '.ts', '.jsx', '.js']) {
+                try {
+                  await fs.access(absBase + ext)
+                  compAbsPath = absBase + ext
+                  break
+                } catch { /* try next extension */ }
+              }
+              if (compAbsPath !== undefined) {
+                const compRelPath = path.relative(repoRoot, compAbsPath).replace(/\\/g, '/')
+                let compNodeId = seenCompFiles.get(compRelPath)
+                if (compNodeId === undefined) {
+                  const compNode = createComponentNode({
+                    id: makeNodeId('component', compRelPath, item.elementComponent),
+                    name: item.elementComponent,
+                    filePath: compRelPath,
+                    runtime: 'client',
+                    provenance: { file: relPath, line: item.line, adapter: 'react-router@0.1', analyzerVersion },
+                    confidence: 'verified',
+                  })
+                  componentNodes.push(compNode)
+                  seenCompFiles.set(compRelPath, compNode.id)
+                  compNodeId = compNode.id
+                }
+                rendersEdges.push(createEdge({
+                  id: makeEdgeId('renders', routeNode.id, compNodeId),
+                  from: routeNode.id,
+                  to: compNodeId,
+                  kind: 'renders',
+                  provenance: { file: relPath, line: item.line, adapter: 'react-router@0.1', analyzerVersion },
+                  confidence: 'verified',
+                }))
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+
   return { routeNodes, componentNodes, rendersEdges }
 }
 
@@ -349,13 +548,16 @@ export async function parseReactRoutes(
   if (allFiles.length === 0) return []
 
   const routerFiles: string[] = []
+  const jsxRouterFiles: string[] = []
   for (const f of allFiles) {
     const content = await fs.readFile(f, 'utf-8').catch(() => '')
     if (content.includes('createBrowserRouter') || content.includes('createHashRouter') || content.includes('createMemoryRouter')) {
       routerFiles.push(f)
+    } else if (content.includes('<Routes')) {
+      jsxRouterFiles.push(f)
     }
   }
-  if (routerFiles.length === 0) return []
+  if (routerFiles.length === 0 && jsxRouterFiles.length === 0) return []
 
   const project = new Project({
     compilerOptions: { target: 99, allowJs: true, strict: false, jsx: 4 },
@@ -413,6 +615,48 @@ export async function parseReactRoutes(
             confidence: 'verified',
           }),
         )
+      }
+    }
+  }
+
+  if (jsxRouterFiles.length > 0) {
+    const jsxProject = new Project({
+      compilerOptions: { target: 99, allowJs: true, strict: false, jsx: 4 },
+      skipAddingFilesFromTsConfig: true,
+    })
+    for (const f of jsxRouterFiles) jsxProject.addSourceFileAtPath(f)
+
+    for (const sourceFile of jsxProject.getSourceFiles()) {
+      const filePath = sourceFile.getFilePath()
+      const relPath = path.relative(repoRoot, filePath).replace(/\\/g, '/')
+
+      for (const jsxEl of sourceFile.getDescendantsOfKind(SyntaxKind.JsxElement)) {
+        const tagName = jsxEl.getOpeningElement().getTagNameNode().getText()
+        if (tagName !== 'Routes') continue
+
+        const rawItems = extractJsxRouteChildren(jsxEl.getJsxChildren(), '')
+        for (const item of rawItems) {
+          const { urlPath, dynamicSegmentType } = normalizePath(item.routePath)
+          const provenance: Provenance = {
+            file: relPath,
+            line: item.line,
+            adapter: 'react-router@0.1',
+            analyzerVersion,
+          }
+          routes.push(
+            createRouteNode({
+              id: makeNodeId('route', relPath, urlPath),
+              path: urlPath,
+              filePath: relPath,
+              routeFileKind: 'page',
+              dynamicSegmentType,
+              isGroupRoute: false,
+              renderingMode: 'CSR',
+              provenance,
+              confidence: 'verified',
+            }),
+          )
+        }
       }
     }
   }

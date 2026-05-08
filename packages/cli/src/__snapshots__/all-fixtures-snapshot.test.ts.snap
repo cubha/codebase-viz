@@ -59,15 +59,12 @@ graph TB
   classDef ppr fill:#0d1a2d,stroke:#2563eb,color:#93c5fd
   classDef unk fill:#1a1a1a,stroke:#6b7280,color:#9ca3af
   subgraph ROOT_S["🏠 /root"]
-    direction LR
     route_src_app_user_detail_user_detail_module_ts__["/ · CSR"]:::csr
   end
   subgraph ABOUT_S["👤 /about"]
-    direction LR
     route_src_app_app_config_ts__about["/about · CSR"]:::csr
   end
   subgraph USERS_S["📄 /users"]
-    direction LR
     route_src_app_app_config_ts__users["/users · CSR"]:::csr
     route_src_app_app_config_ts__users__id["/users/:id · CSR"]:::csr
   end"
@@ -113,10 +110,14 @@ graph TD
   classDef ppr fill:#0d1a2d,stroke:#2563eb,color:#93c5fd
   classDef unk fill:#1a1a1a,stroke:#6b7280,color:#9ca3af
   subgraph API_G["⚡ /api"]
-    route_api_urls_py__api_users_include["/api/users · SSR"]:::ssr
-    route_api_urls_py__api_users__pk_include["/api/users/:pk · SSR"]:::ssr
-    route_api_urls_py__api_posts_include["/api/posts · SSR"]:::ssr
-    route_api_urls_py__api_posts__slug_include["/api/posts/:slug · SSR"]:::ssr
+    subgraph USERS_G["📄 /users"]
+      route_api_urls_py__api_users_include["/api/users · SSR"]:::ssr
+      route_api_urls_py__api_users__pk_include["/api/users/:pk · SSR"]:::ssr
+    end
+    subgraph POSTS_G["📄 /posts"]
+      route_api_urls_py__api_posts_include["/api/posts · SSR"]:::ssr
+      route_api_urls_py__api_posts__slug_include["/api/posts/:slug · SSR"]:::ssr
+    end
   end
   subgraph DATALAYER["🔌 API LAYER"]
     subgraph API_G["⚡ REST API · Backend"]
@@ -135,7 +136,6 @@ graph TB
   classDef ppr fill:#0d1a2d,stroke:#2563eb,color:#93c5fd
   classDef unk fill:#1a1a1a,stroke:#6b7280,color:#9ca3af
   subgraph API_S["⚡ /api"]
-    direction LR
     route_api_urls_py__api_users_include["/api/users · SSR"]:::ssr
     route_api_urls_py__api_users__pk_include["/api/users/:pk · SSR"]:::ssr
     route_api_urls_py__api_posts_include["/api/posts · SSR"]:::ssr
@@ -209,15 +209,19 @@ graph TD
   classDef ppr fill:#0d1a2d,stroke:#2563eb,color:#93c5fd
   classDef unk fill:#1a1a1a,stroke:#6b7280,color:#9ca3af
   subgraph API_G["⚡ /api"]
-    route_routers_users_py__api_users_GET["/api/users · SSR"]:::ssr
-    route_routers_users_py__api_users__user_id_GET["/api/users/:user_id · SSR"]:::ssr
-    route_routers_users_py__api_users_POST["/api/users · SSR"]:::ssr
-    route_routers_posts_py__api_posts_GET["/api/posts · SSR"]:::ssr
-    route_routers_posts_py__api_posts__post_id_GET["/api/posts/:post_id · SSR"]:::ssr
+    subgraph USERS_G["📄 /users"]
+      route_routers_users_py__api_users_GET["GET /api/users · SSR"]:::ssr
+      route_routers_users_py__api_users__user_id_GET["GET /api/users/:user_id · SSR"]:::ssr
+      route_routers_users_py__api_users_POST["POST /api/users · SSR"]:::ssr
+    end
+    subgraph POSTS_G["📄 /posts"]
+      route_routers_posts_py__api_posts_GET["GET /api/posts · SSR"]:::ssr
+      route_routers_posts_py__api_posts__post_id_GET["GET /api/posts/:post_id · SSR"]:::ssr
+    end
   end
   route_main_py___get["GET / · SSR"]:::ssr
   subgraph HEALTH_G["📄 /health"]
-    route_main_py__health_get["/health · SSR"]:::ssr
+    route_main_py__health_get["GET /health · SSR"]:::ssr
   end
   subgraph DATALAYER["🔌 API LAYER"]
     subgraph API_G["⚡ REST API · Backend"]
@@ -236,18 +240,15 @@ graph TB
   classDef ppr fill:#0d1a2d,stroke:#2563eb,color:#93c5fd
   classDef unk fill:#1a1a1a,stroke:#6b7280,color:#9ca3af
   subgraph API_S["⚡ /api"]
-    direction LR
     route_routers_users_py__api_users_GET["/api/users · SSR"]:::ssr
     route_routers_users_py__api_users__user_id_GET["/api/users/:user_id · SSR"]:::ssr
     route_routers_posts_py__api_posts_GET["/api/posts · SSR"]:::ssr
     route_routers_posts_py__api_posts__post_id_GET["/api/posts/:post_id · SSR"]:::ssr
   end
   subgraph ROOT_S["🏠 /root"]
-    direction LR
     route_main_py___get["/ · SSR"]:::ssr
   end
   subgraph HEALTH_S["📄 /health"]
-    direction LR
     route_main_py__health_get["/health · SSR"]:::ssr
   end"
 `;
@@ -303,11 +304,15 @@ graph TD
     route_app_py__health["/health · SSR"]:::ssr
   end
   subgraph API_G["⚡ /api"]
-    route_blueprints_posts_py__api_posts["/api/posts · SSR"]:::ssr
-    route_blueprints_posts_py__api_posts__post_id["/api/posts/:post_id · SSR"]:::ssr
-    route_blueprints_users_py__api_users["/api/users · SSR"]:::ssr
-    route_blueprints_users_py__api_users__user_id["/api/users/:user_id · SSR"]:::ssr
-    route_blueprints_users_py__api_users["/api/users · SSR"]:::ssr
+    subgraph POSTS_G["📄 /posts"]
+      route_blueprints_posts_py__api_posts["/api/posts · SSR"]:::ssr
+      route_blueprints_posts_py__api_posts__post_id["/api/posts/:post_id · SSR"]:::ssr
+    end
+    subgraph USERS_G["📄 /users"]
+      route_blueprints_users_py__api_users["/api/users · SSR"]:::ssr
+      route_blueprints_users_py__api_users__user_id["/api/users/:user_id · SSR"]:::ssr
+      route_blueprints_users_py__api_users["POST /api/users · SSR"]:::ssr
+    end
   end"
 `;
 
@@ -321,15 +326,12 @@ graph TB
   classDef ppr fill:#0d1a2d,stroke:#2563eb,color:#93c5fd
   classDef unk fill:#1a1a1a,stroke:#6b7280,color:#9ca3af
   subgraph ROOT_S["🏠 /root"]
-    direction LR
     route_app_py__["/ · SSR"]:::ssr
   end
   subgraph HEALTH_S["📄 /health"]
-    direction LR
     route_app_py__health["/health · SSR"]:::ssr
   end
   subgraph API_S["⚡ /api"]
-    direction LR
     route_blueprints_posts_py__api_posts["/api/posts · SSR"]:::ssr
     route_blueprints_posts_py__api_posts__post_id["/api/posts/:post_id · SSR"]:::ssr
     route_blueprints_users_py__api_users["/api/users · SSR"]:::ssr
@@ -389,10 +391,12 @@ graph TD
   classDef ppr fill:#0d1a2d,stroke:#2563eb,color:#93c5fd
   classDef unk fill:#1a1a1a,stroke:#6b7280,color:#9ca3af
   subgraph USERS_G["📄 /users"]
-    route_src_users_users_controller_ts_UsersController_findAll["/users · SSR"]:::ssr
-    route_src_users_users_controller_ts_UsersController_findOne["/users/:id · SSR"]:::ssr
-    route_src_users_users_controller_ts_UsersController_create["/users · SSR"]:::ssr
-    route_src_users_users_controller_ts_UsersController_remove["/users/:id · SSR"]:::ssr
+    route_src_users_users_controller_ts_UsersController_findAll["GET /users · SSR"]:::ssr
+    route_src_users_users_controller_ts_UsersController_create["POST /users · SSR"]:::ssr
+    subgraph _ID_G["📄 /:id"]
+      route_src_users_users_controller_ts_UsersController_findOne["GET /users/:id · SSR"]:::ssr
+      route_src_users_users_controller_ts_UsersController_remove["DELETE /users/:id · SSR"]:::ssr
+    end
   end
   subgraph DATALAYER["🔌 API LAYER"]
     subgraph API_G["⚡ REST API · Backend"]
@@ -411,7 +415,6 @@ graph TB
   classDef ppr fill:#0d1a2d,stroke:#2563eb,color:#93c5fd
   classDef unk fill:#1a1a1a,stroke:#6b7280,color:#9ca3af
   subgraph USERS_S["📄 /users"]
-    direction LR
     route_src_users_users_controller_ts_UsersController_create["/users · SSR"]:::ssr
     route_src_users_users_controller_ts_UsersController_remove["/users/:id · SSR"]:::ssr
   end"
@@ -534,21 +537,18 @@ graph TB
   classDef ppr fill:#0d1a2d,stroke:#2563eb,color:#93c5fd
   classDef unk fill:#1a1a1a,stroke:#6b7280,color:#9ca3af
   subgraph ABOUT_S["👤 /about"]
-    direction LR
     route_app__marketing__about_page["/about · SSR"]:::ssr
-    component_app__marketing__about_page_tsx_page["page"]
   end
   subgraph BLOG_S["📝 /blog"]
-    direction LR
     route_app_blog__slug__page["/blog/:slug · SSR"]:::ssr
-    component_app_blog__slug__page_tsx_page["page"]
   end
   subgraph ROOT_S["🏠 /root"]
-    direction LR
     route_app_page["/ · SSR"]:::ssr
-    component_app_page_tsx_page["page"]
-    component_components_Header_tsx_Header["Header"]
   end
+  component_app__marketing__about_page_tsx_page["page"]
+  component_app_blog__slug__page_tsx_page["page"]
+  component_app_page_tsx_page["page"]
+  component_components_Header_tsx_Header["Header"]
   route_app__marketing__about_page --> component_app__marketing__about_page_tsx_page
   route_app_blog__slug__page --> component_app_blog__slug__page_tsx_page
   route_app_page --> component_app_page_tsx_page
@@ -648,20 +648,16 @@ graph TB
   classDef ppr fill:#0d1a2d,stroke:#2563eb,color:#93c5fd
   classDef unk fill:#1a1a1a,stroke:#6b7280,color:#9ca3af
   subgraph _COMPONENTS_S["📄 /_components"]
-    direction LR
     route_pages__components_UserBadge_tsx_page["/_components/UserBadge · SSR"]:::ssr
     route_pages__components_UserCard_tsx_page["/_components/UserCard · SSR"]:::ssr
   end
   subgraph ABOUT_S["👤 /about"]
-    direction LR
     route_pages_about_tsx_page["/about · SSR"]:::ssr
   end
   subgraph ROOT_S["🏠 /root"]
-    direction LR
     route_pages_index_tsx_page["/ · SSR"]:::ssr
   end
   subgraph USERS_S["📄 /users"]
-    direction LR
     route_pages_users__id__tsx_page["/users/:id · SSR"]:::ssr
   end"
 `;
@@ -728,19 +724,15 @@ graph TB
   classDef ppr fill:#0d1a2d,stroke:#2563eb,color:#93c5fd
   classDef unk fill:#1a1a1a,stroke:#6b7280,color:#9ca3af
   subgraph ABOUT_S["👤 /about"]
-    direction LR
     route_pages_about_vue["/about · SSR"]:::ssr
   end
   subgraph CLIENT_ONLY_S["📄 /client-only"]
-    direction LR
     route_pages_client_only_vue["/client-only · CSR"]:::csr
   end
   subgraph ROOT_S["🏠 /root"]
-    direction LR
     route_pages_index_vue["/ · SSR"]:::ssr
   end
   subgraph USERS_S["📄 /users"]
-    direction LR
     route_pages_users__id__vue["/users/:id · SSR"]:::ssr
   end"
 `;
@@ -809,22 +801,19 @@ graph TB
   classDef ppr fill:#0d1a2d,stroke:#2563eb,color:#93c5fd
   classDef unk fill:#1a1a1a,stroke:#6b7280,color:#9ca3af
   subgraph ROOT_S["🏠 /root"]
-    direction LR
     route_src_router_tsx__["/ · CSR"]:::csr
-    component_src_pages_HomePage_tsx_HomePage["HomePage [CSR]"]
   end
   subgraph ABOUT_S["👤 /about"]
-    direction LR
     route_src_router_tsx__about["/about · CSR"]:::csr
-    component_src_pages_AboutPage_tsx_AboutPage["AboutPage [CSR]"]
   end
   subgraph USERS_S["📄 /users"]
-    direction LR
     route_src_router_tsx__users["/users · CSR"]:::csr
-    component_src_pages_UserListPage_tsx_UserListPage["UserListPage [CSR]"]
     route_src_router_tsx__users__id["/users/:id · CSR"]:::csr
-    component_src_pages_UserDetailPage_tsx_UserDetailPage["UserDetailPage [CSR]"]
   end
+  component_src_pages_HomePage_tsx_HomePage["HomePage [CSR]"]
+  component_src_pages_AboutPage_tsx_AboutPage["AboutPage [CSR]"]
+  component_src_pages_UserListPage_tsx_UserListPage["UserListPage [CSR]"]
+  component_src_pages_UserDetailPage_tsx_UserDetailPage["UserDetailPage [CSR]"]
   route_src_router_tsx__ --> component_src_pages_HomePage_tsx_HomePage
   route_src_router_tsx__about --> component_src_pages_AboutPage_tsx_AboutPage
   route_src_router_tsx__users --> component_src_pages_UserListPage_tsx_UserListPage
@@ -887,15 +876,12 @@ graph TB
   classDef ppr fill:#0d1a2d,stroke:#2563eb,color:#93c5fd
   classDef unk fill:#1a1a1a,stroke:#6b7280,color:#9ca3af
   subgraph ROOT_S["🏠 /root"]
-    direction LR
     route_app_routes__index_tsx_page["/ · SSR"]:::ssr
   end
   subgraph ABOUT_S["👤 /about"]
-    direction LR
     route_app_routes_about_tsx_page["/about · SSR"]:::ssr
   end
   subgraph USERS_S["📄 /users"]
-    direction LR
     route_app_routes_users__id_tsx_page["/users/:id · SSR"]:::ssr
   end"
 `;
@@ -943,14 +929,26 @@ graph TD
   classDef ppr fill:#0d1a2d,stroke:#2563eb,color:#93c5fd
   classDef unk fill:#1a1a1a,stroke:#6b7280,color:#9ca3af
   subgraph API_G["⚡ /api"]
-    route_src_main_java_com_example_controller_PostController_java__api_posts_GetMapping["/api/posts · SSR"]:::ssr
-    route_src_main_java_com_example_controller_PostController_java__api_posts__postId_GetMapping["/api/posts/:postId · SSR"]:::ssr
-    route_src_main_java_com_example_controller_PostController_java__api_posts_featured_GetMapping["/api/posts/featured · SSR"]:::ssr
-    route_src_main_java_com_example_controller_PostController_java__api_posts_pinned_GetMapping["/api/posts/pinned · SSR"]:::ssr
-    route_src_main_java_com_example_controller_UserController_java__api_users_GetMapping["/api/users · SSR"]:::ssr
-    route_src_main_java_com_example_controller_UserController_java__api_users__userId_GetMapping["/api/users/:userId · SSR"]:::ssr
-    route_src_main_java_com_example_controller_UserController_java__api_users_PostMapping["/api/users · SSR"]:::ssr
-    route_src_main_java_com_example_controller_UserController_java__api_users__userId_DeleteMapping["/api/users/:userId · SSR"]:::ssr
+    subgraph POSTS_G["📄 /posts"]
+      route_src_main_java_com_example_controller_PostController_java__api_posts_GetMapping["GET /api/posts · SSR"]:::ssr
+      subgraph _POSTID_G["📄 /:postId"]
+        route_src_main_java_com_example_controller_PostController_java__api_posts__postId_GetMapping["GET /api/posts/:postId · SSR"]:::ssr
+      end
+      subgraph FEATURED_G["📄 /featured"]
+        route_src_main_java_com_example_controller_PostController_java__api_posts_featured_GetMapping["GET /api/posts/featured · SSR"]:::ssr
+      end
+      subgraph PINNED_G["📄 /pinned"]
+        route_src_main_java_com_example_controller_PostController_java__api_posts_pinned_GetMapping["GET /api/posts/pinned · SSR"]:::ssr
+      end
+    end
+    subgraph USERS_G["📄 /users"]
+      route_src_main_java_com_example_controller_UserController_java__api_users_GetMapping["GET /api/users · SSR"]:::ssr
+      route_src_main_java_com_example_controller_UserController_java__api_users_PostMapping["POST /api/users · SSR"]:::ssr
+      subgraph _USERID_G["📄 /:userId"]
+        route_src_main_java_com_example_controller_UserController_java__api_users__userId_GetMapping["GET /api/users/:userId · SSR"]:::ssr
+        route_src_main_java_com_example_controller_UserController_java__api_users__userId_DeleteMapping["DELETE /api/users/:userId · SSR"]:::ssr
+      end
+    end
   end
   subgraph DATALAYER["🔌 API LAYER"]
     subgraph API_G["⚡ REST API · Backend"]
@@ -969,7 +967,6 @@ graph TB
   classDef ppr fill:#0d1a2d,stroke:#2563eb,color:#93c5fd
   classDef unk fill:#1a1a1a,stroke:#6b7280,color:#9ca3af
   subgraph API_S["⚡ /api"]
-    direction LR
     route_src_main_java_com_example_controller_PostController_java__api_posts_GetMapping["/api/posts · SSR"]:::ssr
     route_src_main_java_com_example_controller_PostController_java__api_posts__postId_GetMapping["/api/posts/:postId · SSR"]:::ssr
     route_src_main_java_com_example_controller_PostController_java__api_posts_featured_GetMapping["/api/posts/featured · SSR"]:::ssr
@@ -1055,15 +1052,12 @@ graph TB
   classDef ppr fill:#0d1a2d,stroke:#2563eb,color:#93c5fd
   classDef unk fill:#1a1a1a,stroke:#6b7280,color:#9ca3af
   subgraph ROOT_S["🏠 /root"]
-    direction LR
     route_src_routes_page["/ · SSR"]:::ssr
   end
   subgraph ABOUT_S["👤 /about"]
-    direction LR
     route_src_routes_about_page["/about · SSR"]:::ssr
   end
   subgraph BLOG_S["📝 /blog"]
-    direction LR
     route_src_routes_blog__slug__page["/blog/:slug · SSR"]:::ssr
   end"
 `;
@@ -1131,15 +1125,12 @@ graph TB
   classDef ppr fill:#0d1a2d,stroke:#2563eb,color:#93c5fd
   classDef unk fill:#1a1a1a,stroke:#6b7280,color:#9ca3af
   subgraph ROOT_S["🏠 /root"]
-    direction LR
     route_src_router_index_ts__["/ · CSR"]:::csr
   end
   subgraph ABOUT_S["👤 /about"]
-    direction LR
     route_src_router_index_ts__about["/about · CSR"]:::csr
   end
   subgraph USERS_S["📄 /users"]
-    direction LR
     route_src_router_index_ts__users["/users · CSR"]:::csr
     route_src_router_index_ts__users__id["/users/:id · CSR"]:::csr
   end"

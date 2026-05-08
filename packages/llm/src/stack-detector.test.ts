@@ -50,9 +50,9 @@ describe('detectStack', () => {
     expect(info.llmRecommended).toBe(true)
   })
 
-  it('vite-react는 adapterId=vite-react/L3/llmRecommended=true', async () => {
+  it('vite-react는 adapterId=undefined/L3/llmRecommended=true', async () => {
     const info = await detectStack('/mnt/d/workspace/dev-note')
-    expect(info.adapterId).toBe('vite-react')
+    expect(info.adapterId).toBeUndefined()
     expect(info.parsingLevel).toBe('L3')
     expect(info.llmRecommended).toBe(true)
   })
@@ -178,6 +178,41 @@ describe('detectStack — ORM 플래그 감지', () => {
     )
     const info = await detectStack(dir)
     expect(info.hasSpringDataJpa).toBe(true)
+  })
+
+  it('vite + react + react-router-dom 조합은 react-router로 감지된다', async () => {
+    const dir = await makeTmpDir()
+    await fs.writeFile(
+      path.join(dir, 'package.json'),
+      JSON.stringify({
+        dependencies: {
+          'vite': '^5.0.11',
+          'react': '^18.2.0',
+          'react-dom': '^18.2.0',
+          'react-router-dom': '^6.10.0',
+        },
+      }),
+    )
+    const info = await detectStack(dir)
+    expect(info.framework).toBe('react-router')
+    expect(info.adapterId).toBe('react-router')
+    expect(info.llmRecommended).toBe(false)
+  })
+
+  it('vite + react (react-router-dom 없음)는 vite-react로 감지된다', async () => {
+    const dir = await makeTmpDir()
+    await fs.writeFile(
+      path.join(dir, 'package.json'),
+      JSON.stringify({
+        dependencies: {
+          'vite': '^5.0.11',
+          'react': '^18.2.0',
+          'react-dom': '^18.2.0',
+        },
+      }),
+    )
+    const info = await detectStack(dir)
+    expect(info.framework).toBe('vite-react')
   })
 
   it('ORM 의존성 없으면 모두 false', async () => {

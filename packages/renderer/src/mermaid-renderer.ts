@@ -8,15 +8,18 @@ import {
   type IREdge,
   type IRNode,
   type RouteNode,
+  type ComponentNode,
   type IRGraphMetadata,
   type IRBackendService,
 } from '@codebase-viz/types'
-import { groupRoutesByUrl } from './url-grouper.js'
+import { groupRoutesByUrl, type NestedGroup } from './url-grouper.js'
 import {
   shouldChunk,
   chunkByGroups,
   joinChunks,
+  CHUNK_SEPARATOR,
   DEFAULT_CHUNK_THRESHOLD,
+  DEFAULT_NODE_THRESHOLD,
   type ChunkOptions,
 } from './_shared/wrap-fallback.js'
 
@@ -61,17 +64,54 @@ function groupKeyToSectionKey(groupKey: string): string {
   return stripped || 'root'
 }
 
-// Build a sections Map from url-grouper output, compatible with buildRouteSectionLines.
+function collectNestedRoutes(groups: NestedGroup[]): RouteNode[] {
+  const result: RouteNode[] = []
+  for (const g of groups) {
+    result.push(...g.routes)
+    if (g.children.length > 0) result.push(...collectNestedRoutes(g.children))
+  }
+  return result
+}
+
+// Flatten NestedGroup[] into a Map for buildScreenComponentDiagram (preserves one section per top-level cluster).
 function buildSectionsFromRoutes(routes: RouteNode[]): Map<string, RouteNode[]> {
   const groups = groupRoutesByUrl(routes)
   const sections = new Map<string, RouteNode[]>()
-  for (const { groupKey, routes: groupRoutes } of groups) {
-    const secKey = groupKeyToSectionKey(groupKey)
+  for (const group of groups) {
+    const secKey = groupKeyToSectionKey(group.groupKey)
+    const allRoutes = collectNestedRoutes([group])
     const existing = sections.get(secKey) ?? []
-    for (const r of groupRoutes) existing.push(r)
+    for (const r of allRoutes) existing.push(r)
     sections.set(secKey, existing)
   }
   return sections
+}
+
+function renderingRouteLabel(r: RouteNode, ind: string): string {
+  const badge = r.renderingMode === 'unknown' ? '?' : r.renderingMode
+  const methodPrefix = r.httpMethod !== undefined ? `${r.httpMethod} ` : ''
+  return `${ind}${sanitizeId(r.id)}["${methodPrefix}${r.path} · ${badge}"]:::${modeClass(r.renderingMode)}`
+}
+
+// Emit nested Mermaid subgraphs from NestedGroup[]. Used by buildRenderingDiagram and buildCombinedDiagram.
+function buildNestedSubgraphLines(groups: NestedGroup[], indent: string): string[] {
+  const lines: string[] = []
+  const i2 = indent + '  '
+  for (const group of groups) {
+    const leafSeg = group.groupKey.split('/').filter(Boolean).pop()
+    if (leafSeg === undefined) {
+      for (const r of group.routes) lines.push(renderingRouteLabel(r, indent))
+      if (group.children.length > 0) lines.push(...buildNestedSubgraphLines(group.children, indent))
+    } else {
+      const sgId = sanitizeId(leafSeg.toUpperCase()) + '_G'
+      const label = sectionLabel(leafSeg)
+      lines.push(`${indent}subgraph ${sgId}["${label}"]`)
+      for (const r of group.routes) lines.push(renderingRouteLabel(r, i2))
+      if (group.children.length > 0) lines.push(...buildNestedSubgraphLines(group.children, i2))
+      lines.push(`${indent}end`)
+    }
+  }
+  return lines
 }
 
 const SECTION_EMOJI: Record<string, string> = {
@@ -139,13 +179,109 @@ function buildRouteSectionLines(sections: Map<string, RouteNode[]>, indent: stri
   return lines
 }
 
+const GROUPS_PER_ROW = 5
+
+// Descend past single-child transit nodes (e.g. /api → /api/v1) to the first real branching level.
+// Stops if the single node has its own routes (to avoid silently dropping them).
+function findBranchingGroups(groups: NestedGroup[]): NestedGroup[] {
+  if (groups.length !== 1) return groups
+  const [single] = groups
+  if (single === undefined || single.children.length === 0 || single.routes.length > 0) return groups
+  return findBranchingGroups(single.children)
+}
+
+function chunkGroups<T>(items: T[], size: number): T[][] {
+  const result: T[][] = []
+  for (let i = 0; i < items.length; i += size) result.push(items.slice(i, i + size))
+  return result
+}
+
+function buildRouteRowDiagram(groups: NestedGroup[]): string {
+  const lines = [RENDERING_INIT, 'graph TD', CLASS_DEFS]
+  for (const l of buildNestedSubgraphLines(groups, '  ')) lines.push(l)
+  return lines.join('\n')
+}
+
+function renderScreenSection(
+  pageRoutes: RouteNode[],
+  allRendersEdges: IREdge[],
+  importsEdges: IREdge[],
+  allComponentNodes: ComponentNode[],
+): string {
+  const pageRouteIds = new Set(pageRoutes.map(r => r.id))
+  const rowRendersEdges = allRendersEdges.filter(e => pageRouteIds.has(e.from))
+  const connectedCompIds = new Set(rowRendersEdges.map(e => e.to))
+  const connectedComponents = allComponentNodes.filter(c => connectedCompIds.has(c.id))
+
+  const routeToComps = new Map<string, string[]>()
+  for (const edge of rowRendersEdges) {
+    if (!connectedCompIds.has(edge.to)) continue
+    const list = routeToComps.get(edge.from) ?? []
+    list.push(edge.to)
+    routeToComps.set(edge.from, list)
+  }
+
+  const lines: string[] = [RENDERING_INIT, 'graph TB', CLASS_DEFS]
+  const sections = buildSectionsFromRoutes(pageRoutes)
+  const compNodeRendered = new Set<string>()
+  const compNodeLines: string[] = []
+  const edgesForSection: string[] = []
+
+  for (const [secKey, nodes] of sections) {
+    const subId = `${sanitizeId(secKey.toUpperCase())}_S`
+    lines.push(`  subgraph ${subId}["${sectionLabel(secKey)}"]`)
+    for (const r of nodes) {
+      const routeNodeId = sanitizeId(r.id)
+      const badge = r.renderingMode === 'unknown' ? '?' : r.renderingMode
+      lines.push(`    ${routeNodeId}["${r.path} · ${badge}"]:::${modeClass(r.renderingMode)}`)
+    }
+    lines.push(`  end`)
+    for (const r of nodes) {
+      const comps = routeToComps.get(r.id) ?? []
+      for (const compId of comps) {
+        const edge = rowRendersEdges.find(e => e.from === r.id && e.to === compId)
+        if (edge !== undefined) {
+          edgesForSection.push(`  ${sanitizeId(r.id)} ${edgeArrow(edge)} ${sanitizeId(compId)}`)
+        }
+        if (compNodeRendered.has(compId)) continue
+        compNodeRendered.add(compId)
+        const comp = connectedComponents.find(c => c.id === compId)
+        if (comp === undefined) continue
+        const compNodeId = sanitizeId(comp.id)
+        const label = comp.runtime === 'client' ? `${comp.name} [CSR]` : comp.name
+        compNodeLines.push(`  ${compNodeId}["${label}"]`)
+      }
+    }
+  }
+
+  for (const cl of compNodeLines) lines.push(cl)
+  for (const e of edgesForSection) lines.push(e)
+
+  const connectedIdSet = new Set(connectedComponents.map(c => c.id))
+  for (const edge of importsEdges) {
+    if (connectedIdSet.has(edge.from) && connectedIdSet.has(edge.to)) {
+      lines.push(`  ${sanitizeId(edge.from)} ${edgeArrow(edge)} ${sanitizeId(edge.to)}`)
+    }
+  }
+
+  if (pageRoutes.length === 0 && connectedComponents.length === 0) {
+    lines.push('  empty["(no screen/component data)"]')
+  }
+
+  return lines.join('\n')
+}
+
 function buildRenderingDiagram(graph: IRGraph): string {
   const infra = metadataToInfra(graph.metadata)
   // Only page routes — skip loading, layout, error, template, route-handler (same as Tab 2)
   const routeNodes = graph.nodes.filter(isRouteNode).filter(r => r.routeFileKind === 'page')
   if (routeNodes.length === 0) return 'graph TD\n  empty["(no routes found)"]'
 
-  const sections = buildSectionsFromRoutes(routeNodes)
+  const routeGroups = groupRoutesByUrl(routeNodes)
+  const branchingGroups = findBranchingGroups(routeGroups)
+  if (branchingGroups.length > GROUPS_PER_ROW) {
+    return joinChunks(chunkGroups(branchingGroups, GROUPS_PER_ROW).map(buildRouteRowDiagram))
+  }
 
   const tableNodes = graph.nodes.filter(isTableNode)
   const hasDirectDB = infra.hasSupabase || infra.hasDexie || infra.hasPrisma || infra.hasFirebase
@@ -166,30 +302,30 @@ function buildRenderingDiagram(graph: IRGraph): string {
     lines.push(`      subgraph FRAMEWORK["▲ Next.js · App Router"]`)
     lines.push(`        subgraph REACT["⚛ React · SSR Engine"]`)
     if (infra.hasSupabase) lines.push(`          SSR_FETCH["(SSR data fetch)"]:::unk`)
-    for (const l of buildRouteSectionLines(sections, '          ')) lines.push(l)
+    for (const l of buildNestedSubgraphLines(routeGroups, '          ')) lines.push(l)
     lines.push('        end\n      end\n    end\n  end')
   } else if (infra.hasNextjs && allCSR) {
     frontendRef = 'REACT'
     lines.push(`  subgraph BROWSER["🌐 Browser · Client-Side App"]`)
     lines.push(`    subgraph FRAMEWORK["▲ Next.js · App Router"]`)
     lines.push(`      subgraph REACT["⚛ React · CSR Engine"]`)
-    for (const l of buildRouteSectionLines(sections, '        ')) lines.push(l)
+    for (const l of buildNestedSubgraphLines(routeGroups, '        ')) lines.push(l)
     lines.push('      end\n    end\n  end')
   } else if (infra.hasVite) {
     frontendRef = 'REACT'
     lines.push(`  subgraph BROWSER["🌐 Browser · Client-Side App"]`)
     lines.push(`    subgraph BUNDLER["⚡ Vite · Dev/Build"]`)
     lines.push(`      subgraph REACT["⚛ React · CSR Engine"]`)
-    for (const l of buildRouteSectionLines(sections, '        ')) lines.push(l)
+    for (const l of buildNestedSubgraphLines(routeGroups, '        ')) lines.push(l)
     lines.push('      end\n    end\n  end')
   } else if (infra.hasExpo) {
     frontendRef = 'RN'
     lines.push(`  subgraph MOBILE["📱 Mobile · iOS / Android"]`)
     lines.push(`    subgraph RN["⚛ React Native · Expo"]`)
-    for (const l of buildRouteSectionLines(sections, '      ')) lines.push(l)
+    for (const l of buildNestedSubgraphLines(routeGroups, '      ')) lines.push(l)
     lines.push('    end\n  end')
   } else {
-    for (const l of buildRouteSectionLines(sections, '  ')) lines.push(l)
+    for (const l of buildNestedSubgraphLines(routeGroups, '  ')) lines.push(l)
   }
 
   // ── 2. DATA / BACKEND LAYER (always outside frontend, unconditional) ─────
@@ -202,17 +338,20 @@ function buildRenderingDiagram(graph: IRGraph): string {
       const dbLabel = be.dbType === 'postgresql' ? '🐘 PostgreSQL' :
                       be.dbType === 'mysql' ? '🐬 MySQL' :
                       be.dbType === 'mongodb' ? '🍃 MongoDB' : '🗄 Database'
+      const visibleMods = (be.modules ?? []).slice(0, 8)
+      const extraModCount = (be.modules ?? []).length - visibleMods.length
       lines.push(`  subgraph ${beId}["⚙ ${be.name} · ${be.framework}"]`)
-      if (be.modules && be.modules.length > 0) {
+      if (visibleMods.length > 0) {
         lines.push(`    subgraph MODULES_${i}["Core Modules"]`)
-        for (const mod of be.modules.slice(0, 8)) {
+        for (const mod of visibleMods) {
           lines.push(`      ${sanitizeId(mod)}_${i}["${mod}"]`)
         }
+        if (extraModCount > 0) lines.push(`      MORE_${i}["+ ${extraModCount} more"]`)
         lines.push('    end')
       }
       lines.push(`    ${dbId}[("${dbLabel}")]`)
-      if (be.modules && be.modules.length > 0) {
-        for (const mod of be.modules.slice(0, 8)) {
+      if (visibleMods.length > 0) {
+        for (const mod of visibleMods) {
           lines.push(`    ${sanitizeId(mod)}_${i} --> ${dbId}`)
         }
       }
@@ -305,73 +444,18 @@ function buildScreenComponentDiagram(graph: IRGraph): string {
 
   const importsEdges = graph.edges.filter(e => e.kind === 'imports')
 
-  const connectedCompIds = new Set(rendersEdges.map(e => e.to))
-  const connectedComponents = componentNodes.filter(c => connectedCompIds.has(c.id))
+  const routeGroups = groupRoutesByUrl(pageRoutes)
+  const branchingGroups = findBranchingGroups(routeGroups)
 
-  // Build route → components map for inline grouping
-  const routeToComps = new Map<string, string[]>()
-  for (const edge of rendersEdges) {
-    if (!connectedCompIds.has(edge.to)) continue
-    const list = routeToComps.get(edge.from) ?? []
-    list.push(edge.to)
-    routeToComps.set(edge.from, list)
+  if (branchingGroups.length > GROUPS_PER_ROW) {
+    return joinChunks(chunkGroups(branchingGroups, GROUPS_PER_ROW).map(rowGroups => {
+      const rowRouteIds = new Set(collectNestedRoutes(rowGroups).map(r => r.id))
+      const rowRoutes = pageRoutes.filter(r => rowRouteIds.has(r.id))
+      return renderScreenSection(rowRoutes, rendersEdges, importsEdges, componentNodes)
+    }))
   }
 
-  const lines: string[] = [RENDERING_INIT, 'graph TB', CLASS_DEFS]
-
-  // Group page routes by section using url-grouper for hierarchical grouping
-  // Each section subgraph uses direction LR so route → components flow horizontally
-  const sections = buildSectionsFromRoutes(pageRoutes)
-
-  const compNodeRendered = new Set<string>()
-  const edgesForSection: string[] = []
-
-  for (const [secKey, nodes] of sections) {
-    const subId = `${sanitizeId(secKey.toUpperCase())}_S`
-    lines.push(`  subgraph ${subId}["${sectionLabel(secKey)}"]`)
-    lines.push(`    direction LR`)
-    for (const r of nodes) {
-      const routeNodeId = sanitizeId(r.id)
-      const badge = r.renderingMode === 'unknown' ? '?' : r.renderingMode
-      lines.push(`    ${routeNodeId}["${r.path} · ${badge}"]:::${modeClass(r.renderingMode)}`)
-      const comps = routeToComps.get(r.id) ?? []
-      for (const compId of comps) {
-        if (compNodeRendered.has(compId)) continue
-        compNodeRendered.add(compId)
-        const comp = connectedComponents.find(c => c.id === compId)
-        if (comp === undefined) continue
-        const compNodeId = sanitizeId(comp.id)
-        const label = comp.runtime === 'client' ? `${comp.name} [CSR]` : comp.name
-        lines.push(`    ${compNodeId}["${label}"]`)
-      }
-    }
-    lines.push(`  end`)
-    // Collect edges inside this section
-    for (const r of nodes) {
-      const comps = routeToComps.get(r.id) ?? []
-      for (const compId of comps) {
-        const edge = rendersEdges.find(e => e.from === r.id && e.to === compId)
-        if (edge !== undefined) {
-          edgesForSection.push(`  ${sanitizeId(r.id)} ${edgeArrow(edge)} ${sanitizeId(compId)}`)
-        }
-      }
-    }
-  }
-
-  for (const e of edgesForSection) lines.push(e)
-
-  const connectedIdSet = new Set(connectedComponents.map(c => c.id))
-  for (const edge of importsEdges) {
-    if (connectedIdSet.has(edge.from) && connectedIdSet.has(edge.to)) {
-      lines.push(`  ${sanitizeId(edge.from)} ${edgeArrow(edge)} ${sanitizeId(edge.to)}`)
-    }
-  }
-
-  if (pageRoutes.length === 0 && connectedComponents.length === 0) {
-    lines.push('  empty["(no screen/component data)"]')
-  }
-
-  return lines.join('\n')
+  return renderScreenSection(pageRoutes, rendersEdges, importsEdges, componentNodes)
 }
 
 const DB_DIAGRAM_INIT = `%%{init:{'theme':'base','themeVariables':{'background':'#060810','primaryColor':'#0a2030','primaryTextColor':'#e2e8f0','primaryBorderColor':'#1e4060','lineColor':'#f59e0b','secondaryColor':'#0f172a','tertiaryColor':'#1a0a20','attributeBackgroundColorEven':'#0f1e30','attributeBackgroundColorOdd':'#091624','nodeBorder':'#1e4060','clusterBkg':'#0a0e1a','fontFamily':'JetBrains Mono'}}}%%`
@@ -408,10 +492,9 @@ function buildDbScreenDiagram(graph: IRGraph): string {
     }
   }
 
-  // Table entities — up to 8 columns with PK/FK flags
   for (const t of tableNodes) {
     lines.push(`  ${sanitizeId(t.name)} {`)
-    for (const col of t.columns.slice(0, 8)) {
+    for (const col of t.columns) {
       const pkFlag = col.isPrimaryKey === true ? ' PK' : ''
       const fkFlag = col.references !== undefined ? ' FK' : ''
       lines.push(`    ${sanitizeId(col.type)} ${sanitizeId(col.name)}${pkFlag}${fkFlag}`)
@@ -493,6 +576,7 @@ export interface GroupingOptions {
 export interface BuildDiagramsOptions {
   grouping?: GroupingOptions
   chunkThreshold?: number
+  nodeThreshold?: number
 }
 
 export const DEFAULT_GROUPING: Required<GroupingOptions> = {
@@ -505,9 +589,12 @@ function buildWithChunkFallback(
   build: (g: IRGraph) => string,
   chunkOpts: ChunkOptions,
   threshold: number,
+  nodeCount = 0,
+  nodeThreshold = DEFAULT_NODE_THRESHOLD,
 ): string {
   const text = build(graph)
-  if (!shouldChunk(text, threshold)) return text
+  if (text.includes(CHUNK_SEPARATOR)) return text
+  if (!shouldChunk(text, threshold, nodeCount, nodeThreshold)) return text
   const subGraphs = chunkByGroups(graph, chunkOpts)
   if (subGraphs.length <= 1) return text
   const parts = subGraphs.map(g => build(g))
@@ -537,16 +624,14 @@ export function buildCombinedDiagram(
   // FE subgraph
   if (feRoutes.length > 0) {
     lines.push(`  subgraph FE_PROJ["🖥 Frontend · ${feGraph.projectName ?? 'FE'}"]`)
-    const feSections = buildSectionsFromRoutes(feRoutes)
-    for (const l of buildRouteSectionLines(feSections, '    ')) lines.push(l)
+    for (const l of buildNestedSubgraphLines(groupRoutesByUrl(feRoutes), '    ')) lines.push(l)
     lines.push('  end')
   }
 
   // BE subgraph
   if (beRoutes.length > 0) {
     lines.push(`  subgraph BE_PROJ["⚙ Backend · ${beGraph.projectName ?? 'BE'}"]`)
-    const beSections = buildSectionsFromRoutes(beRoutes)
-    for (const l of buildRouteSectionLines(beSections, '    ')) lines.push(l)
+    for (const l of buildNestedSubgraphLines(groupRoutesByUrl(beRoutes), '    ')) lines.push(l)
     lines.push('  end')
   }
 
@@ -558,8 +643,9 @@ export function buildCombinedDiagram(
   }
 
   const renderingText = lines.join('\n')
+  const totalRouteCount = feRoutes.length + beRoutes.length
 
-  if (!shouldChunk(renderingText, threshold)) {
+  if (!shouldChunk(renderingText, threshold, totalRouteCount)) {
     return {
       rendering: renderingText,
       screenComponent: buildScreenComponentDiagram(feGraph),
@@ -580,9 +666,11 @@ export function buildDiagrams(graph: IRGraph, opts?: BuildDiagramsOptions): Diag
     maxDepth: opts?.grouping?.maxDepth ?? DEFAULT_GROUPING.maxDepth,
   }
   const threshold = opts?.chunkThreshold ?? DEFAULT_CHUNK_THRESHOLD
+  const nodeThr = opts?.nodeThreshold ?? DEFAULT_NODE_THRESHOLD
+  const routeCount = graph.nodes.filter(isRouteNode).length
   return {
-    rendering: buildWithChunkFallback(graph, buildRenderingDiagram, chunkOpts, threshold),
-    screenComponent: buildWithChunkFallback(graph, buildScreenComponentDiagram, chunkOpts, threshold),
-    dbScreen: buildWithChunkFallback(graph, buildDbScreenDiagram, chunkOpts, threshold),
+    rendering: buildWithChunkFallback(graph, buildRenderingDiagram, chunkOpts, threshold, routeCount, nodeThr),
+    screenComponent: buildWithChunkFallback(graph, buildScreenComponentDiagram, chunkOpts, threshold, routeCount, nodeThr),
+    dbScreen: buildWithChunkFallback(graph, buildDbScreenDiagram, chunkOpts, threshold, routeCount, nodeThr),
   }
 }

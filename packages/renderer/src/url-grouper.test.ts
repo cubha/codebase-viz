@@ -67,4 +67,59 @@ describe('groupRoutesByUrl', () => {
     expect(keys).toContain('/users')
     expect(keys).toContain('/posts')
   })
+
+  it('7. 8라우트 — nested 트리 depth ≥ 2 (B1)', () => {
+    const routes = [
+      r('/api/v1/partner/A'), r('/api/v1/partner/B'),
+      r('/api/v1/partner/C'), r('/api/v1/partner/D'),
+      r('/api/v1/admin/X'), r('/api/v1/admin/Y'),
+      r('/api/v1/admin/Z'), r('/api/v1/admin/W'),
+    ]
+    const result = groupRoutesByUrl(routes)
+    expect(result).toHaveLength(1)
+    expect(result[0]!.groupKey).toBe('/api/v1')
+    expect(result[0]!.children.length).toBeGreaterThanOrEqual(1)
+    function maxDepth(groups: typeof result): number {
+      if (groups.length === 0) return 0
+      return 1 + Math.max(...groups.map(g => maxDepth(g.children)))
+    }
+    expect(maxDepth(result)).toBeGreaterThanOrEqual(2)
+  })
+
+  it('8. maxDepth:1 — 깊이 절단으로 partner/admin 그룹 이하 평면화 (B1)', () => {
+    const routes = [
+      r('/api/v1/partner/A'), r('/api/v1/partner/B'),
+      r('/api/v1/partner/C'), r('/api/v1/partner/D'),
+      r('/api/v1/admin/X'), r('/api/v1/admin/Y'),
+      r('/api/v1/admin/Z'), r('/api/v1/admin/W'),
+    ]
+    const result = groupRoutesByUrl(routes, { maxDepth: 1 })
+    function nestingDepth(groups: typeof result): number {
+      if (groups.length === 0) return 0
+      return 1 + Math.max(...groups.map(g => nestingDepth(g.children)))
+    }
+    // maxDepth:1 → 재귀 1회 → 결과 최대 2단계
+    expect(nestingDepth(result)).toBeLessThanOrEqual(2)
+  })
+
+  it('9. minGroupSize:10 — 그룹 크기 ≤ 10 은 평면화 (B1)', () => {
+    const routes = [
+      r('/api/v1/partner/A'), r('/api/v1/partner/B'),
+      r('/api/v1/partner/C'), r('/api/v1/partner/D'),
+      r('/api/v1/admin/X'), r('/api/v1/admin/Y'),
+      r('/api/v1/admin/Z'), r('/api/v1/admin/W'),
+    ]
+    const result = groupRoutesByUrl(routes, { minGroupSize: 10 })
+    function hasChildren(groups: typeof result): boolean {
+      return groups.some(g => g.children.length > 0 || hasChildren(g.children))
+    }
+    expect(hasChildren(result)).toBe(false)
+  })
+
+  it('10. 모든 path 동일 — 무한 재귀 없이 단일 그룹 반환 (B1)', () => {
+    const routes = [r('/api/same'), r('/api/same'), r('/api/same'), r('/api/same'), r('/api/same')]
+    expect(() => groupRoutesByUrl(routes)).not.toThrow()
+    const result = groupRoutesByUrl(routes)
+    expect(result.length).toBeGreaterThan(0)
+  })
 })
