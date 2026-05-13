@@ -453,24 +453,52 @@ export async function parseReactRouterFull(
     })
     for (const f of jsxRouterFiles) jsxProject.addSourceFileAtPath(f)
 
+    // Pass 1: build import maps + detect sub-router files (referenced via element prop)
+    const fileImportMaps2 = new Map<string, Map<string, string>>()
+    for (const sf of jsxProject.getSourceFiles()) {
+      const imap = new Map<string, string>()
+      for (const decl of sf.getImportDeclarations()) {
+        const di = decl.getDefaultImport()
+        if (di !== undefined) imap.set(di.getText(), decl.getModuleSpecifierValue())
+      }
+      fileImportMaps2.set(sf.getFilePath(), imap)
+    }
+
+    const subRouterParentPaths2 = new Map<string, string>()
+    for (const sf of jsxProject.getSourceFiles()) {
+      const routerDir2 = path.dirname(sf.getFilePath())
+      const importMap2 = fileImportMaps2.get(sf.getFilePath()) ?? new Map()
+      for (const jsxEl of sf.getDescendantsOfKind(SyntaxKind.JsxElement)) {
+        if (jsxEl.getOpeningElement().getTagNameNode().getText() !== 'Routes') continue
+        for (const item of extractJsxRouteChildren(jsxEl.getJsxChildren(), '')) {
+          if (item.elementComponent === undefined) continue
+          const moduleSpec2 = importMap2.get(item.elementComponent)
+          if (moduleSpec2 === undefined || !moduleSpec2.startsWith('.')) continue
+          const absBase2 = path.resolve(routerDir2, moduleSpec2)
+          for (const ext of ['.tsx', '.ts', '.jsx', '.js']) {
+            const candidate = absBase2 + ext
+            if (jsxProject.getSourceFile(candidate) !== undefined && !subRouterParentPaths2.has(candidate)) {
+              subRouterParentPaths2.set(candidate, normalizePath(item.routePath).urlPath)
+              break
+            }
+          }
+        }
+      }
+    }
+
+    // Pass 2: process each file with its correct parentPath
     for (const sourceFile of jsxProject.getSourceFiles()) {
       const filePath = sourceFile.getFilePath()
       const relPath = path.relative(repoRoot, filePath).replace(/\\/g, '/')
       const routerDir = path.dirname(filePath)
-
-      const importMap = new Map<string, string>()
-      for (const importDecl of sourceFile.getImportDeclarations()) {
-        const defaultImport = importDecl.getDefaultImport()
-        if (defaultImport !== undefined) {
-          importMap.set(defaultImport.getText(), importDecl.getModuleSpecifierValue())
-        }
-      }
+      const parentPath = subRouterParentPaths2.get(filePath) ?? ''
+      const importMap = fileImportMaps2.get(filePath) ?? new Map()
 
       for (const jsxEl of sourceFile.getDescendantsOfKind(SyntaxKind.JsxElement)) {
         const tagName = jsxEl.getOpeningElement().getTagNameNode().getText()
         if (tagName !== 'Routes') continue
 
-        const rawItems = extractJsxRouteChildren(jsxEl.getJsxChildren(), '')
+        const rawItems = extractJsxRouteChildren(jsxEl.getJsxChildren(), parentPath)
         for (const item of rawItems) {
           const { urlPath, dynamicSegmentType } = normalizePath(item.routePath)
           const provenance: Provenance = {
@@ -626,15 +654,50 @@ export async function parseReactRoutes(
     })
     for (const f of jsxRouterFiles) jsxProject.addSourceFileAtPath(f)
 
+    // Pass 1: build import maps + detect sub-router files (referenced via element prop)
+    const fileImportMaps = new Map<string, Map<string, string>>()
+    for (const sf of jsxProject.getSourceFiles()) {
+      const imap = new Map<string, string>()
+      for (const decl of sf.getImportDeclarations()) {
+        const di = decl.getDefaultImport()
+        if (di !== undefined) imap.set(di.getText(), decl.getModuleSpecifierValue())
+      }
+      fileImportMaps.set(sf.getFilePath(), imap)
+    }
+
+    const subRouterParentPaths = new Map<string, string>()
+    for (const sf of jsxProject.getSourceFiles()) {
+      const routerDir = path.dirname(sf.getFilePath())
+      const importMap = fileImportMaps.get(sf.getFilePath()) ?? new Map()
+      for (const jsxEl of sf.getDescendantsOfKind(SyntaxKind.JsxElement)) {
+        if (jsxEl.getOpeningElement().getTagNameNode().getText() !== 'Routes') continue
+        for (const item of extractJsxRouteChildren(jsxEl.getJsxChildren(), '')) {
+          if (item.elementComponent === undefined) continue
+          const moduleSpec = importMap.get(item.elementComponent)
+          if (moduleSpec === undefined || !moduleSpec.startsWith('.')) continue
+          const absBase = path.resolve(routerDir, moduleSpec)
+          for (const ext of ['.tsx', '.ts', '.jsx', '.js']) {
+            const candidate = absBase + ext
+            if (jsxProject.getSourceFile(candidate) !== undefined && !subRouterParentPaths.has(candidate)) {
+              subRouterParentPaths.set(candidate, normalizePath(item.routePath).urlPath)
+              break
+            }
+          }
+        }
+      }
+    }
+
+    // Pass 2: process each file with its correct parentPath
     for (const sourceFile of jsxProject.getSourceFiles()) {
       const filePath = sourceFile.getFilePath()
       const relPath = path.relative(repoRoot, filePath).replace(/\\/g, '/')
+      const parentPath = subRouterParentPaths.get(filePath) ?? ''
 
       for (const jsxEl of sourceFile.getDescendantsOfKind(SyntaxKind.JsxElement)) {
         const tagName = jsxEl.getOpeningElement().getTagNameNode().getText()
         if (tagName !== 'Routes') continue
 
-        const rawItems = extractJsxRouteChildren(jsxEl.getJsxChildren(), '')
+        const rawItems = extractJsxRouteChildren(jsxEl.getJsxChildren(), parentPath)
         for (const item of rawItems) {
           const { urlPath, dynamicSegmentType } = normalizePath(item.routePath)
           const provenance: Provenance = {

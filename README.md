@@ -4,7 +4,7 @@
 
 Routes, components, and DB relationships — extracted statically from **13 frameworks**, optionally enriched by LLM, rendered as three live diagram tabs inside VS Code.
 
-> Marketplace: [`cubha.codebase-arch-viz`](https://marketplace.visualstudio.com/items?itemName=cubha.codebase-arch-viz) · Current release: **v1.1.4**
+> Marketplace: [`cubha.codebase-arch-viz`](https://marketplace.visualstudio.com/items?itemName=cubha.codebase-arch-viz) · Current release: **v1.1.52**
 
 ---
 
@@ -151,7 +151,7 @@ pnpm install
 # Type-check all packages
 pnpm typecheck
 
-# Run all tests (612 tests)
+# Run all tests (626 tests)
 pnpm test
 
 # Or use the project verify script (tsc + vitest)
@@ -232,6 +232,9 @@ npx vsce publish --no-dependencies -p <PAT>
 | v1.1.2 | **Tab1 X폭발 수정** (flat 렌더링, 7,407→1,380px) · **Tab2 X폭발 수정** (nested comp subgraph + TAB2_GROUPS_PER_ROW=2, 32,035→1,381px) · **Tab3 chunk 폭발** (tableCount 기준 교체) · **Tab3 source 그룹화** (Pages/Actions subgraph) · **ERD th/td 색상 분리** (TH 어두운/TD 흰색·연회색) · **Tab3 전체 뷰 기본값** (ALL 토글 맨앞·기본 활성) |
 | v1.1.3 | **Tab1/Tab2 줌·드래그 수정** (단일 drag 객체 + document 이벤트, 탭 전환 간섭 제거) · **fitToView 수식 수정** (SVG 자연 크기 기준) · **⌂ 리셋 → fitToView** · **Tab3 DB ERD 토글** (전체·FK관계·페이지쿼리·서버액션 4-toggle) |
 | v1.1.4 | **스택 감지 개선** — Turbo/Lerna 모노레포(`apps/packages/services/` 하위 스캔) · 루트 `package.json` 없는 멀티서비스 프로젝트(`backend/frontend/` 등 직접 스캔) · 전체 최상위 디렉터리 fallback · Flutter(`pubspec.yaml`) 감지 추가 · 사이드바 스택 표시 전 프레임워크 표시명 전수 보완 |
+| v1.1.5 | **i18n 4개 언어** (한국어·영어·일본어·중국어 간체) · 언어 전환 즉시 적용 · **데모 GIF** 2종 (Tab 전환·DB 토글) · 뷰어 텍스트 선택 방지 + Row-mode 휠 줌/드래그 |
+| v1.1.51 | **chunked path nested grouping 수정** — 937+ routes 환경에서 `buildRouteRowDiagram` · `renderScreenSection` NestedGroup tree 보존 · 청크 경계 1 top-level branch = 1 chunk |
+| v1.1.52 | **Tab1/Tab2 chunk 과다 수정** (698→9 chunks, `collectGroupRoutes` 30 routes/chunk 기준) · **Tab3 extractModule 수정** (`bin/main/sql/primary/**` → 의미 디렉토리 추출) · **row-mode floating island 수정** (`left:50%→0`) · **React Router sub-router 2-pass 파싱** (9→130 routes, `element={<SubRouter/>}` 재귀 추적) |
 
 ---
 

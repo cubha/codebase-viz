@@ -129,7 +129,7 @@
     .cn-label { font-size: 10px; color: var(--text-muted); }
     .canvas-wrap.row-mode { overflow: hidden; cursor: grab; }
     .canvas-wrap.row-mode.dragging { cursor: grabbing; }
-    .row-diagram { width: 100%; }
+    .row-diagram { width: 100%; display: block; }
     .row-mode .canvas-inner { user-select: none; -webkit-user-select: none; }
     /* erDiagram th/td 분리 스타일 (Mermaid 11 기준)
        Mermaid 11은 row-rect-even/odd g 안의 path에 SVG fill 속성으로 색상 지정.
@@ -323,10 +323,7 @@ function setSvgDimensions(inner) {
 function activateRowMode(t, inner) {
   const wrap = document.getElementById('w-'+t);
   wrap.classList.add('row-mode');
-  // transform 기반 zoom/pan을 위해 절대 위치 + transform-origin top center 유지.
-  // canvas-inner 기본 CSS(top:50%, left:50%, transform-origin:center)는 row-mode에서
-  // top center로 정렬되도록 override.
-  inner.style.cssText = 'position:absolute;top:0;left:50%;transform-origin:top center;display:flex;flex-direction:column;padding:16px;gap:16px;will-change:transform';
+  inner.style.cssText = 'position:absolute;top:0;left:0;width:100%;transform-origin:top left;display:flex;flex-direction:column;padding:16px;gap:16px;will-change:transform';
   scaleRowSvgs(wrap, inner);
   const rows = inner.querySelectorAll('.row-diagram');
   const bar = document.getElementById('cnav-'+t);
@@ -455,6 +452,16 @@ function extractModule(filePath) {
   if (!filePath) return null;
   const srcM = filePath.match(/(?:^|\/)src\/([^/]+)\//);
   if (srcM) return srcM[1];
+  // bin/main/sql/primary/** — MyBatis mapper XML (SpringBoot)
+  // Take the last directory segment before the filename as module name
+  // e.g. bin/main/sql/primary/wina/agency/ApiUrl.xml → 'agency'
+  //      bin/main/sql/primary/wina/headOffice/alloc/Sql.xml → 'alloc'
+  //      bin/main/sql/primary/core/ApiUrl.xml → 'core'
+  const binM = filePath.match(/(?:^|\/)bin\/main\/sql\/primary\/(.+)\/[^/]+\.[^/]+$/);
+  if (binM) {
+    const parts = binM[1].split('/');
+    return parts[parts.length - 1] || parts[0] || null;
+  }
   const parts = filePath.replace(/^\//, '').split('/');
   return parts.length > 1 ? parts[0] : null;
 }
@@ -492,10 +499,19 @@ function buildDbGraph(data, showFk, showRoutes, showActions) {
     }
   }
   const groupEntries = Object.entries(groups);
-  if (groupEntries.length > GROUPS_PER_ROW) {
-    const rows = [];
-    for (let i = 0; i < groupEntries.length; i += GROUPS_PER_ROW) rows.push(groupEntries.slice(i, i + GROUPS_PER_ROW));
-    return rows.map(r => buildSingleDbGraph(r, sgPrefix, fkEdges, routeEdges, actionEdges, showFk, showRoutes, showActions)).join('\n'+CHUNK_SEP+'\n');
+  const totalTables = tableNames.length;
+  if (totalTables > 30) {
+    const chunks = [];
+    let cur = [], curCount = 0;
+    for (const entry of groupEntries) {
+      const cnt = entry[1].length;
+      if (curCount > 0 && curCount + cnt > 30) { chunks.push(cur); cur = [entry]; curCount = cnt; }
+      else { cur.push(entry); curCount += cnt; }
+    }
+    if (cur.length > 0) chunks.push(cur);
+    if (chunks.length > 1) {
+      return chunks.map(r => buildSingleDbGraph(r, sgPrefix, fkEdges, routeEdges, actionEdges, showFk, showRoutes, showActions)).join('\n'+CHUNK_SEP+'\n');
+    }
   }
   return buildSingleDbGraph(groupEntries, sgPrefix, fkEdges, routeEdges, actionEdges, showFk, showRoutes, showActions);
 }

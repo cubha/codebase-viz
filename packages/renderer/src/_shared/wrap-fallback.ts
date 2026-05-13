@@ -57,15 +57,10 @@ function chunkArray<T>(items: T[], size: number): T[][] {
   return result
 }
 
-function collectLeafRouteArrays(groups: NestedGroup[]): RouteNode[][] {
-  const result: RouteNode[][] = []
-  for (const g of groups) {
-    if (g.children.length === 0) {
-      if (g.routes.length > 0) result.push(g.routes)
-    } else {
-      if (g.routes.length > 0) result.push(g.routes)
-      result.push(...collectLeafRouteArrays(g.children))
-    }
+function collectGroupRoutes(group: NestedGroup): RouteNode[] {
+  const result: RouteNode[] = [...group.routes]
+  for (const child of group.children) {
+    result.push(...collectGroupRoutes(child))
   }
   return result
 }
@@ -79,9 +74,9 @@ export function chunkByGroups(graph: IRGraph, opts: ChunkOptions): IRGraph[] {
 
   if (routes.length > 0) {
     const groups = groupRoutesByUrl(routes)
-    const leafArrays = collectLeafRouteArrays(groups)
     const subGraphs: IRGraph[] = []
-    for (const groupRoutes of leafArrays) {
+    for (const group of groups) {
+      const groupRoutes = collectGroupRoutes(group)
       const routeChunks = chunkArray(groupRoutes, opts.maxNodesPerGroup)
       for (const chunk of routeChunks) {
         const routeIds = new Set<NodeId>(chunk.map(r => r.id))
