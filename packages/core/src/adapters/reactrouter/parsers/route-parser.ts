@@ -210,11 +210,136 @@ interface JsxRouteRaw {
   routePath: string
   elementComponent: string | undefined
   line: number
+  inferenceChain?: string[]
+}
+
+// v1.1.6 T1: JsxExpression child를 resolve하기 위한 컨텍스트. 1-hop 추적용.
+interface ResolverCtx {
+  sourceFile: import('ts-morph').SourceFile
+  project: import('ts-morph').Project
+  importMap: Map<string, string>
+  routerDir: string
+  unresolved: string[]
+}
+
+// v1.1.6 T1: JsxExpression {identifier} → 1-hop으로 식별자가 가리키는 JSX 자식들을 수집.
+// Case A: 동일 파일 const 변수 (array literal of JSX 또는 .map() 결과)
+// Case B: named/default import → 모듈 파일 추가 후 export default/named의 array literal 또는 fragment
+// 재귀 불가 (depth=1 hard limit, Less is More).
+function resolveIdentifierToJsxChildren(
+  identifierName: string,
+  parentPath: string,
+  ctx: ResolverCtx,
+): JsxRouteRaw[] {
+  // Case A: 동일 파일 const 변수
+  const varDecls = ctx.sourceFile.getVariableDeclarations()
+  const varDecl = varDecls.find(v => v.getName() === identifierName)
+  if (varDecl !== undefined) {
+    const init = varDecl.getInitializer()
+    if (init !== undefined) {
+      // A-1: 직접 JSX array literal
+      if (init.isKind(SyntaxKind.ArrayLiteralExpression)) {
+        const jsxChildren = init.asKindOrThrow(SyntaxKind.ArrayLiteralExpression).getElements()
+          .filter(el => el.isKind(SyntaxKind.JsxElement) || el.isKind(SyntaxKind.JsxSelfClosingElement)) as import('ts-morph').JsxChild[]
+        return extractJsxRouteChildren(jsxChildren, parentPath, ctx)
+      }
+      // A-2: .map() call → RouteEntry 배열 → JsxRouteRaw 변환 (inferred)
+      if (init.isKind(SyntaxKind.CallExpression)) {
+        const call = init.asKindOrThrow(SyntaxKind.CallExpression)
+        const callee = call.getExpression()
+        if (callee.isKind(SyntaxKind.PropertyAccessExpression)) {
+          const propAccess = callee.asKindOrThrow(SyntaxKind.PropertyAccessExpression)
+          if (propAccess.getName() === 'map') {
+            const target = propAccess.getExpression()
+            if (target.isKind(SyntaxKind.Identifier)) {
+              const dataVar = varDecls.find(v => v.getName() === target.getText())
+              const dataInit = dataVar?.getInitializer()
+              if (dataInit !== undefined && dataInit.isKind(SyntaxKind.ArrayLiteralExpression)) {
+                const entries = extractRoutesFromArray(dataInit)
+                return entries.map(e => ({
+                  routePath: e.path,
+                  elementComponent: e.elementComponent,
+                  line: call.getStartLineNumber(),
+                  inferenceChain: [`${target.getText()} 배열의 path 프로퍼티를 정적 평가`],
+                }))
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+  // Case B: named/default import → 1-hop 파일 추가
+  const moduleSpec = ctx.importMap.get(identifierName)
+  if (moduleSpec === undefined || !moduleSpec.startsWith('.')) {
+    ctx.unresolved.push(identifierName)
+    return []
+  }
+  const absBase = path.resolve(ctx.routerDir, moduleSpec)
+  let importedAbsPath: string | undefined
+  for (const ext of ['.tsx', '.ts', '.jsx', '.js']) {
+    const candidate = absBase + ext
+    let importedSf = ctx.project.getSourceFile(candidate)
+    if (importedSf === undefined) {
+      try { importedSf = ctx.project.addSourceFileAtPath(candidate) } catch { continue }
+    }
+    if (importedSf !== undefined) { importedAbsPath = candidate; break }
+  }
+  if (importedAbsPath === undefined) {
+    ctx.unresolved.push(identifierName)
+    return []
+  }
+  const importedSf = ctx.project.getSourceFile(importedAbsPath)!
+  // export const X = <>...</> 또는 export const X = [<Route../>, ...] 패턴 검색.
+  // `export const X = ( <>...</> )` 같이 ParenthesizedExpression으로 감싸진 경우도 unwrap.
+  const unwrapParen = (n: import('ts-morph').Node): import('ts-morph').Node => {
+    let cur = n
+    while (cur.isKind(SyntaxKind.ParenthesizedExpression)) {
+      const inner = cur.asKindOrThrow(SyntaxKind.ParenthesizedExpression).getExpression()
+      if (inner === undefined) break
+      cur = inner
+    }
+    return cur
+  }
+  for (const exportedDecl of importedSf.getVariableDeclarations()) {
+    if (exportedDecl.getName() !== identifierName) continue
+    if (!exportedDecl.isExported() && exportedDecl.getName() !== identifierName) continue
+    const initRaw = exportedDecl.getInitializer()
+    if (initRaw === undefined) continue
+    const init = unwrapParen(initRaw)
+    if (init.isKind(SyntaxKind.JsxFragment)) {
+      return extractJsxRouteChildren(init.asKindOrThrow(SyntaxKind.JsxFragment).getJsxChildren(), parentPath, ctx)
+    }
+    if (init.isKind(SyntaxKind.JsxElement)) {
+      return extractJsxRouteChildren([init as import('ts-morph').JsxChild], parentPath, ctx)
+    }
+    if (init.isKind(SyntaxKind.JsxSelfClosingElement)) {
+      return extractJsxRouteChildren([init as import('ts-morph').JsxChild], parentPath, ctx)
+    }
+    if (init.isKind(SyntaxKind.ArrayLiteralExpression)) {
+      const jsxChildren = init.asKindOrThrow(SyntaxKind.ArrayLiteralExpression).getElements()
+        .filter(el => el.isKind(SyntaxKind.JsxElement) || el.isKind(SyntaxKind.JsxSelfClosingElement)) as import('ts-morph').JsxChild[]
+      return extractJsxRouteChildren(jsxChildren, parentPath, ctx)
+    }
+  }
+  // export default <>...</>
+  for (const exportAssign of importedSf.getExportAssignments()) {
+    const expr = exportAssign.getExpression()
+    if (expr.isKind(SyntaxKind.JsxFragment)) {
+      return extractJsxRouteChildren(expr.asKindOrThrow(SyntaxKind.JsxFragment).getJsxChildren(), parentPath, ctx)
+    }
+    if (expr.isKind(SyntaxKind.JsxElement)) {
+      return extractJsxRouteChildren([expr as import('ts-morph').JsxChild], parentPath, ctx)
+    }
+  }
+  ctx.unresolved.push(identifierName)
+  return []
 }
 
 function extractJsxRouteChildren(
   children: import('ts-morph').JsxChild[],
   parentPath: string,
+  ctx?: ResolverCtx,
 ): JsxRouteRaw[] {
   const results: JsxRouteRaw[] = []
   for (const child of children) {
@@ -234,6 +359,13 @@ function extractJsxRouteChildren(
       tagName = el.getTagNameNode().getText()
       attrs = el.getAttributes()
       line = el.getStartLineNumber()
+    } else if (child.isKind(SyntaxKind.JsxExpression) && ctx !== undefined) {
+      // v1.1.6 T1: {identifier} 형태 → resolveIdentifierToJsxChildren로 1-hop 추적
+      const expr = child.asKindOrThrow(SyntaxKind.JsxExpression).getExpression()
+      if (expr !== undefined && expr.isKind(SyntaxKind.Identifier)) {
+        results.push(...resolveIdentifierToJsxChildren(expr.getText(), parentPath, ctx))
+      }
+      continue
     }
 
     if (tagName !== 'Route') continue
@@ -259,7 +391,7 @@ function extractJsxRouteChildren(
     results.push({ routePath, elementComponent, line })
 
     if (nested.length > 0) {
-      results.push(...extractJsxRouteChildren(nested, routePath))
+      results.push(...extractJsxRouteChildren(nested, routePath, ctx))
     }
   }
   return results
@@ -454,23 +586,29 @@ export async function parseReactRouterFull(
     for (const f of jsxRouterFiles) jsxProject.addSourceFileAtPath(f)
 
     // Pass 1: build import maps + detect sub-router files (referenced via element prop)
+    // v1.1.6 T1: named import도 수집 (이전 버전은 default import만 수집 → {MobileRoutes} 등 누락)
     const fileImportMaps2 = new Map<string, Map<string, string>>()
     for (const sf of jsxProject.getSourceFiles()) {
       const imap = new Map<string, string>()
       for (const decl of sf.getImportDeclarations()) {
         const di = decl.getDefaultImport()
         if (di !== undefined) imap.set(di.getText(), decl.getModuleSpecifierValue())
+        for (const ni of decl.getNamedImports()) {
+          imap.set(ni.getName(), decl.getModuleSpecifierValue())
+        }
       }
       fileImportMaps2.set(sf.getFilePath(), imap)
     }
 
     const subRouterParentPaths2 = new Map<string, string>()
+    const unresolvedExprs: string[] = []
     for (const sf of jsxProject.getSourceFiles()) {
       const routerDir2 = path.dirname(sf.getFilePath())
       const importMap2 = fileImportMaps2.get(sf.getFilePath()) ?? new Map()
+      const ctx2: ResolverCtx = { sourceFile: sf, project: jsxProject, importMap: importMap2, routerDir: routerDir2, unresolved: unresolvedExprs }
       for (const jsxEl of sf.getDescendantsOfKind(SyntaxKind.JsxElement)) {
         if (jsxEl.getOpeningElement().getTagNameNode().getText() !== 'Routes') continue
-        for (const item of extractJsxRouteChildren(jsxEl.getJsxChildren(), '')) {
+        for (const item of extractJsxRouteChildren(jsxEl.getJsxChildren(), '', ctx2)) {
           if (item.elementComponent === undefined) continue
           const moduleSpec2 = importMap2.get(item.elementComponent)
           if (moduleSpec2 === undefined || !moduleSpec2.startsWith('.')) continue
@@ -493,12 +631,13 @@ export async function parseReactRouterFull(
       const routerDir = path.dirname(filePath)
       const parentPath = subRouterParentPaths2.get(filePath) ?? ''
       const importMap = fileImportMaps2.get(filePath) ?? new Map()
+      const ctx: ResolverCtx = { sourceFile, project: jsxProject, importMap, routerDir, unresolved: unresolvedExprs }
 
       for (const jsxEl of sourceFile.getDescendantsOfKind(SyntaxKind.JsxElement)) {
         const tagName = jsxEl.getOpeningElement().getTagNameNode().getText()
         if (tagName !== 'Routes') continue
 
-        const rawItems = extractJsxRouteChildren(jsxEl.getJsxChildren(), parentPath)
+        const rawItems = extractJsxRouteChildren(jsxEl.getJsxChildren(), parentPath, ctx)
         for (const item of rawItems) {
           const { urlPath, dynamicSegmentType } = normalizePath(item.routePath)
           const provenance: Provenance = {
@@ -507,6 +646,9 @@ export async function parseReactRouterFull(
             adapter: 'react-router@0.1',
             analyzerVersion,
           }
+          const confField = item.inferenceChain !== undefined
+            ? { confidence: 'inferred' as const, inferenceChain: item.inferenceChain }
+            : { confidence: 'verified' as const }
 
           const routeNode = createRouteNode({
             id: makeNodeId('route', relPath, urlPath),
@@ -517,7 +659,7 @@ export async function parseReactRouterFull(
             isGroupRoute: false,
             renderingMode: 'CSR',
             provenance,
-            confidence: 'verified',
+            ...confField,
           })
           routeNodes.push(routeNode)
 
@@ -562,6 +704,10 @@ export async function parseReactRouterFull(
           }
         }
       }
+    }
+    if (unresolvedExprs.length > 0) {
+      const unique = Array.from(new Set(unresolvedExprs))
+      process.stderr.write(`[react-router] ${unique.length} route references could not be resolved: ${unique.join(', ')}\n`)
     }
   }
 
@@ -655,23 +801,29 @@ export async function parseReactRoutes(
     for (const f of jsxRouterFiles) jsxProject.addSourceFileAtPath(f)
 
     // Pass 1: build import maps + detect sub-router files (referenced via element prop)
+    // v1.1.6 T1: named import도 수집
     const fileImportMaps = new Map<string, Map<string, string>>()
     for (const sf of jsxProject.getSourceFiles()) {
       const imap = new Map<string, string>()
       for (const decl of sf.getImportDeclarations()) {
         const di = decl.getDefaultImport()
         if (di !== undefined) imap.set(di.getText(), decl.getModuleSpecifierValue())
+        for (const ni of decl.getNamedImports()) {
+          imap.set(ni.getName(), decl.getModuleSpecifierValue())
+        }
       }
       fileImportMaps.set(sf.getFilePath(), imap)
     }
 
     const subRouterParentPaths = new Map<string, string>()
+    const unresolvedExprs: string[] = []
     for (const sf of jsxProject.getSourceFiles()) {
       const routerDir = path.dirname(sf.getFilePath())
       const importMap = fileImportMaps.get(sf.getFilePath()) ?? new Map()
+      const ctx: ResolverCtx = { sourceFile: sf, project: jsxProject, importMap, routerDir, unresolved: unresolvedExprs }
       for (const jsxEl of sf.getDescendantsOfKind(SyntaxKind.JsxElement)) {
         if (jsxEl.getOpeningElement().getTagNameNode().getText() !== 'Routes') continue
-        for (const item of extractJsxRouteChildren(jsxEl.getJsxChildren(), '')) {
+        for (const item of extractJsxRouteChildren(jsxEl.getJsxChildren(), '', ctx)) {
           if (item.elementComponent === undefined) continue
           const moduleSpec = importMap.get(item.elementComponent)
           if (moduleSpec === undefined || !moduleSpec.startsWith('.')) continue
@@ -692,12 +844,15 @@ export async function parseReactRoutes(
       const filePath = sourceFile.getFilePath()
       const relPath = path.relative(repoRoot, filePath).replace(/\\/g, '/')
       const parentPath = subRouterParentPaths.get(filePath) ?? ''
+      const importMap = fileImportMaps.get(filePath) ?? new Map()
+      const routerDir = path.dirname(filePath)
+      const ctx: ResolverCtx = { sourceFile, project: jsxProject, importMap, routerDir, unresolved: unresolvedExprs }
 
       for (const jsxEl of sourceFile.getDescendantsOfKind(SyntaxKind.JsxElement)) {
         const tagName = jsxEl.getOpeningElement().getTagNameNode().getText()
         if (tagName !== 'Routes') continue
 
-        const rawItems = extractJsxRouteChildren(jsxEl.getJsxChildren(), parentPath)
+        const rawItems = extractJsxRouteChildren(jsxEl.getJsxChildren(), parentPath, ctx)
         for (const item of rawItems) {
           const { urlPath, dynamicSegmentType } = normalizePath(item.routePath)
           const provenance: Provenance = {
@@ -706,6 +861,9 @@ export async function parseReactRoutes(
             adapter: 'react-router@0.1',
             analyzerVersion,
           }
+          const confField = item.inferenceChain !== undefined
+            ? { confidence: 'inferred' as const, inferenceChain: item.inferenceChain }
+            : { confidence: 'verified' as const }
           routes.push(
             createRouteNode({
               id: makeNodeId('route', relPath, urlPath),
@@ -716,11 +874,15 @@ export async function parseReactRoutes(
               isGroupRoute: false,
               renderingMode: 'CSR',
               provenance,
-              confidence: 'verified',
+              ...confField,
             }),
           )
         }
       }
+    }
+    if (unresolvedExprs.length > 0) {
+      const unique = Array.from(new Set(unresolvedExprs))
+      process.stderr.write(`[react-router] ${unique.length} route references could not be resolved: ${unique.join(', ')}\n`)
     }
   }
 

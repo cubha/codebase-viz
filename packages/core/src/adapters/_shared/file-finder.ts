@@ -2,7 +2,7 @@ import * as fs from 'node:fs/promises'
 import * as path from 'node:path'
 
 export const PY_EXCLUDE_DIRS = new Set(['__pycache__', '.git', 'node_modules', 'venv', '.venv', 'env'])
-export const JAVA_EXCLUDE_DIRS = new Set(['.git', 'node_modules', 'target', 'build', '.gradle'])
+export const JAVA_EXCLUDE_DIRS = new Set(['.git', 'node_modules', 'target', 'build', '.gradle', 'test'])
 
 export async function findFiles(
   dir: string,

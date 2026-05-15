@@ -18,3 +18,7 @@ scratch.md
 
 # Playwright MCP
 .playwright-mcp/
+
+# Spike / 임시 실험 (영구 산출물 아님)
+.scratch/
+fixtures/mini-next-app/.next/

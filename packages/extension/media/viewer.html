@@ -127,10 +127,26 @@
       padding: 3px 12px; border-radius: 4px;
       background: rgba(6,8,16,.88); border: 1px solid var(--border); backdrop-filter: blur(10px); }
     .cn-label { font-size: 10px; color: var(--text-muted); }
-    .canvas-wrap.row-mode { overflow: hidden; cursor: grab; }
+    .canvas-wrap.row-mode { overflow: auto; cursor: default; }
     .canvas-wrap.row-mode.dragging { cursor: grabbing; }
-    .row-diagram { width: 100%; display: block; }
-    .row-mode .canvas-inner { user-select: none; -webkit-user-select: none; }
+    /* v1.1.6 T3 C-2: row-mode inner를 grid로 변경 — chunk가 화면 폭에 따라 자동 wrap.
+       16 rows → 2x8 / 4x4 / 1x16 형태로 자동 배치. minmax(560px) = 한 chunk 최소 폭. */
+    .canvas-wrap.row-mode .canvas-inner {
+      position: static; transform: none !important; top: auto; left: auto;
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(560px, 1fr));
+      gap: 16px; padding: 16px; width: 100%; box-sizing: border-box;
+      user-select: none; -webkit-user-select: none;
+    }
+    /* v1.1.6 T3 C-1: chunk별 독립 zoom — 각 .row-diagram이 자체 transform 상태를 가진다.
+       overflow:hidden으로 chunk 밖으로 빠져나간 SVG를 cell 안에 가둔다.
+       cursor:grab으로 chunk-local drag/zoom 가능 표시. */
+    .row-diagram {
+      display: block; width: 100%; min-height: 200px;
+      overflow: hidden; cursor: grab; position: relative;
+      background: rgba(13,18,32,.3); border: 1px solid var(--border-sub); border-radius: 6px;
+    }
+    .row-diagram.dragging { cursor: grabbing; }
+    .row-diagram svg { transform-origin: top left; will-change: transform; display: block; }
     /* erDiagram th/td 분리 스타일 (Mermaid 11 기준)
        Mermaid 11은 row-rect-even/odd g 안의 path에 SVG fill 속성으로 색상 지정.
        SVG presentation attribute < CSS 우선순위이므로 CSS override가 유효하다.
@@ -320,12 +336,20 @@ function setSvgDimensions(inner) {
   svgEl.style.maxWidth = 'none';
 }
 
+// v1.1.6 T3 C-1: row-mode에서 inline style 제거 — grid CSS class가 layout 담당.
+// 각 .row-diagram에 data-row-idx 부여 + ROW_ST 초기화 + chunk별 fit.
 function activateRowMode(t, inner) {
   const wrap = document.getElementById('w-'+t);
   wrap.classList.add('row-mode');
-  inner.style.cssText = 'position:absolute;top:0;left:0;width:100%;transform-origin:top left;display:flex;flex-direction:column;padding:16px;gap:16px;will-change:transform';
-  scaleRowSvgs(wrap, inner);
+  inner.style.cssText = '';
   const rows = inner.querySelectorAll('.row-diagram');
+  ROW_ST[t] = [];
+  rows.forEach((row, idx) => {
+    row.dataset.t = t;
+    row.dataset.rowIdx = idx;
+    ROW_ST[t].push({s:1, x:0, y:0, natW:0, natH:0, fitS:1});
+  });
+  fitRowSvgsInitial(t, inner);
   const bar = document.getElementById('cnav-'+t);
   if (bar && rows.length > 1) {
     bar.style.display = 'flex';
@@ -333,28 +357,46 @@ function activateRowMode(t, inner) {
   }
 }
 
-function scaleRowSvgs(wrap, inner) {
-  const containerWidth = wrap.clientWidth - 32;
-  inner.querySelectorAll('.row-diagram').forEach(row => {
+// v1.1.6 T3 C-1: 초기 fit — 각 row-diagram cell 폭에 맞춰 SVG 다운스케일 (fitS 계산).
+// 이후 사용자 wheel/drag는 chunk-local로 fitS 위에 추가 변환.
+function fitRowSvgsInitial(t, inner) {
+  inner.querySelectorAll('.row-diagram').forEach((row, idx) => {
     const svg = row.querySelector('svg');
     if (!svg) return;
     const vb = svg.viewBox.baseVal;
     const natW = (vb && vb.width > 0) ? vb.width : (parseFloat(svg.getAttribute('width')) || 800);
     const natH = (vb && vb.height > 0) ? vb.height : (parseFloat(svg.getAttribute('height')) || 600);
-    if (natW > containerWidth) {
-      svg.setAttribute('width', containerWidth);
-      svg.setAttribute('height', natH * (containerWidth / natW));
-    } else {
-      svg.setAttribute('width', natW);
-      svg.setAttribute('height', natH);
-    }
+    // row-diagram cell width는 grid가 결정 (minmax(560,1fr)). clientWidth로 측정.
+    const cellW = row.clientWidth - 8;
+    const fitS = cellW > 0 && natW > 0 ? Math.min(cellW / natW, 1.0) : 1.0;
+    // SVG width를 cell에 fit → row-diagram min-height에도 반영
+    svg.setAttribute('width', natW);
+    svg.setAttribute('height', natH);
     svg.style.maxWidth = 'none';
+    if (ROW_ST[t][idx]) {
+      ROW_ST[t][idx].natW = natW;
+      ROW_ST[t][idx].natH = natH;
+      ROW_ST[t][idx].fitS = fitS;
+      ROW_ST[t][idx].s = 1;
+      ROW_ST[t][idx].x = 0;
+      ROW_ST[t][idx].y = 0;
+    }
+    applyRowTransform(t, idx);
+    // row-diagram cell 높이를 SVG 실제 표시 높이에 맞춤 (grid cell 자동 신축)
+    row.style.minHeight = (natH * fitS) + 'px';
   });
+}
+
+// 하위 호환 (외부 호출 가능성)
+function scaleRowSvgs(wrap, inner) {
+  const t = wrap.id.slice(2);
+  fitRowSvgsInitial(t, inner);
 }
 
 const rendered = {r:false,s:false,d:false};
 const ST = {r:{s:1,x:0,y:0}, s:{s:1,x:0,y:0}, d:{s:1,x:0,y:0}};
-const drag = {t:null,sx:0,sy:0,ox:0,oy:0};
+const ROW_ST = {r:[], s:[], d:[]};
+const drag = {t:null,rowIdx:null,sx:0,sy:0,ox:0,oy:0};
 var dbCurrentView = 'all';
 var dbGraphs = null;
 var activeTab = 'r';
@@ -617,6 +659,9 @@ function setDbView(view) {
   wrap.classList.remove('row-mode');
   document.getElementById('i-d').style.cssText = '';
   ST.d = {s:1,x:0,y:0};
+  ROW_ST.d = [];
+  const cnav = document.getElementById('cnav-d');
+  if (cnav) cnav.style.display = 'none';
   renderDbView(view);
 }
 
@@ -625,9 +670,11 @@ function fitToView(t) {
   const inner = document.getElementById('i-'+t);
   if (!wrap || !inner) return;
   if (wrap.classList.contains('row-mode')) {
-    // row-mode: scaleRowSvgs가 이미 가로를 wrap에 맞췄으므로 scale 1.0 + 위치 reset.
-    ST[t] = {s: 1, x: 0, y: 0};
-    applyTransform(t);
+    // v1.1.6 T3 C-1: row-mode reset — 모든 chunk의 zoom/pan을 fit 상태로 복원.
+    (ROW_ST[t] || []).forEach((st, idx) => {
+      st.s = 1; st.x = 0; st.y = 0;
+      applyRowTransform(t, idx);
+    });
     return;
   }
   const svg = inner.querySelector('svg');
@@ -645,45 +692,105 @@ function applyTransform(t) {
   const wrap = document.getElementById('w-'+t);
   const inner = document.getElementById('i-'+t);
   if (!wrap || !inner) return;
-  const {s,x,y} = ST[t];
   if (wrap.classList.contains('row-mode')) {
-    // row-mode inner: position absolute, top:0, left:50%, transform-origin: top center
-    inner.style.transform = 'translate(calc(-50% + '+x+'px), '+y+'px) scale('+s+')';
-  } else {
-    inner.style.transform = 'translate(calc(-50% + '+x+'px), calc(-50% + '+y+'px)) scale('+s+')';
+    // row-mode는 chunk-local. applyRowTransform 사용.
+    return;
   }
+  const {s,x,y} = ST[t];
+  inner.style.transform = 'translate(calc(-50% + '+x+'px), calc(-50% + '+y+'px)) scale('+s+')';
+}
+
+// v1.1.6 T3 C-1: chunk-local transform — fitS(cell fit) × s(사용자 zoom) 결합.
+function applyRowTransform(t, idx) {
+  const inner = document.getElementById('i-'+t);
+  if (!inner) return;
+  const row = inner.querySelector('.row-diagram[data-row-idx="'+idx+'"]');
+  if (!row) return;
+  const svg = row.querySelector('svg');
+  if (!svg) return;
+  const st = ROW_ST[t][idx];
+  if (!st) return;
+  const totalS = st.fitS * st.s;
+  svg.style.transform = 'translate('+st.x+'px, '+st.y+'px) scale('+totalS+')';
 }
 
 function zm(t, f) {
+  const wrap = document.getElementById('w-'+t);
+  if (wrap && wrap.classList.contains('row-mode')) {
+    // row-mode: 모든 chunk에 동일 zoom 적용 (전역 +/- 버튼 동작).
+    (ROW_ST[t] || []).forEach((st, idx) => {
+      st.s = Math.max(0.1, Math.min(st.s*f, 5));
+      applyRowTransform(t, idx);
+    });
+    return;
+  }
   ST[t].s = Math.max(0.1, Math.min(ST[t].s*f, 5));
   applyTransform(t);
 }
 function rz(t) { fitToView(t); }
 
 document.addEventListener('mousedown', e => {
+  const row = e.target.closest('.row-diagram');
+  if (row && row.dataset.t) {
+    e.preventDefault();
+    const t = row.dataset.t;
+    const idx = parseInt(row.dataset.rowIdx, 10);
+    const st = ROW_ST[t][idx];
+    if (!st) return;
+    drag.t=t; drag.rowIdx=idx; drag.sx=e.clientX; drag.sy=e.clientY; drag.ox=st.x; drag.oy=st.y;
+    row.classList.add('dragging');
+    return;
+  }
   const wrap = e.target.closest('.canvas-wrap');
-  if (!wrap) return;
+  if (!wrap || wrap.classList.contains('row-mode')) return;
   e.preventDefault();
   const t = wrap.id.slice(2);
-  drag.t=t; drag.sx=e.clientX; drag.sy=e.clientY; drag.ox=ST[t].x; drag.oy=ST[t].y;
+  drag.t=t; drag.rowIdx=null; drag.sx=e.clientX; drag.sy=e.clientY; drag.ox=ST[t].x; drag.oy=ST[t].y;
   wrap.classList.add('dragging');
 });
 document.addEventListener('mousemove', e => {
   if (!drag.t) return;
+  if (drag.rowIdx !== null) {
+    const st = ROW_ST[drag.t][drag.rowIdx];
+    if (!st) return;
+    st.x = drag.ox+(e.clientX-drag.sx);
+    st.y = drag.oy+(e.clientY-drag.sy);
+    applyRowTransform(drag.t, drag.rowIdx);
+    return;
+  }
   ST[drag.t].x = drag.ox+(e.clientX-drag.sx);
   ST[drag.t].y = drag.oy+(e.clientY-drag.sy);
   applyTransform(drag.t);
 });
 document.addEventListener('mouseup', () => {
-  if (drag.t) document.getElementById('w-'+drag.t)?.classList.remove('dragging');
-  drag.t=null;
+  if (drag.rowIdx !== null) {
+    const inner = document.getElementById('i-'+drag.t);
+    inner?.querySelector('.row-diagram[data-row-idx="'+drag.rowIdx+'"]')?.classList.remove('dragging');
+  } else if (drag.t) {
+    document.getElementById('w-'+drag.t)?.classList.remove('dragging');
+  }
+  drag.t=null; drag.rowIdx=null;
 });
-document.querySelectorAll('.canvas-wrap').forEach(w => {
-  w.addEventListener('wheel', e => {
+// v1.1.6 T3 C-1: wheel은 hover된 .row-diagram에만 적용 (chunk-local zoom).
+// row-mode 외부 / single SVG 모드는 기존 canvas-wrap 전체 zoom.
+document.addEventListener('wheel', e => {
+  const row = e.target.closest('.row-diagram');
+  if (row && row.dataset.t) {
     e.preventDefault();
-    zm(w.id.slice(2), e.deltaY<0?1.1:0.9);
-  }, {passive:false});
-});
+    const t = row.dataset.t;
+    const idx = parseInt(row.dataset.rowIdx, 10);
+    const st = ROW_ST[t][idx];
+    if (!st) return;
+    const f = e.deltaY<0?1.1:0.9;
+    st.s = Math.max(0.1, Math.min(st.s*f, 5));
+    applyRowTransform(t, idx);
+    return;
+  }
+  const wrap = e.target.closest('.canvas-wrap');
+  if (!wrap || wrap.classList.contains('row-mode')) return;
+  e.preventDefault();
+  zm(wrap.id.slice(2), e.deltaY<0?1.1:0.9);
+}, {passive:false});
 
 function buildSidebar(erDiagram) {
   if (!erDiagram) { document.getElementById('sidebar-tables').innerHTML = '<div style="color:var(--text-muted);font-size:11px;padding:8px">No DB data</div>'; return; }

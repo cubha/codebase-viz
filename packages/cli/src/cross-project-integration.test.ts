@@ -117,7 +117,7 @@ describe('Cross-project integration pipeline', () => {
     })
     // threshold를 0으로 설정하면 항상 fallback
     const diagrams = buildCombinedDiagram(feGraph, beGraph, [], { chunkThreshold: 0 })
-    expect(diagrams.rendering).toContain('Cytoscape')
+    expect(diagrams.rendering).toContain('1M 초과')
     expect(diagrams.rendering).not.toContain('FE_PROJ')
   })
 })

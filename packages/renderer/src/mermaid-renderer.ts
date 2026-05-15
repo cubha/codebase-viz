@@ -31,7 +31,7 @@ function sanitizeId(s: string): string {
   return s.replace(/[^a-zA-Z0-9_]/g, '_')
 }
 
-const RENDERING_INIT = `%%{init:{'theme':'base','themeVariables':{'background':'#060810','primaryColor':'#0c1a30','primaryTextColor':'#7dd3fc','primaryBorderColor':'#0e3a6e','edgeLabelBackground':'#0c1a30','lineColor':'#334155','secondaryColor':'#0f172a','clusterBkg':'#060c18','clusterBorder':'#1e3a5f','fontFamily':'JetBrains Mono'}}}%%`
+const RENDERING_INIT = `%%{init:{'theme':'base','themeVariables':{'background':'#060810','primaryColor':'#0c1a30','primaryTextColor':'#7dd3fc','primaryBorderColor':'#0e3a6e','edgeLabelBackground':'#0c1a30','lineColor':'#334155','secondaryColor':'#0f172a','clusterBkg':'#060c18','clusterBorder':'#1e3a5f','fontFamily':'JetBrains Mono','fontSize':'14'}}}%%`
 
 const CLASS_DEFS = [
   `  classDef ssr fill:#0d1a0d,stroke:#16a34a,color:#86efac`,
@@ -128,7 +128,25 @@ function buildNestedSubgraphLines(groups: NestedGroup[], indent: string): string
       lines.push(`${indent}subgraph ${sgId}["${label}"]`)
       lines.push(...emitInnerRowSubgraphs(i2, sgId, group.routes.length,
         (i, ind) => renderingRouteLabel(group.routes[i]!, ind, group.groupKey)))
-      if (group.children.length > 0) lines.push(...buildNestedSubgraphLines(group.children, i2))
+      // v1.1.6 T4: 자식 subgraph가 GROUPS_PER_ROW 초과 시 invisible row 래퍼 + direction LR.
+      // 부모 안에서 자식 가로 정렬(within-group), 5개 초과면 Y 줄넘김. NestedGroup tree 유지.
+      // mermaid 11.x direction LR: 외부 edge 없는 Tab1에서만 안전 (Tab2는 별도 검증 필요).
+      if (group.children.length > 0) {
+        if (group.children.length <= GROUPS_PER_ROW) {
+          lines.push(...buildNestedSubgraphLines(group.children, i2))
+        } else {
+          const i3 = i2 + '  '
+          const rowChunks = chunkGroups(group.children, GROUPS_PER_ROW)
+          rowChunks.forEach((chunk, rowIdx) => {
+            const rowId = `${sgId}_CR${rowIdx}`
+            lines.push(`${i2}subgraph ${rowId} [" "]`)
+            lines.push(`${i3}direction LR`)
+            lines.push(...buildNestedSubgraphLines(chunk, i3))
+            lines.push(`${i2}end`)
+            lines.push(`${i2}style ${rowId} fill:none,stroke:none`)
+          })
+        }
+      }
       lines.push(`${indent}end`)
     }
   }
@@ -328,8 +346,24 @@ function buildScreenSubgraphLines(
       lines.push(`${i2}end`)
     }
 
+    // v1.1.6 T4: Tab2도 자식 subgraph가 GROUPS_PER_ROW 초과 시 invisible row 래퍼 + direction LR.
+    // mermaid v11 명세: 외부 edge는 immediate parent subgraph의 direction만 무시. ROW wrapper는
+    // ancestor이므로 direction LR 유효 → 사용자 요구("부모 안에서 자식 가로") 충족.
     if (group.children.length > 0) {
-      lines.push(...buildScreenSubgraphLines(group.children, i2, routeToComps, rendersEdges, connectedComponents, compNodeRendered, allEdges))
+      if (group.children.length <= GROUPS_PER_ROW) {
+        lines.push(...buildScreenSubgraphLines(group.children, i2, routeToComps, rendersEdges, connectedComponents, compNodeRendered, allEdges))
+      } else {
+        const i3 = i2 + '  '
+        const rowChunks = chunkGroups(group.children, GROUPS_PER_ROW)
+        rowChunks.forEach((chunk, rowIdx) => {
+          const rowId = `${sgId}_CR${rowIdx}`
+          lines.push(`${i2}subgraph ${rowId} [" "]`)
+          lines.push(`${i3}direction LR`)
+          lines.push(...buildScreenSubgraphLines(chunk, i3, routeToComps, rendersEdges, connectedComponents, compNodeRendered, allEdges))
+          lines.push(`${i2}end`)
+          lines.push(`${i2}style ${rowId} fill:none,stroke:none`)
+        })
+      }
     }
     lines.push(`${indent}end`)
   }
@@ -575,7 +609,7 @@ function buildScreenComponentDiagram(graph: IRGraph): string {
 
 // th(테이블명 헤더): primaryColor 어두운 배경 + primaryTextColor 밝은 텍스트 유지
 // td(컬럼 행): 밝은 배경(attributeBackgroundColor*) + 어두운 텍스트 (viewer CSS 인젝션으로 보완)
-const DB_DIAGRAM_INIT = `%%{init:{'theme':'base','themeVariables':{'background':'#060810','primaryColor':'#0a2030','primaryTextColor':'#e2e8f0','primaryBorderColor':'#1e4060','lineColor':'#f59e0b','secondaryColor':'#0f172a','tertiaryColor':'#1a0a20','attributeBackgroundColorEven':'#ffffff','attributeBackgroundColorOdd':'#f1f5f9','nodeBorder':'#1e4060','clusterBkg':'#0a0e1a','fontFamily':'JetBrains Mono'}}}%%`
+const DB_DIAGRAM_INIT = `%%{init:{'theme':'base','themeVariables':{'background':'#060810','primaryColor':'#0a2030','primaryTextColor':'#e2e8f0','primaryBorderColor':'#1e4060','lineColor':'#f59e0b','secondaryColor':'#0f172a','tertiaryColor':'#1a0a20','attributeBackgroundColorEven':'#ffffff','attributeBackgroundColorOdd':'#f1f5f9','nodeBorder':'#1e4060','clusterBkg':'#0a0e1a','fontFamily':'JetBrains Mono','fontSize':'14'}}}%%`
 
 function getSourceLabel(node: IRNode): string | undefined {
   if (isRouteNode(node)) {
@@ -718,7 +752,7 @@ function buildWithChunkFallback(
   return joinChunks(parts)
 }
 
-const COMBINED_FALLBACK = '⚠ 결합 다이어그램 1M 초과 — Cytoscape 마이그레이션 대기 중'
+const COMBINED_FALLBACK = '⚠ 결합 다이어그램 1M 초과 — chunk 분할로 fallback'
 
 function findParentRouteId(componentId: string, feGraph: IRGraph): string | undefined {
   return feGraph.edges.find(e => e.kind === 'renders' && e.to === componentId)?.from
