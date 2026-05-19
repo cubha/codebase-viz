@@ -460,8 +460,10 @@ describe('BE 렌더러 — Tab1 (BE-C)', () => {
     await renderMermaid(graph, OUTPUT_DIR)
     const content = await fs.readFile(path.join(OUTPUT_DIR, 'rendering.md'), 'utf8')
 
-    expect(content).toContain('UserController_BE')
-    expect(content).toContain('PostController_BE')
+    expect(content).toContain('UserController')
+    expect(content).toContain('PostController')
+    expect(content).toContain('📄 UserController')
+    expect(content).toContain('📄 PostController')
     expect(content).toContain('graph TD')
   })
 

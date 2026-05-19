@@ -1,5 +1,28 @@
 # Changelog
 
+## [1.2.3] — 2026-05-19
+
+### Fixed — v1.2.2 후속 BE 결함 3건
+
+대용량 실제 Spring Boot 프로젝트(985 routes / 422 tables)에서 노출된 결함 일괄 수정.
+
+- **Tab2 "(no BE components found)" × N chunks**: `buildWithChunkFallback`이 라우트 기준으로 graph를 chunk 분할하면서 컴포넌트가 누락된 각 chunk마다 `buildBeArchitectureDiagram`을 호출 → 빈 결과 N회 반복. BE 어댑터인 경우 Tab2의 chunking을 우회하도록 가드 추가.
+- **Spring Data JPA `interface Repository` 누락**: `parseSpringComponents`가 `class_declaration`만 처리해 `public interface XxxRepository extends JpaRepository<...>` 패턴(어노테이션 없는 표준)을 인식 못 함 → DI `calls` 엣지의 `to` 매핑 실패. `interface_declaration` 추가 처리 + 이름 패턴(`*Repository|Dao|Mapper`) fallback. 사전 필터에 `JpaRepository`/`CrudRepository`/`PagingAndSortingRepository`/`MongoRepository`/`ReactiveCrudRepository` 키워드 추가.
+- **Gemini "Not Found" 에러 표면화 부족**: `analyzWithLLM` 호출부에 try-catch 보강 — provider/model 컨텍스트 + raw 에러 메시지를 사용자에게 surface (`LLM 호출 실패 [provider=… model=…]: …`). 모델 ID 변경/키 권한/엔드포인트 문제를 즉시 식별 가능.
+
+### Improved — Tab1 BE 패키지 경로 기반 nested grouping
+
+기존 File-First 단일 subgraph → 패키지 경로 트리 nested subgraph로 개선. 깊은 패키지 구조(`com.wina.partner.matMgmt.decoSheet.controller.DecoSheetController`)의 도메인 계층이 시각적으로 드러남.
+
+- `src/main/{java,kotlin}/` 자동 감지 후 패키지 segments 추출.
+- 모든 Controller가 공유하는 공통 prefix(예: `com.wina`) 자동 strip.
+- 마지막 segment가 모두 `controller(s)`이면 strip (Spring 패키지 컨벤션).
+- 트리 leaf = Controller 파일 단위 subgraph + URL prefix LCP 자동 추출 유지.
+
+### Added — fixture: `mini-spring-deep-pkg-app`
+
+깊은 패키지(4단계) + interface Repository + 다중 도메인(admin / partner.order / partner.matMgmt.decoSheet) 검증용 픽스처. Tab1 nested grouping + 컴포넌트 파서 interface 처리 회귀 방지.
+
 ## [1.2.2] — 2026-05-18
 
 ### Added — Spring Boot DI 분석기 + BE 전용 렌더러 3종

@@ -97,11 +97,24 @@ export async function runAnalysis(
   if (llmOptions !== undefined) {
     const fileContents = await collectFiles(repoRoot, stack)
 
-    const llmResult = await analyzWithLLM(llmOptions, {
-      projectName: path.basename(repoRoot),
-      framework: stack.framework,
-      fileContents,
-    })
+    let llmResult
+    try {
+      llmResult = await analyzWithLLM(llmOptions, {
+        projectName: path.basename(repoRoot),
+        framework: stack.framework,
+        fileContents,
+      })
+    } catch (err) {
+      // LLM 호출 실패 시 provider/model 컨텍스트와 raw 에러를 한 번에 surface
+      const provider = llmOptions.provider ?? 'anthropic'
+      const model = llmOptions.model ?? '(default)'
+      const errMsg = err instanceof Error ? err.message : String(err)
+      const errName = err instanceof Error ? err.name : 'Unknown'
+      throw new Error(
+        `LLM 호출 실패 [provider=${provider} model=${model}]: ${errName}: ${errMsg}. ` +
+        `keyword Not Found이면 모델 ID 또는 API endpoint 확인, 401/403이면 API 키 권한 확인.`,
+      )
+    }
 
     const { routeNodes: llmRoutes, componentNodes: llmComponents, tableNodes: llmTables, edges: llmEdges } =
       convertToIR(llmResult, repoRoot, ANALYZER_VERSION)

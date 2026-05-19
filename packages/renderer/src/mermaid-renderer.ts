@@ -433,8 +433,98 @@ function pathSegmentLcp(paths: string[]): string {
   return '/' + segArrays[0]!.slice(0, lcpCount).join('/')
 }
 
-// Tab1 BE: File-First grouping — one subgraph per Controller file.
-// Intrinsic prefix auto-detected and shown in subgraph title; suffix in node labels.
+// 패키지 segments 추출: src/main/{java,kotlin}/ 이후 + 파일명 제외
+function extractPackageSegments(filePath: string): string[] {
+  const normalized = filePath.replace(/\\/g, '/')
+  const javaMatch = normalized.match(/^(?:.*\/)?src\/main\/(?:java|kotlin)\/(.+)$/)
+  const after = javaMatch !== null ? (javaMatch[1] ?? normalized) : normalized
+  const segments = after.split('/').filter(Boolean)
+  if (segments.length > 0) segments.pop()
+  return segments
+}
+
+function commonPrefixLen(segArrays: string[][]): number {
+  if (segArrays.length === 0) return 0
+  const minLen = Math.min(...segArrays.map(a => a.length))
+  let i = 0
+  for (; i < minLen; i++) {
+    const seg = segArrays[0]?.[i]
+    if (seg === undefined || !segArrays.every(a => a[i] === seg)) break
+  }
+  return i
+}
+
+type PkgTreeNode = {
+  children: Map<string, PkgTreeNode>
+  files: Array<{ filePath: string; routes: RouteNode[] }>
+}
+
+function buildPkgTree(
+  fileRoutes: Array<{ filePath: string; segments: string[]; routes: RouteNode[] }>,
+): PkgTreeNode {
+  const root: PkgTreeNode = { children: new Map(), files: [] }
+  for (const { filePath, segments, routes } of fileRoutes) {
+    let cur = root
+    for (const seg of segments) {
+      let child = cur.children.get(seg)
+      if (child === undefined) {
+        child = { children: new Map(), files: [] }
+        cur.children.set(seg, child)
+      }
+      cur = child
+    }
+    cur.files.push({ filePath, routes })
+  }
+  return root
+}
+
+function emitControllerFileSubgraph(
+  indent: string,
+  parentId: string,
+  filePath: string,
+  routes: RouteNode[],
+): string[] {
+  const controllerName = path.basename(filePath, path.extname(filePath))
+  const sgId = `${parentId}__${sanitizeId(controllerName)}`
+  const prefix = pathSegmentLcp(routes.map(r => r.path))
+  const titleSuffix = prefix !== '' ? ` [${prefix}]` : ''
+  const lines: string[] = []
+  lines.push(`${indent}subgraph ${sgId}["📄 ${controllerName}${titleSuffix}"]`)
+  lines.push(...emitInnerRowSubgraphs(indent + '  ', sgId, routes.length, (i, ind) => {
+    const r = routes[i]!
+    const suffix = prefix !== '' && r.path.startsWith(prefix)
+      ? (r.path.slice(prefix.length) || '/')
+      : r.path
+    const methodPrefix = r.httpMethod !== undefined ? `${r.httpMethod} ` : ''
+    return `${ind}${sanitizeId(r.id)}["${methodPrefix}${suffix}"]:::ssr`
+  }))
+  lines.push(`${indent}end`)
+  return lines
+}
+
+function emitPkgTreeSubgraphs(
+  node: PkgTreeNode,
+  indent: string,
+  parentId: string,
+): string[] {
+  const lines: string[] = []
+  for (const [seg, child] of node.children) {
+    const sgId = `${parentId}__${sanitizeId(seg)}`
+    lines.push(`${indent}subgraph ${sgId}["📦 ${seg}"]`)
+    lines.push(...emitPkgTreeSubgraphs(child, indent + '  ', sgId))
+    lines.push(`${indent}end`)
+  }
+  for (const { filePath, routes } of node.files) {
+    lines.push(...emitControllerFileSubgraph(indent, parentId, filePath, routes))
+  }
+  return lines
+}
+
+// Tab1 BE: 패키지 경로 기반 nested grouping.
+// src/main/{java,kotlin}/ 이후 segments를 트리화 → 중첩 subgraph 생성.
+// - 모든 Controller가 공유하는 공통 prefix(예: com.wina) 자동 strip
+// - 마지막 segment가 모두 `controller(s)`일 때 strip (Spring 패키지 컨벤션)
+// - leaf = Controller 파일 단위 subgraph + URL prefix LCP 자동 추출
 function buildBeRenderingDiagram(graph: IRGraph): string {
   const routeNodes = graph.nodes.filter(isRouteNode)
   if (routeNodes.length === 0) return 'graph TD\n  empty["(no endpoints found)"]'
@@ -446,26 +536,25 @@ function buildBeRenderingDiagram(graph: IRGraph): string {
     byFile.set(r.filePath, existing)
   }
 
+  const fileRoutes = [...byFile.entries()].map(([filePath, routes]) => ({
+    filePath,
+    segments: extractPackageSegments(filePath),
+    routes,
+  }))
+
+  const lcpLen = commonPrefixLen(fileRoutes.map(f => f.segments))
+  const trimController = fileRoutes.every(f => {
+    const last = f.segments[f.segments.length - 1]
+    return f.segments.length > lcpLen && last !== undefined && /^controllers?$/i.test(last)
+  })
+  const trimmed = fileRoutes.map(f => ({
+    ...f,
+    segments: f.segments.slice(lcpLen, trimController ? -1 : undefined),
+  }))
+
+  const tree = buildPkgTree(trimmed)
   const lines: string[] = [RENDERING_INIT, 'graph TD', CLASS_DEFS]
-
-  for (const [filePath, routes] of byFile) {
-    const controllerName = path.basename(filePath, path.extname(filePath))
-    const sgId = sanitizeId(controllerName) + '_BE'
-    const prefix = pathSegmentLcp(routes.map(r => r.path))
-    const titleSuffix = prefix !== '' ? ` [${prefix}]` : ''
-
-    lines.push(`  subgraph ${sgId}["📄 ${controllerName}${titleSuffix}"]`)
-    lines.push(...emitInnerRowSubgraphs('    ', sgId, routes.length, (i, ind) => {
-      const r = routes[i]!
-      const suffix = prefix !== '' && r.path.startsWith(prefix)
-        ? (r.path.slice(prefix.length) || '/')
-        : r.path
-      const methodPrefix = r.httpMethod !== undefined ? `${r.httpMethod} ` : ''
-      return `${ind}${sanitizeId(r.id)}["${methodPrefix}${suffix}"]:::ssr`
-    }))
-    lines.push('  end')
-  }
-
+  lines.push(...emitPkgTreeSubgraphs(tree, '  ', 'BE_ROOT'))
   return lines.join('\n')
 }
 
@@ -864,6 +953,9 @@ function buildWithChunkFallback(
   const text = build(graph)
   if (text.includes(CHUNK_SEPARATOR)) return text
   if (!shouldChunk(text, threshold, nodeCount, nodeThreshold)) return text
+  // BE 어댑터의 Tab2는 컴포넌트 그래프이므로 라우트 기준 chunking이 무의미.
+  // chunkByGroups는 라우트만 분할 → 각 chunk에 컴포넌트 미포함 → "(no BE components found)" 반복 결함 회피.
+  if (graph.metadata?.adapterCategory === 'BE') return text
   const subGraphs = chunkByGroups(graph, chunkOpts)
   if (subGraphs.length <= 1) return text
   const parts = subGraphs.map(g => build(g))
