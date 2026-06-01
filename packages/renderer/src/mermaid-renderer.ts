@@ -20,7 +20,7 @@ import {
 } from './_shared/wrap-fallback.js'
 import { RENDERING_INIT, CLASS_DEFS } from './helpers/constants.js'
 import { sanitizeId } from './helpers/ids.js'
-import { findBranchingGroups, chunkGroups, GROUPS_PER_ROW, TAB2_GROUPS_PER_ROW, SINGLE_DIAGRAM_ROUTE_THRESHOLD } from './helpers/layout.js'
+import { findBranchingGroups, chunkGroups, splitGroupsByNodeBound, CHUNK_ROUTE_BUDGET, SINGLE_DIAGRAM_ROUTE_THRESHOLD } from './helpers/layout.js'
 import { metadataToInfra, isFileTreeTab2Eligible, type InfraInfo } from './fe/infra.js'
 import { emitTopLevelSiblingChain, buildNestedSubgraphLines, buildRouteRowDiagram } from './fe/nested.js'
 import { renderScreenSection } from './fe/tab2.js'
@@ -114,13 +114,13 @@ function buildRenderingDiagram(graph: IRGraph): string {
 
   const routeGroups = groupRoutesByUrl(routeNodes)
   const branchingGroups = findBranchingGroups(routeGroups)
-  if (
-    branchingGroups.length > GROUPS_PER_ROW &&
-    routeNodes.length > SINGLE_DIAGRAM_ROUTE_THRESHOLD
-  ) {
-    // 1 top-level branch = 1 chunk (의미 단위 청크).
-    // routeCount 게이트 추가 — 작은 프로젝트는 single-diagram로 유지.
-    return joinChunks(branchingGroups.map(g => buildRouteRowDiagram([g])))
+  if (routeNodes.length > SINGLE_DIAGRAM_ROUTE_THRESHOLD) {
+    // v1.2.49 B-6: routeCount 단독 게이트(branchingGroups>5 AND 제거) — 소수 브랜치에
+    //   깊게 중첩된 대형 라우트도 청킹되도록. 작은 프로젝트는 여전히 single-diagram.
+    // v1.2.49 B-7: 청크 입자를 노드 수 바운드로 — 거대 단일 브랜치가 단일 다이어그램으로
+    //   메인 스레드를 점유해 webview가 freeze되던 결함 해소.
+    const chunks = splitGroupsByNodeBound(branchingGroups, CHUNK_ROUTE_BUDGET)
+    return joinChunks(chunks.map(gs => buildRouteRowDiagram(gs)))
   }
 
   const tableNodes = graph.nodes.filter(isTableNode)
@@ -302,15 +302,12 @@ function buildScreenComponentDiagram(graph: IRGraph): string {
   const routeGroups = groupRoutesByUrl(pageRoutes)
   const branchingGroups = findBranchingGroups(routeGroups)
 
-  if (
-    branchingGroups.length > TAB2_GROUPS_PER_ROW &&
-    pageRoutes.length > SINGLE_DIAGRAM_ROUTE_THRESHOLD
-  ) {
-    // 1 top-level branch = 1 chunk (Tab1과 동일 정책)
-    // routeCount 게이트 추가 — 작은 프로젝트는 single-diagram로 유지.
+  if (pageRoutes.length > SINGLE_DIAGRAM_ROUTE_THRESHOLD) {
+    // v1.2.49 B-6/B-7: Tab1과 동일 — routeCount 단독 게이트 + 노드 바운드 청킹.
     // scope: chunked 경로는 react-router 분기 미적용 (v1.2.43+ 평가).
-    return joinChunks(branchingGroups.map(g =>
-      renderScreenSection([g], rendersEdges, importsEdges, componentNodes)
+    const chunks = splitGroupsByNodeBound(branchingGroups, CHUNK_ROUTE_BUDGET)
+    return joinChunks(chunks.map(gs =>
+      renderScreenSection(gs, rendersEdges, importsEdges, componentNodes)
     ))
   }
 

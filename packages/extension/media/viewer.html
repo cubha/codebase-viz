@@ -340,6 +340,9 @@ async function renderChunked(idPrefix, diagram) {
   }
   let combined = '';
   for (let i = 0; i < chunks.length; i++) {
+    // v1.2.49 B-8: 청크 사이 메인 스레드 양보 — 대형 입력(1031 routes 등)에서 각 청크
+    // dagre 레이아웃이 연속 실행돼 탭 전환/페인트가 막히지 않도록 프레임마다 끊는다.
+    if (i > 0) await new Promise(r => requestAnimationFrame(r));
     try {
       const {svg} = await mermaid.render(idPrefix+'_c'+i+'_'+Date.now(), chunks[i]);
       combined += '<div class="row-diagram">'+svg+'</div>';
@@ -1018,7 +1021,9 @@ function exportMd() {
     filename:(meta.projectName||'codesight')+'.md'});
 }
 
-renderTab('r');
+// v1.2.49 B-8: 첫 탭 렌더를 다음 프레임으로 지연 — 탭바/헤더/"렌더링 중..." UI가 먼저
+// paint된 뒤 무거운 dagre 레이아웃이 시작되도록(초기 blank freeze 방지).
+requestAnimationFrame(() => renderTab('r'));
 </script>
 </body>
 </html>

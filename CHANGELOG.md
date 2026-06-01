@@ -1,5 +1,25 @@
 # Changelog
 
+## [1.2.49] — 2026-06-01
+
+### React Router 파서 3결함 + 대형 프로젝트 webview 프리즈 수정 (회귀 0)
+
+사용자 보고 2건 통합 수정. (A) React Router 분석에서 mobile/agency/partner sub-router가 별도 레이어로 분리 표시되던 것이 회귀(v1.2.47이 `appRoutes.map()` alias만 고치고 spread는 미처리). (B) 대형 프로젝트(1031 routes·440 tables) 분석 후 webview가 "랜더링 중..."에서 멈추고 탭 전환 불가. 재현 fixture `mini-react-router-spread-app`(실제 repo 구조 1:1)로 3결함 실측 확정. verify.sh **750 PASS** · 1 skipped · 회귀 0.
+
+#### 묶음 A — React Router 파서 3결함 (`reactrouter/parsers/route-parser.ts`)
+
+- **① pathless layout `<Route>` 가짜 `/` 노드 제거** — `<Route element={<Layout/>}>`(path·index 둘 다 없음)가 `else` 분기에서 `parentPath || '/'`로 무조건 노드 emit하던 것을 suppress. 화면이 아닌 layout wrapper는 노드 생성 없이 children만 같은 parentPath로 재귀(Less is More). 실제 repo `/` ×4 → ×1.
+- **② 부모 path + index 자식 동일 path 중복 제거** — `routeNodes.push` 4개 site(`parseReactRouterFull` 양 분기 + `parseReactRoutes` twin 양 분기)에 `seen Set` nodeId dedup(first-wins). `<Route path="/login"><Route index/></Route>` → `/login` ×2 → ×1.
+- **③ 배열 spread(`...routes`) 침묵 skip 해소** — `extractRoutesFromArray`가 `getElements()` 순회 중 `SpreadElement`를 버리던 것을 `spreadCtx` 주입으로 resolve. **③a** 배열 리터럴 spread(`...partnerRoutes`)는 `resolveArrayLiteralFromIdentifier`로 inline. **③b** `Object.entries(obj).map()` spread(`...agencyRoutes`)는 신규 `resolveObjectEntriesMapEntries`로 객체 키(템플릿 리터럴 + same-file const 정적 평가)를 path 추출(component는 콜백 동적 매핑이라 생략·Evidence-First). spread entry는 `sourceFilePath` 필드로 정의 파일을 추적해 컴포넌트 resolve 정확도 유지. `spreadCtx` 미주입 시 기존 skip 유지(하위호환).
+- **신규 fixture + 테스트** — `fixtures/mini-react-router-spread-app` 정식 승격(package.json 포함) + `route-parser-spread.test.ts` 8건. 실측: 14 routes 전부 추출(`/`×1·`/login`×1·`/partner/*`×2·`/agency/masterMgmt/customerMgmt`·mobile 3종·inline 5종).
+
+#### 묶음 B — 대형 프로젝트 webview 프리즈 (`renderer` + `extension/media/viewer.html`)
+
+- **근본 원인** — webview가 단일 거대 다이어그램을 `mermaid.render()`로 메인 스레드 동기 dagre 레이아웃 실행 → 1031 노드 레이아웃이 스레드 점유 → 단일 스레드라 탭 클릭까지 freeze.
+- **B-6 청킹 게이트 완화** — `buildRenderingDiagram`/`buildScreenComponentDiagram` 게이트가 `branchingGroups.length > 5` **AND** `routeNodes > 100`을 요구해, 소수 top-level 브랜치에 깊게 중첩된 대형 라우트가 게이트를 통과 못 하던 결함 → `routeNodes > 100` **단독** 발동으로 완화.
+- **B-7 노드-바운드 청킹** — 청크 입자가 브랜치 단위(노드 수 무바운드)라 한 거대 브랜치가 단일 거대 청크가 되던 결함 → 신규 `splitGroupsByNodeBound` + `CHUNK_ROUTE_BUDGET=50`. 작은 브랜치는 패킹, 거대 브랜치는 children 단위 재귀 분할(groupKey full path라 nested subgraph 계층 보존). Tab1·Tab2 동시 적용. dead code `TAB2_GROUPS_PER_ROW` 제거.
+- **B-8 webview 점진 렌더** — `renderChunked`가 청크 사이 `requestAnimationFrame` 양보 + 첫 탭 렌더를 `requestAnimationFrame`으로 지연(탭바·헤더·"렌더링 중..." UI 선 paint). `mermaid-renderer.stress.test.ts` +5건(단일 대형 브랜치 112 routes → 청킹 발동·청크당 노드 ≤50 단언).
+
 ## [1.2.48] — 2026-05-30
 
 ### POLISH 잔여 6건 + M11 FW 분기 config화 — 코드 품질 정리 (회귀 0 · snapshot byte-identical)

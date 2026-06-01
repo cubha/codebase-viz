@@ -48,6 +48,24 @@ function chunkCountOf(text: string): number {
   return text.split(CHUNK_SEPARATOR).length
 }
 
+// 한 청크(= 하나의 mermaid 다이어그램) 안 노드(라우트/테이블) 정의 라인 최댓값.
+// webview는 청크별로 mermaid.render()를 메인 스레드 동기 실행하므로 청크당 노드 상한이
+// freeze를 좌우한다(v1.2.49 B).
+function maxNodesPerChunk(text: string): number {
+  const chunks = text.split(CHUNK_SEPARATOR)
+  let max = 0
+  for (const c of chunks) {
+    let n = 0
+    for (const line of c.split('\n')) {
+      const t = line.trim()
+      if (t.startsWith('subgraph')) continue
+      if (/^[A-Za-z0-9_]+(\[|\()/.test(t)) n++
+    }
+    if (n > max) max = n
+  }
+  return max
+}
+
 // 가장 안쪽 subgraph (자식 subgraph 없는) 안 노드 수의 최댓값.
 // mermaid는 flat sibling 50+ 면 layout 포기 → 세로 압축 (사용자 이미지 3·4 현상).
 function maxLeafSiblingCount(text: string): number {
@@ -180,5 +198,54 @@ describe('mermaid-renderer stress — NestJS 200 routes (v1.1.6 회귀 fixture)'
       const max = maxLeafSiblingCount(screenComponent)
       expect(max).toBeLessThan(30)
     })
+  })
+})
+
+// v1.2.49 B — 대형 프로젝트 webview freeze 회귀 fixture.
+// 소수 top-level 브랜치에 깊게 중첩된 대형 라우트(B-1: 게이트 AND 미발동)와
+// 단일 거대 브랜치(B-2: 브랜치 단위 무바운드 청크) 두 결함을 재현.
+describe('mermaid-renderer freeze — 단일 대형 브랜치 (v1.2.49 B 회귀 fixture)', () => {
+  // /portal 하나의 top-level 아래: big 섹션(20 resource × 4 action = 80) + 소형 4섹션(각 8) = 112 routes.
+  // findBranchingGroups가 portal을 통과하면 브랜치 = 5개 (이전 게이트 `> 5` AND 미통과 → 단일 거대 다이어그램).
+  function dominantBranchRoutes(): RouteNode[] {
+    const routes: RouteNode[] = []
+    const bigResources = Array.from({ length: 20 }, (_, i) => `res${i}`)
+    const actions = ['', '/list', '/create', '/:id']
+    for (const res of bigResources) for (const a of actions) routes.push(r(`/portal/big/${res}${a}`))
+    for (const s of ['alpha', 'beta', 'gamma', 'delta']) {
+      for (const res of ['x', 'y']) for (const a of actions) routes.push(r(`/portal/${s}/${res}${a}`))
+    }
+    return routes
+  }
+
+  const graph = createIRGraph({
+    analyzerVersion: 'codebase-viz@0.1.0',
+    repoRoot: '/tmp/test',
+    nodes: dominantBranchRoutes(),
+    edges: [],
+  })
+
+  it('총 라우트 112 (>100, top-level 브랜치 ≤ 5)', () => {
+    expect(dominantBranchRoutes().length).toBe(112)
+  })
+
+  it('B-6: 브랜치 수 ≤ 5 여도 routeCount>100이면 청킹 발동 (Tab1)', () => {
+    const { rendering } = buildDiagrams(graph)
+    expect(chunkCountOf(rendering)).toBeGreaterThan(1)
+  })
+
+  it('B-7: 청크당 노드 수가 budget(50) 이하 — 거대 브랜치 재귀 분할 (Tab1)', () => {
+    const { rendering } = buildDiagrams(graph)
+    expect(maxNodesPerChunk(rendering)).toBeLessThanOrEqual(50)
+  })
+
+  it('B-7: 청크당 노드 수가 budget(50) 이하 (Tab2)', () => {
+    const { screenComponent } = buildDiagrams(graph)
+    expect(maxNodesPerChunk(screenComponent)).toBeLessThanOrEqual(50)
+  })
+
+  it('한 leaf subgraph 안 flat sibling < 30 (nested 보존)', () => {
+    const { rendering } = buildDiagrams(graph)
+    expect(maxLeafSiblingCount(rendering)).toBeLessThan(30)
   })
 })

@@ -40,6 +40,9 @@ interface RouteEntry {
   elementComponent?: string
   lazyModuleSpec?: string
   children?: RouteEntry[]
+  // v1.2.49: spread(`...routes`)로 외부 파일 배열에서 inline된 entry는 그 파일 경로를 보존.
+  // 컴포넌트 resolve 시 현재 sourceFile이 아닌 이 파일의 importMap을 사용해야 정확하다.
+  sourceFilePath?: string
 }
 
 interface FlatRouteItem {
@@ -47,16 +50,42 @@ interface FlatRouteItem {
   dynamicSegmentType: DynamicSegmentType
   elementComponent?: string
   lazyModuleSpec?: string
+  sourceFilePath?: string
 }
 
 // v1.2.44 A0-4 (F-Route-3): callback `<paramName.propName/>` 패턴에서 추출한 propName을
 // entries 키로 사용하여 동적으로 elementComponent를 매핑한다.
 // extraComponentKey === 'component'면 A0-3 분기와 중복되지만 결과는 idempotent.
-function extractRoutesFromArray(arrayNode: import('ts-morph').Node, extraComponentKey?: string): RouteEntry[] {
+function extractRoutesFromArray(arrayNode: import('ts-morph').Node, extraComponentKey?: string, spreadCtx?: ResolverCtx): RouteEntry[] {
   const entries: RouteEntry[] = []
   if (!arrayNode.isKind(SyntaxKind.ArrayLiteralExpression)) return entries
 
   for (const el of arrayNode.asKindOrThrow(SyntaxKind.ArrayLiteralExpression).getElements()) {
+    // v1.2.49 (결함③): `...routes` spread를 침묵 skip하지 않고 inline.
+    // spreadCtx 없으면 하위호환으로 기존처럼 skip.
+    if (el.isKind(SyntaxKind.SpreadElement)) {
+      if (spreadCtx === undefined) continue
+      const spreadExpr = el.asKindOrThrow(SyntaxKind.SpreadElement).getExpression()
+      if (!spreadExpr.isKind(SyntaxKind.Identifier)) continue
+      const idName = spreadExpr.getText()
+      // (a) 배열 리터럴 spread (same-file const 또는 import 1-hop)
+      const resolvedArr = resolveArrayLiteralFromIdentifier(idName, spreadCtx)
+      if (resolvedArr !== undefined) {
+        const childCtx = resolvedArr.external
+          ? buildResolverCtxForFile(resolvedArr.sourceFile, spreadCtx)
+          : spreadCtx
+        const spreadTag = resolvedArr.sourceFile.getFilePath()
+        for (const se of extractRoutesFromArray(resolvedArr.arrayNode, extraComponentKey, childCtx)) {
+          if (se.sourceFilePath === undefined) se.sourceFilePath = spreadTag
+          entries.push(se)
+        }
+        continue
+      }
+      // (b) Object.entries(obj).map() spread → 객체 키를 path로 추출 (component는 동적 → 생략)
+      const objEntries = resolveObjectEntriesMapEntries(idName, spreadCtx)
+      if (objEntries !== undefined) for (const oe of objEntries) entries.push(oe)
+      continue
+    }
     if (!el.isKind(SyntaxKind.ObjectLiteralExpression)) continue
     const obj = el.asKindOrThrow(SyntaxKind.ObjectLiteralExpression)
 
@@ -147,7 +176,7 @@ function extractRoutesFromArray(arrayNode: import('ts-morph').Node, extraCompone
     const childrenProp = obj.getProperty('children')
     if (childrenProp?.isKind(SyntaxKind.PropertyAssignment)) {
       const childInit = childrenProp.asKindOrThrow(SyntaxKind.PropertyAssignment).getInitializer()
-      if (childInit !== undefined) entry.children = extractRoutesFromArray(childInit, extraComponentKey)
+      if (childInit !== undefined) entry.children = extractRoutesFromArray(childInit, extraComponentKey, spreadCtx)
     }
 
     entries.push(entry)
@@ -178,6 +207,7 @@ function flattenRoutesEnriched(entries: RouteEntry[], parentPath = ''): FlatRout
     const item: FlatRouteItem = { urlPath: normalized, dynamicSegmentType }
     if (entry.elementComponent !== undefined) item.elementComponent = entry.elementComponent
     if (entry.lazyModuleSpec !== undefined) item.lazyModuleSpec = entry.lazyModuleSpec
+    if (entry.sourceFilePath !== undefined) item.sourceFilePath = entry.sourceFilePath
     result.push(item)
     if (entry.children !== undefined && entry.children.length > 0) {
       result.push(...flattenRoutesEnriched(entry.children, normalized))
@@ -359,6 +389,136 @@ function resolveArrayLiteralFromIdentifier(
   return undefined
 }
 
+// v1.2.49: 외부 파일(spread 대상)의 배열을 재귀 처리할 때 그 파일 기준 ResolverCtx를 구성.
+function buildResolverCtxForFile(sf: import('ts-morph').SourceFile, base: ResolverCtx): ResolverCtx {
+  return {
+    sourceFile: sf,
+    project: base.project,
+    importMap: buildImportMap(sf),
+    routerDir: path.dirname(sf.getFilePath()),
+    paths: base.paths,
+    repoRoot: base.repoRoot,
+    unresolved: base.unresolved,
+  }
+}
+
+// v1.2.49: 식별자의 initializer(같은 파일 const 또는 export import 1-hop)와 정의 파일을 반환.
+function locateVarInitializer(
+  idName: string,
+  ctx: ResolverCtx,
+): { init: import('ts-morph').Node; sourceFile: import('ts-morph').SourceFile } | undefined {
+  const sameFileVar = ctx.sourceFile.getVariableDeclarations().find(v => v.getName() === idName)
+  const sameInit = sameFileVar?.getInitializer()
+  if (sameInit !== undefined) return { init: sameInit, sourceFile: ctx.sourceFile }
+  const moduleSpec = ctx.importMap.get(idName)
+  if (moduleSpec === undefined) return undefined
+  const absBase = resolveModuleSpecWithPaths(moduleSpec, ctx.routerDir, ctx.paths)
+  if (absBase === undefined) return undefined
+  for (const ext of ['.tsx', '.ts', '.jsx', '.js']) {
+    const candidate = absBase + ext
+    let sf = ctx.project.getSourceFile(candidate)
+    if (sf === undefined) {
+      try { sf = ctx.project.addSourceFileAtPath(candidate) } catch { continue }
+    }
+    if (sf === undefined) continue
+    const v = sf.getVariableDeclarations().find(d => d.getName() === idName && d.isExported())
+    const init = v?.getInitializer()
+    if (init !== undefined) return { init, sourceFile: sf }
+  }
+  return undefined
+}
+
+function resolveObjectLiteralFromIdentifier(
+  idName: string,
+  sf: import('ts-morph').SourceFile,
+): import('ts-morph').ObjectLiteralExpression | undefined {
+  const v = sf.getVariableDeclarations().find(d => d.getName() === idName)
+  const init = v?.getInitializer()
+  if (init !== undefined && init.isKind(SyntaxKind.ObjectLiteralExpression)) {
+    return init.asKindOrThrow(SyntaxKind.ObjectLiteralExpression)
+  }
+  return undefined
+}
+
+// 같은 파일 const 문자열(StringLiteral·NoSubstitutionTemplate)을 정적 평가.
+function evalStringConst(idName: string, sf: import('ts-morph').SourceFile): string | undefined {
+  const v = sf.getVariableDeclarations().find(d => d.getName() === idName)
+  const init = v?.getInitializer()
+  if (init?.isKind(SyntaxKind.StringLiteral)) return init.asKindOrThrow(SyntaxKind.StringLiteral).getLiteralValue()
+  if (init?.isKind(SyntaxKind.NoSubstitutionTemplateLiteral)) {
+    return init.asKindOrThrow(SyntaxKind.NoSubstitutionTemplateLiteral).getLiteralValue()
+  }
+  return undefined
+}
+
+// template token 텍스트(`...${ / }...${ / }...`)에서 delimiter 제거.
+function stripTemplateToken(raw: string): string {
+  let s = raw
+  if (s.startsWith('`') || s.startsWith('}')) s = s.slice(1)
+  if (s.endsWith('${')) s = s.slice(0, -2)
+  else if (s.endsWith('`')) s = s.slice(0, -1)
+  return s
+}
+
+// 계산된 객체 키 표현식을 정적 평가. StringLiteral / NoSubstitutionTemplate / TemplateExpression(const 치환) 지원.
+function evalKeyExpression(expr: import('ts-morph').Node, sf: import('ts-morph').SourceFile): string | undefined {
+  if (expr.isKind(SyntaxKind.StringLiteral)) return expr.asKindOrThrow(SyntaxKind.StringLiteral).getLiteralValue()
+  if (expr.isKind(SyntaxKind.NoSubstitutionTemplateLiteral)) {
+    return expr.asKindOrThrow(SyntaxKind.NoSubstitutionTemplateLiteral).getLiteralValue()
+  }
+  if (expr.isKind(SyntaxKind.TemplateExpression)) {
+    const te = expr.asKindOrThrow(SyntaxKind.TemplateExpression)
+    let out = stripTemplateToken(te.getHead().getText())
+    for (const span of te.getTemplateSpans()) {
+      const spanExpr = span.getExpression()
+      const sub = spanExpr.isKind(SyntaxKind.Identifier) ? evalStringConst(spanExpr.getText(), sf) : undefined
+      if (sub === undefined) return undefined
+      out += sub
+      out += stripTemplateToken(span.getLiteral().getText())
+    }
+    return out
+  }
+  return undefined
+}
+
+// v1.2.49 (결함③b): `Object.entries(obj).map((...) => ({path, component}))` 패턴에서
+// obj의 정적 키를 라우트 path로 추출. component는 콜백이 동적 매핑(def.component)하므로 생략(Evidence-First).
+function resolveObjectEntriesMapEntries(idName: string, ctx: ResolverCtx): RouteEntry[] | undefined {
+  const located = locateVarInitializer(idName, ctx)
+  if (located === undefined) return undefined
+  const { init, sourceFile: sf } = located
+  if (!init.isKind(SyntaxKind.CallExpression)) return undefined
+  const mapCallee = init.asKindOrThrow(SyntaxKind.CallExpression).getExpression()
+  if (!mapCallee.isKind(SyntaxKind.PropertyAccessExpression)) return undefined
+  const pae = mapCallee.asKindOrThrow(SyntaxKind.PropertyAccessExpression)
+  if (pae.getName() !== 'map') return undefined
+  const entriesCall = pae.getExpression()
+  if (!entriesCall.isKind(SyntaxKind.CallExpression)) return undefined
+  const ec = entriesCall.asKindOrThrow(SyntaxKind.CallExpression)
+  if (ec.getExpression().getText() !== 'Object.entries') return undefined
+  const objArg = ec.getArguments()[0]
+  if (objArg === undefined || !objArg.isKind(SyntaxKind.Identifier)) return undefined
+  const objLit = resolveObjectLiteralFromIdentifier(objArg.getText(), sf)
+  if (objLit === undefined) return undefined
+
+  const entries: RouteEntry[] = []
+  for (const prop of objLit.getProperties()) {
+    if (!prop.isKind(SyntaxKind.PropertyAssignment)) continue
+    const nameNode = prop.asKindOrThrow(SyntaxKind.PropertyAssignment).getNameNode()
+    let key: string | undefined
+    if (nameNode.isKind(SyntaxKind.ComputedPropertyName)) {
+      key = evalKeyExpression(nameNode.asKindOrThrow(SyntaxKind.ComputedPropertyName).getExpression(), sf)
+    } else if (nameNode.isKind(SyntaxKind.StringLiteral)) {
+      key = nameNode.asKindOrThrow(SyntaxKind.StringLiteral).getLiteralValue()
+    } else if (nameNode.isKind(SyntaxKind.Identifier)) {
+      key = nameNode.getText()
+    }
+    if (key === undefined || key === '') continue
+    entries.push({ path: key })
+  }
+  return entries.length > 0 ? entries : undefined
+}
+
 // v1.2.47: component-resolver로 위임. tsconfig paths alias + named import alias rename(as) + barrel + lazy 일괄 처리.
 // 호출자는 ResolverCtx에서 paths/project/repoRoot를 전달해야 한다.
 function resolveElementComponentAbsBase(
@@ -404,7 +564,7 @@ function resolveIdentifierToJsxChildren(
                 const callback = call.getArguments()[0]
                 const pathPrefix = callback !== undefined ? extractMapPathPrefix(callback) : ''
                 const propName = callback !== undefined ? extractMapElementPropName(callback) : undefined
-                const entries = extractRoutesFromArray(resolved.arrayNode, propName)
+                const entries = extractRoutesFromArray(resolved.arrayNode, propName, buildResolverCtxForFile(resolved.sourceFile, ctx))
                 const sourceTag = resolved.external ? ` (외부 모듈 import 1-hop)` : ''
                 const resolveCtx: ResolveContext = { project: ctx.project, repoRoot: ctx.repoRoot, paths: ctx.paths }
                 return entries.map(e => {
@@ -417,7 +577,11 @@ function resolveIdentifierToJsxChildren(
                       : [`${target.getText()}${sourceTag} 배열의 path 프로퍼티를 정적 평가`],
                   }
                   if (e.elementComponent !== undefined) {
-                    const absBase = resolveElementComponentAbsBase(e.elementComponent, resolved.sourceFile, resolveCtx)
+                    // spread inline된 entry는 정의 파일(e.sourceFilePath) 기준으로 컴포넌트 추적.
+                    const compSf = e.sourceFilePath !== undefined
+                      ? (ctx.project.getSourceFile(e.sourceFilePath) ?? resolved.sourceFile)
+                      : resolved.sourceFile
+                    const absBase = resolveElementComponentAbsBase(e.elementComponent, compSf, resolveCtx)
                     if (absBase !== undefined) raw.elementComponentAbsBase = absBase
                   }
                   return raw
@@ -529,7 +693,7 @@ function resolveIdentifierToJsxChildren(
               const callback = call.getArguments()[0]
               const pathPrefix = callback !== undefined ? extractMapPathPrefix(callback) : ''
               const propName = callback !== undefined ? extractMapElementPropName(callback) : undefined
-              const entries = extractRoutesFromArray(resolved.arrayNode, propName)
+              const entries = extractRoutesFromArray(resolved.arrayNode, propName, buildResolverCtxForFile(resolved.sourceFile, importedCtx))
               const sourceTag = resolved.external ? ` (외부 모듈 import 1-hop)` : ` (모듈 ${moduleSpec})`
               return entries.map(e => {
                 const raw: JsxRouteRaw = {
@@ -541,7 +705,10 @@ function resolveIdentifierToJsxChildren(
                     : [`${target.getText()}${sourceTag} 배열의 path 프로퍼티를 정적 평가`],
                 }
                 if (e.elementComponent !== undefined) {
-                  const absBase = resolveElementComponentAbsBase(e.elementComponent, resolved.sourceFile, importedResolveCtx)
+                  const compSf = e.sourceFilePath !== undefined
+                    ? (ctx.project.getSourceFile(e.sourceFilePath) ?? resolved.sourceFile)
+                    : resolved.sourceFile
+                  const absBase = resolveElementComponentAbsBase(e.elementComponent, compSf, importedResolveCtx)
                   if (absBase !== undefined) raw.elementComponentAbsBase = absBase
                 }
                 return raw
@@ -619,7 +786,12 @@ function extractJsxRouteChildren(
         routePath = `${parentPath}${seg}`.replace(/\/+/g, '/') || '/'
       }
     } else {
-      routePath = parentPath || '/'
+      // pathless layout wrapper (path·index 둘 다 없음): 화면이 아니므로 노드 emit 금지.
+      // children만 같은 parentPath로 재귀 — 가짜 '/' 중복 노드 제거 (Less is More).
+      if (nested.length > 0) {
+        results.push(...extractJsxRouteChildren(nested, parentPath, ctx))
+      }
+      continue
     }
 
     results.push({ routePath, elementComponent, line })
@@ -669,6 +841,7 @@ export async function parseReactRouterFull(
   const componentNodes: ComponentNode[] = []
   const rendersEdges: IREdge[] = []
   const seenCompFiles = new Map<string, NodeId>()
+  const seenRouteIds = new Set<string>()
 
   for (const sourceFile of project.getSourceFiles()) {
     const filePath = sourceFile.getFilePath()
@@ -727,7 +900,16 @@ export async function parseReactRouterFull(
 
       if (routesArrayNode === undefined) continue
 
-      const routeEntries = extractRoutesFromArray(routesArrayNode)
+      const spreadCtx: ResolverCtx = {
+        sourceFile: originSf,
+        project,
+        importMap: originSf === sourceFile ? importMap : buildImportMap(originSf),
+        routerDir: path.dirname(originSf.getFilePath()),
+        paths: tsConfigPaths,
+        repoRoot,
+        unresolved: [],
+      }
+      const routeEntries = extractRoutesFromArray(routesArrayNode, undefined, spreadCtx)
       const enrichedFlat = flattenRoutesEnriched(routeEntries)
 
       for (const flat of enrichedFlat) {
@@ -750,17 +932,23 @@ export async function parseReactRouterFull(
           provenance,
           confidence: 'verified',
         })
+        if (seenRouteIds.has(routeNode.id)) continue
+        seenRouteIds.add(routeNode.id)
         routeNodes.push(routeNode)
 
         if (elementComponent !== undefined) {
           // v1.2.47: component-resolver 위임 — alias + as rename + barrel + lazy 일괄.
           // originSf(외부 라우트 배열 정의 파일 또는 동일 파일)의 import 기준으로 추적.
+          // v1.2.49: spread inline된 entry는 정의 파일(flat.sourceFilePath) 기준.
+          const compOriginSf = flat.sourceFilePath !== undefined
+            ? (project.getSourceFile(flat.sourceFilePath) ?? originSf)
+            : originSf
           let absBase: string | undefined
-          const compResolved = resolveComponentToAbsBase(elementComponent, originSf, resolveCtx)
+          const compResolved = resolveComponentToAbsBase(elementComponent, compOriginSf, resolveCtx)
           if (compResolved !== undefined) {
             absBase = compResolved.absBase
           } else if (lazyModuleSpec !== undefined) {
-            absBase = resolveModuleSpecWithPaths(lazyModuleSpec, path.dirname(originSf.getFilePath()), tsConfigPaths)
+            absBase = resolveModuleSpecWithPaths(lazyModuleSpec, path.dirname(compOriginSf.getFilePath()), tsConfigPaths)
           }
           if (absBase !== undefined) {
             let compAbsPath: string | undefined
@@ -925,6 +1113,8 @@ export async function parseReactRouterFull(
             provenance,
             ...confField,
           })
+          if (seenRouteIds.has(routeNode.id)) continue
+          seenRouteIds.add(routeNode.id)
           routeNodes.push(routeNode)
 
           if (item.elementComponent !== undefined) {
@@ -1014,6 +1204,7 @@ export async function parseReactRoutes(
   const tsConfigPaths = await loadTsConfigPaths(repoRoot)
 
   const routes: RouteNode[] = []
+  const seenRouteIds = new Set<string>()
 
   for (const sourceFile of project.getSourceFiles()) {
     const filePath = sourceFile.getFilePath()
@@ -1030,6 +1221,7 @@ export async function parseReactRoutes(
 
       // v1.2.47: 외부 import 1-hop 추가 (createBrowserRouter 분기)
       let routesArrayNode: import('ts-morph').Node | undefined
+      let originSf: import('ts-morph').SourceFile = sourceFile
       const firstArg = args[0]!
       if (firstArg.isKind(SyntaxKind.ArrayLiteralExpression)) {
         routesArrayNode = firstArg
@@ -1056,6 +1248,7 @@ export async function parseReactRoutes(
                 const extInit = extVar?.getInitializer()
                 if (extInit !== undefined && extInit.isKind(SyntaxKind.ArrayLiteralExpression)) {
                   routesArrayNode = extInit
+                  originSf = extSf
                   break
                 }
               }
@@ -1066,7 +1259,16 @@ export async function parseReactRoutes(
 
       if (routesArrayNode === undefined) continue
 
-      const routeEntries = extractRoutesFromArray(routesArrayNode)
+      const spreadCtx: ResolverCtx = {
+        sourceFile: originSf,
+        project,
+        importMap: originSf === sourceFile ? importMap : buildImportMap(originSf),
+        routerDir: path.dirname(originSf.getFilePath()),
+        paths: tsConfigPaths,
+        repoRoot,
+        unresolved: [],
+      }
+      const routeEntries = extractRoutesFromArray(routesArrayNode, undefined, spreadCtx)
       const flatPaths = flattenRoutes(routeEntries)
 
       for (const rawPath of flatPaths) {
@@ -1078,9 +1280,12 @@ export async function parseReactRoutes(
           analyzerVersion,
         }
 
+        const nodeId = makeNodeId('route', relPath, urlPath)
+        if (seenRouteIds.has(nodeId)) continue
+        seenRouteIds.add(nodeId)
         routes.push(
           createRouteNode({
-            id: makeNodeId('route', relPath, urlPath),
+            id: nodeId,
             path: urlPath,
             filePath: relPath,
             routeFileKind: 'page',
@@ -1159,9 +1364,12 @@ export async function parseReactRoutes(
           const confField = item.inferenceChain !== undefined
             ? { confidence: 'inferred' as const, inferenceChain: item.inferenceChain }
             : { confidence: 'verified' as const }
+          const nodeId = makeNodeId('route', relPath, urlPath)
+          if (seenRouteIds.has(nodeId)) continue
+          seenRouteIds.add(nodeId)
           routes.push(
             createRouteNode({
-              id: makeNodeId('route', relPath, urlPath),
+              id: nodeId,
               path: urlPath,
               filePath: relPath,
               routeFileKind: 'page',
