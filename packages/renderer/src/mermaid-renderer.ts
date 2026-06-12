@@ -25,6 +25,7 @@ import { metadataToInfra, isFileTreeTab2Eligible, type InfraInfo } from './fe/in
 import { emitTopLevelSiblingChain, buildNestedSubgraphLines, buildRouteRowDiagram } from './fe/nested.js'
 import { renderScreenSection } from './fe/tab2.js'
 import { buildFeFileTreeScreenDiagram } from './fe/tab2-file.js'
+import { buildFeDomainLayeredScreenDiagram, isPagesDomainEligible } from './fe/tab2-domain.js'
 import { buildBeRenderingDiagram } from './be/tab1.js'
 import { buildBeArchitectureDiagram } from './be/tab2.js'
 import { buildDbScreenDiagram } from './erd/db-diagram.js'
@@ -298,6 +299,13 @@ function buildScreenComponentDiagram(graph: IRGraph): string {
     })
 
   const importsEdges = graph.edges.filter(e => e.kind === 'imports')
+
+  // v1.2.50 (RR-3): React Router(config-based)이고 컴포넌트가 src/pages/<도메인> 깊은 구조면
+  // URL 그룹핑 대신 파일경로 도메인 트리로 레이어링(BE Tab2와 동일하게 도메인별 chunk 분리).
+  // chunk 분리되므로 단일 대형 다이어그램 프리즈 위험 없음 → >100 route 게이트 이전에 분기.
+  if (graph.metadata?.framework === 'react-router' && isPagesDomainEligible(componentNodes)) {
+    return buildFeDomainLayeredScreenDiagram(pageRoutes, rendersEdges, componentNodes)
+  }
 
   const routeGroups = groupRoutesByUrl(pageRoutes)
   const branchingGroups = findBranchingGroups(routeGroups)

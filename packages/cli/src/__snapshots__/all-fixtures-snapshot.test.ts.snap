@@ -906,8 +906,9 @@ graph LR
 `;
 
 exports[`Phase XI — fixture baseline snapshots (P1) > mini-react-partner-mock-app > Tab2 screen-component diagram 1`] = `
-"%%{init:{'theme':'base','themeVariables':{'background':'#060810','primaryColor':'#0c1a30','primaryTextColor':'#7dd3fc','primaryBorderColor':'#0e3a6e','edgeLabelBackground':'#0c1a30','lineColor':'#334155','secondaryColor':'#0f172a','clusterBkg':'#060c18','clusterBorder':'#1e3a5f','fontFamily':'JetBrains Mono','fontSize':'14'}}}%%
-graph LR
+"%% chunk:1/3
+%%{init:{'theme':'base','themeVariables':{'background':'#060810','primaryColor':'#0c1a30','primaryTextColor':'#7dd3fc','primaryBorderColor':'#0e3a6e','edgeLabelBackground':'#0c1a30','lineColor':'#334155','secondaryColor':'#0f172a','clusterBkg':'#060c18','clusterBorder':'#1e3a5f','fontFamily':'JetBrains Mono','fontSize':'14'}}}%%
+graph TD
   classDef ssr fill:#0d1a0d,stroke:#16a34a,color:#86efac
   classDef csr fill:#2d1200,stroke:#c2410c,color:#fb923c
   classDef ssg fill:#1a0d1a,stroke:#7c3aed,color:#c4b5fd
@@ -917,33 +918,72 @@ graph LR
   classDef pkg fill:#0c1018,stroke:#475569,color:#cbd5e1
   classDef muted fill:#0a0d14,stroke:#374151,color:#64748b,stroke-dasharray: 3 3
   classDef hdr fill:#06080f,stroke:#1e3a5f,color:#7dd3fc
-  subgraph PARTNER_T["📄 /partner"]
-    subgraph PARTNER_ORDPRODPLANMGMT_T["📄 /ordProdPlanMgmt"]
-      leaf_route_src_router_tsx__partner_ordProdPlanMgmt_prodOrdSpec["prodOrdSpec · CSR<br/>📂 src/pages/partner/ordProdPlanMgmt/prodOrdSpec<br/>📄 OrdSpecPrintPage.tsx"]:::csr
-    end
-    subgraph PARTNER_MATMGMT_T["📄 /matMgmt"]
-      leaf_route_src_router_tsx__partner_matMgmt_decoSheet["decoSheet · CSR<br/>📂 src/pages/partner/matMgmt/decoSheet<br/>📄 DecoSheetPage.tsx"]:::csr
-    end
-    subgraph PARTNER_PERFMGMT_T["📄 /perfMgmt"]
-      leaf_route_src_router_tsx__partner_perfMgmt_transStmt["transStmt · CSR<br/>📂 src/pages/partner/perfMgmt/transStmt<br/>📄 TrnStmtSchPage.tsx"]:::csr
-    end
+  subgraph HDR_PAGES ["📁 src/pages/partner"]
+    direction TB
+  pkg_partner__ordProdPlanMgmt["ordProdPlanMgmt"]:::pkg
+  pkg_partner__ordProdPlanMgmt__prodOrdSpec["prodOrdSpec"]:::pkg
+  pkg_partner__ordProdPlanMgmt --> pkg_partner__ordProdPlanMgmt__prodOrdSpec
+  pkg_partner__matMgmt["matMgmt"]:::pkg
+  pkg_partner__matMgmt__decoSheet["decoSheet"]:::pkg
+  pkg_partner__matMgmt --> pkg_partner__matMgmt__decoSheet
+  pkg_partner__perfMgmt["perfMgmt"]:::pkg
+  pkg_partner__perfMgmt__transStmt["transStmt"]:::pkg
+  pkg_partner__perfMgmt --> pkg_partner__perfMgmt__transStmt
+  pageleaf_route_src_router_tsx__partner_ordProdPlanMgmt_prodOrdSpec["prodOrdSpec · CSR<br/>📄 OrdSpecPrintPage.tsx"]:::csr
+  pkg_partner__ordProdPlanMgmt__prodOrdSpec --> pageleaf_route_src_router_tsx__partner_ordProdPlanMgmt_prodOrdSpec
+  pageleaf_route_src_router_tsx__partner_matMgmt_decoSheet["decoSheet · CSR<br/>📄 DecoSheetPage.tsx"]:::csr
+  pkg_partner__matMgmt__decoSheet --> pageleaf_route_src_router_tsx__partner_matMgmt_decoSheet
+  pageleaf_route_src_router_tsx__partner_perfMgmt_transStmt["transStmt · CSR<br/>📄 TrnStmtSchPage.tsx"]:::csr
+  pkg_partner__perfMgmt__transStmt --> pageleaf_route_src_router_tsx__partner_perfMgmt_transStmt
   end
-  PARTNER_ORDPRODPLANMGMT_T ~~~ PARTNER_MATMGMT_T ~~~ PARTNER_PERFMGMT_T
-  subgraph AGENCY_T["📄 /agency"]
-    leaf_route_src_router_tsx__agency_userMgmt["userMgmt · CSR<br/>📂 src/pages/agency/userMgmt<br/>📄 UserMgmtPage.tsx"]:::csr
-    leaf_route_src_router_tsx__agency_contractMgmt["contractMgmt · CSR<br/>📂 src/pages/agency/contractMgmt<br/>📄 ContractMgmtPage.tsx"]:::csr
+%%--CHUNK--%%
+%% chunk:2/3
+%%{init:{'theme':'base','themeVariables':{'background':'#060810','primaryColor':'#0c1a30','primaryTextColor':'#7dd3fc','primaryBorderColor':'#0e3a6e','edgeLabelBackground':'#0c1a30','lineColor':'#334155','secondaryColor':'#0f172a','clusterBkg':'#060c18','clusterBorder':'#1e3a5f','fontFamily':'JetBrains Mono','fontSize':'14'}}}%%
+graph TD
+  classDef ssr fill:#0d1a0d,stroke:#16a34a,color:#86efac
+  classDef csr fill:#2d1200,stroke:#c2410c,color:#fb923c
+  classDef ssg fill:#1a0d1a,stroke:#7c3aed,color:#c4b5fd
+  classDef isr fill:#1a1a0d,stroke:#ca8a04,color:#fde047
+  classDef ppr fill:#0d1a2d,stroke:#2563eb,color:#93c5fd
+  classDef unk fill:#1a1a1a,stroke:#6b7280,color:#9ca3af
+  classDef pkg fill:#0c1018,stroke:#475569,color:#cbd5e1
+  classDef muted fill:#0a0d14,stroke:#374151,color:#64748b,stroke-dasharray: 3 3
+  classDef hdr fill:#06080f,stroke:#1e3a5f,color:#7dd3fc
+  subgraph HDR_PAGES ["📁 src/pages/agency"]
+    direction TB
+  pkg_agency__userMgmt["userMgmt"]:::pkg
+  pkg_agency__contractMgmt["contractMgmt"]:::pkg
+  pageleaf_route_src_router_tsx__agency_userMgmt["userMgmt · CSR<br/>📄 UserMgmtPage.tsx"]:::csr
+  pkg_agency__userMgmt --> pageleaf_route_src_router_tsx__agency_userMgmt
+  pageleaf_route_src_router_tsx__agency_contractMgmt["contractMgmt · CSR<br/>📄 ContractMgmtPage.tsx"]:::csr
+  pkg_agency__contractMgmt --> pageleaf_route_src_router_tsx__agency_contractMgmt
   end
-  leaf_route_src_router_tsx__agency_userMgmt ~~~ leaf_route_src_router_tsx__agency_contractMgmt
-  subgraph HEADOFFICE_T["📄 /headOffice"]
-    subgraph HEADOFFICE_PARTNERBASEINFO_T["📄 /partnerBaseInfo"]
-      leaf_route_src_router_tsx__headOffice_partnerBaseInfo_procCodeMgmt["procCodeMgmt · CSR<br/>📂 src/pages/headoffice/partnerBaseInfo/procCodeMgmt<br/>📄 ProcCodeMgmtPage.tsx"]:::csr
-    end
-    subgraph HEADOFFICE_MATERIALMGMT_T["📄 /materialMgmt"]
-      leaf_route_src_router_tsx__headOffice_materialMgmt_cuttingPlanInfoMgmt["cuttingPlanInfoMgmt · CSR<br/>📂 src/pages/headoffice/materialMgmt/cuttingPlanInfoMgmt<br/>📄 CuttingPlanMgmtPage.tsx"]:::csr
-    end
-  end
-  HEADOFFICE_PARTNERBASEINFO_T ~~~ HEADOFFICE_MATERIALMGMT_T
-  PARTNER_T ~~~ AGENCY_T ~~~ HEADOFFICE_T"
+%%--CHUNK--%%
+%% chunk:3/3
+%%{init:{'theme':'base','themeVariables':{'background':'#060810','primaryColor':'#0c1a30','primaryTextColor':'#7dd3fc','primaryBorderColor':'#0e3a6e','edgeLabelBackground':'#0c1a30','lineColor':'#334155','secondaryColor':'#0f172a','clusterBkg':'#060c18','clusterBorder':'#1e3a5f','fontFamily':'JetBrains Mono','fontSize':'14'}}}%%
+graph TD
+  classDef ssr fill:#0d1a0d,stroke:#16a34a,color:#86efac
+  classDef csr fill:#2d1200,stroke:#c2410c,color:#fb923c
+  classDef ssg fill:#1a0d1a,stroke:#7c3aed,color:#c4b5fd
+  classDef isr fill:#1a1a0d,stroke:#ca8a04,color:#fde047
+  classDef ppr fill:#0d1a2d,stroke:#2563eb,color:#93c5fd
+  classDef unk fill:#1a1a1a,stroke:#6b7280,color:#9ca3af
+  classDef pkg fill:#0c1018,stroke:#475569,color:#cbd5e1
+  classDef muted fill:#0a0d14,stroke:#374151,color:#64748b,stroke-dasharray: 3 3
+  classDef hdr fill:#06080f,stroke:#1e3a5f,color:#7dd3fc
+  subgraph HDR_PAGES ["📁 src/pages/headoffice"]
+    direction TB
+  pkg_headoffice__partnerBaseInfo["partnerBaseInfo"]:::pkg
+  pkg_headoffice__partnerBaseInfo__procCodeMgmt["procCodeMgmt"]:::pkg
+  pkg_headoffice__partnerBaseInfo --> pkg_headoffice__partnerBaseInfo__procCodeMgmt
+  pkg_headoffice__materialMgmt["materialMgmt"]:::pkg
+  pkg_headoffice__materialMgmt__cuttingPlanInfoMgmt["cuttingPlanInfoMgmt"]:::pkg
+  pkg_headoffice__materialMgmt --> pkg_headoffice__materialMgmt__cuttingPlanInfoMgmt
+  pageleaf_route_src_router_tsx__headOffice_partnerBaseInfo_procCodeMgmt["procCodeMgmt · CSR<br/>📄 ProcCodeMgmtPage.tsx"]:::csr
+  pkg_headoffice__partnerBaseInfo__procCodeMgmt --> pageleaf_route_src_router_tsx__headOffice_partnerBaseInfo_procCodeMgmt
+  pageleaf_route_src_router_tsx__headOffice_materialMgmt_cuttingPlanInfoMgmt["cuttingPlanInfoMgmt · CSR<br/>📄 CuttingPlanMgmtPage.tsx"]:::csr
+  pkg_headoffice__materialMgmt__cuttingPlanInfoMgmt --> pageleaf_route_src_router_tsx__headOffice_materialMgmt_cuttingPlanInfoMgmt
+  end"
 `;
 
 exports[`Phase XI — fixture baseline snapshots (P1) > mini-react-partner-mock-app > Tab3 db-screen diagram 1`] = `
@@ -1105,6 +1145,210 @@ graph LR
 exports[`Phase XI — fixture baseline snapshots (P1) > mini-react-router-app > Tab3 db-screen diagram 1`] = `
 "graph TD
   empty["(no API calls detected)"]"
+`;
+
+exports[`Phase XI — fixture baseline snapshots (P1) > mini-react-router-domain-app > IRGraph summary 1`] = `
+{
+  "edgeIds": [
+    "api-call:component:src/pages/agency/userMgmt/UserMgmtPage.tsx:UserMgmtPage:endpoint:virtual:GET:/api/agency/users",
+    "api-call:component:src/pages/headoffice/partnerBaseInfo/procCodeMgmt/ProcCodeMgmtPage.tsx:ProcCodeMgmtPage:endpoint:virtual:GET:/api/head-office/proc-code",
+    "api-call:component:src/pages/partner/matMgmt/decoSheet/DecoSheetPage.tsx:DecoSheetPage:endpoint:virtual:GET:/api/partner/mat-mgmt/deco",
+    "api-call:component:src/pages/partner/ordProdPlanMgmt/prodOrdSpec/OrdSpecPrintPage.tsx:OrdSpecPrintPage:endpoint:virtual:GET:/api/partner/ord-prod-plan/spec",
+    "api-call:component:src/pages/partner/perfMgmt/transStmt/TrnStmtSchPage.tsx:TrnStmtSchPage:endpoint:virtual:GET:/api/partner/perf/trans",
+    "renders:route:src/router.tsx:/agency/users:component:src/pages/agency/userMgmt/UserMgmtPage.tsx:UserMgmtPage",
+    "renders:route:src/router.tsx:/head-office/proc-code:component:src/pages/headoffice/partnerBaseInfo/procCodeMgmt/ProcCodeMgmtPage.tsx:ProcCodeMgmtPage",
+    "renders:route:src/router.tsx:/material/deco:component:src/pages/partner/matMgmt/decoSheet/DecoSheetPage.tsx:DecoSheetPage",
+    "renders:route:src/router.tsx:/order-plan/spec:component:src/pages/partner/ordProdPlanMgmt/prodOrdSpec/OrdSpecPrintPage.tsx:OrdSpecPrintPage",
+    "renders:route:src/router.tsx:/perf/trans:component:src/pages/partner/perfMgmt/transStmt/TrnStmtSchPage.tsx:TrnStmtSchPage",
+  ],
+  "edgesByKind": {
+    "api-call": 5,
+    "renders": 5,
+  },
+  "nodeIds": [
+    "component:src/pages/agency/userMgmt/UserMgmtPage.tsx:UserMgmtPage",
+    "component:src/pages/headoffice/partnerBaseInfo/procCodeMgmt/ProcCodeMgmtPage.tsx:ProcCodeMgmtPage",
+    "component:src/pages/partner/matMgmt/decoSheet/DecoSheetPage.tsx:DecoSheetPage",
+    "component:src/pages/partner/ordProdPlanMgmt/prodOrdSpec/OrdSpecPrintPage.tsx:OrdSpecPrintPage",
+    "component:src/pages/partner/perfMgmt/transStmt/TrnStmtSchPage.tsx:TrnStmtSchPage",
+    "route:src/router.tsx:/agency/users",
+    "route:src/router.tsx:/head-office/proc-code",
+    "route:src/router.tsx:/material/deco",
+    "route:src/router.tsx:/order-plan/spec",
+    "route:src/router.tsx:/perf/trans",
+  ],
+  "nodesByKind": {
+    "component": 5,
+    "route": 5,
+  },
+}
+`;
+
+exports[`Phase XI — fixture baseline snapshots (P1) > mini-react-router-domain-app > Tab1 rendering diagram 1`] = `
+"%%{init:{'theme':'base','themeVariables':{'background':'#060810','primaryColor':'#0c1a30','primaryTextColor':'#7dd3fc','primaryBorderColor':'#0e3a6e','edgeLabelBackground':'#0c1a30','lineColor':'#334155','secondaryColor':'#0f172a','clusterBkg':'#060c18','clusterBorder':'#1e3a5f','fontFamily':'JetBrains Mono','fontSize':'14'}}}%%
+graph LR
+  classDef ssr fill:#0d1a0d,stroke:#16a34a,color:#86efac
+  classDef csr fill:#2d1200,stroke:#c2410c,color:#fb923c
+  classDef ssg fill:#1a0d1a,stroke:#7c3aed,color:#c4b5fd
+  classDef isr fill:#1a1a0d,stroke:#ca8a04,color:#fde047
+  classDef ppr fill:#0d1a2d,stroke:#2563eb,color:#93c5fd
+  classDef unk fill:#1a1a1a,stroke:#6b7280,color:#9ca3af
+  classDef pkg fill:#0c1018,stroke:#475569,color:#cbd5e1
+  classDef muted fill:#0a0d14,stroke:#374151,color:#64748b,stroke-dasharray: 3 3
+  classDef hdr fill:#06080f,stroke:#1e3a5f,color:#7dd3fc
+  subgraph BROWSER["🌐 Browser · Client-Side App"]
+    subgraph ROUTER["🧭 React Router · SPA"]
+      subgraph REACT["⚛ React · CSR Engine"]
+        subgraph ORDER_PLAN_G["📄 /order-plan"]
+          route_src_router_tsx__order_plan_spec["spec · CSR"]:::csr
+        end
+        subgraph MATERIAL_G["📄 /material"]
+          route_src_router_tsx__material_deco["deco · CSR"]:::csr
+        end
+        subgraph AGENCY_G["📄 /agency"]
+          route_src_router_tsx__agency_users["users · CSR"]:::csr
+        end
+        subgraph HEAD_OFFICE_G["📄 /head-office"]
+          route_src_router_tsx__head_office_proc_code["proc-code · CSR"]:::csr
+        end
+        subgraph PERF_G["📄 /perf"]
+          route_src_router_tsx__perf_trans["trans · CSR"]:::csr
+        end
+        ORDER_PLAN_G ~~~ MATERIAL_G ~~~ AGENCY_G ~~~ HEAD_OFFICE_G ~~~ PERF_G
+      end
+    end
+  end
+  subgraph DATALAYER["🔌 API LAYER"]
+    subgraph API_G["⚡ External REST API"]
+      API_GATEWAY[("Backend Service")]
+    end
+  end
+  BROWSER -.->|"axios"| API_GATEWAY"
+`;
+
+exports[`Phase XI — fixture baseline snapshots (P1) > mini-react-router-domain-app > Tab2 screen-component diagram 1`] = `
+"%% chunk:1/3
+%%{init:{'theme':'base','themeVariables':{'background':'#060810','primaryColor':'#0c1a30','primaryTextColor':'#7dd3fc','primaryBorderColor':'#0e3a6e','edgeLabelBackground':'#0c1a30','lineColor':'#334155','secondaryColor':'#0f172a','clusterBkg':'#060c18','clusterBorder':'#1e3a5f','fontFamily':'JetBrains Mono','fontSize':'14'}}}%%
+graph TD
+  classDef ssr fill:#0d1a0d,stroke:#16a34a,color:#86efac
+  classDef csr fill:#2d1200,stroke:#c2410c,color:#fb923c
+  classDef ssg fill:#1a0d1a,stroke:#7c3aed,color:#c4b5fd
+  classDef isr fill:#1a1a0d,stroke:#ca8a04,color:#fde047
+  classDef ppr fill:#0d1a2d,stroke:#2563eb,color:#93c5fd
+  classDef unk fill:#1a1a1a,stroke:#6b7280,color:#9ca3af
+  classDef pkg fill:#0c1018,stroke:#475569,color:#cbd5e1
+  classDef muted fill:#0a0d14,stroke:#374151,color:#64748b,stroke-dasharray: 3 3
+  classDef hdr fill:#06080f,stroke:#1e3a5f,color:#7dd3fc
+  subgraph HDR_PAGES ["📁 src/pages/partner"]
+    direction TB
+  pkg_partner__ordProdPlanMgmt["ordProdPlanMgmt"]:::pkg
+  pkg_partner__ordProdPlanMgmt__prodOrdSpec["prodOrdSpec"]:::pkg
+  pkg_partner__ordProdPlanMgmt --> pkg_partner__ordProdPlanMgmt__prodOrdSpec
+  pkg_partner__matMgmt["matMgmt"]:::pkg
+  pkg_partner__matMgmt__decoSheet["decoSheet"]:::pkg
+  pkg_partner__matMgmt --> pkg_partner__matMgmt__decoSheet
+  pkg_partner__perfMgmt["perfMgmt"]:::pkg
+  pkg_partner__perfMgmt__transStmt["transStmt"]:::pkg
+  pkg_partner__perfMgmt --> pkg_partner__perfMgmt__transStmt
+  pageleaf_route_src_router_tsx__order_plan_spec["spec · CSR<br/>📄 OrdSpecPrintPage.tsx"]:::csr
+  pkg_partner__ordProdPlanMgmt__prodOrdSpec --> pageleaf_route_src_router_tsx__order_plan_spec
+  pageleaf_route_src_router_tsx__material_deco["deco · CSR<br/>📄 DecoSheetPage.tsx"]:::csr
+  pkg_partner__matMgmt__decoSheet --> pageleaf_route_src_router_tsx__material_deco
+  pageleaf_route_src_router_tsx__perf_trans["trans · CSR<br/>📄 TrnStmtSchPage.tsx"]:::csr
+  pkg_partner__perfMgmt__transStmt --> pageleaf_route_src_router_tsx__perf_trans
+  end
+%%--CHUNK--%%
+%% chunk:2/3
+%%{init:{'theme':'base','themeVariables':{'background':'#060810','primaryColor':'#0c1a30','primaryTextColor':'#7dd3fc','primaryBorderColor':'#0e3a6e','edgeLabelBackground':'#0c1a30','lineColor':'#334155','secondaryColor':'#0f172a','clusterBkg':'#060c18','clusterBorder':'#1e3a5f','fontFamily':'JetBrains Mono','fontSize':'14'}}}%%
+graph TD
+  classDef ssr fill:#0d1a0d,stroke:#16a34a,color:#86efac
+  classDef csr fill:#2d1200,stroke:#c2410c,color:#fb923c
+  classDef ssg fill:#1a0d1a,stroke:#7c3aed,color:#c4b5fd
+  classDef isr fill:#1a1a0d,stroke:#ca8a04,color:#fde047
+  classDef ppr fill:#0d1a2d,stroke:#2563eb,color:#93c5fd
+  classDef unk fill:#1a1a1a,stroke:#6b7280,color:#9ca3af
+  classDef pkg fill:#0c1018,stroke:#475569,color:#cbd5e1
+  classDef muted fill:#0a0d14,stroke:#374151,color:#64748b,stroke-dasharray: 3 3
+  classDef hdr fill:#06080f,stroke:#1e3a5f,color:#7dd3fc
+  subgraph HDR_PAGES ["📁 src/pages/agency"]
+    direction TB
+  pkg_agency__userMgmt["userMgmt"]:::pkg
+  pageleaf_route_src_router_tsx__agency_users["users · CSR<br/>📄 UserMgmtPage.tsx"]:::csr
+  pkg_agency__userMgmt --> pageleaf_route_src_router_tsx__agency_users
+  end
+%%--CHUNK--%%
+%% chunk:3/3
+%%{init:{'theme':'base','themeVariables':{'background':'#060810','primaryColor':'#0c1a30','primaryTextColor':'#7dd3fc','primaryBorderColor':'#0e3a6e','edgeLabelBackground':'#0c1a30','lineColor':'#334155','secondaryColor':'#0f172a','clusterBkg':'#060c18','clusterBorder':'#1e3a5f','fontFamily':'JetBrains Mono','fontSize':'14'}}}%%
+graph TD
+  classDef ssr fill:#0d1a0d,stroke:#16a34a,color:#86efac
+  classDef csr fill:#2d1200,stroke:#c2410c,color:#fb923c
+  classDef ssg fill:#1a0d1a,stroke:#7c3aed,color:#c4b5fd
+  classDef isr fill:#1a1a0d,stroke:#ca8a04,color:#fde047
+  classDef ppr fill:#0d1a2d,stroke:#2563eb,color:#93c5fd
+  classDef unk fill:#1a1a1a,stroke:#6b7280,color:#9ca3af
+  classDef pkg fill:#0c1018,stroke:#475569,color:#cbd5e1
+  classDef muted fill:#0a0d14,stroke:#374151,color:#64748b,stroke-dasharray: 3 3
+  classDef hdr fill:#06080f,stroke:#1e3a5f,color:#7dd3fc
+  subgraph HDR_PAGES ["📁 src/pages/headoffice"]
+    direction TB
+  pkg_headoffice__partnerBaseInfo["partnerBaseInfo"]:::pkg
+  pkg_headoffice__partnerBaseInfo__procCodeMgmt["procCodeMgmt"]:::pkg
+  pkg_headoffice__partnerBaseInfo --> pkg_headoffice__partnerBaseInfo__procCodeMgmt
+  pageleaf_route_src_router_tsx__head_office_proc_code["proc-code · CSR<br/>📄 ProcCodeMgmtPage.tsx"]:::csr
+  pkg_headoffice__partnerBaseInfo__procCodeMgmt --> pageleaf_route_src_router_tsx__head_office_proc_code
+  end"
+`;
+
+exports[`Phase XI — fixture baseline snapshots (P1) > mini-react-router-domain-app > Tab3 db-screen diagram 1`] = `
+"%%{init:{'theme':'base','themeVariables':{'background':'#060810','primaryColor':'#0c1a30','primaryTextColor':'#7dd3fc','primaryBorderColor':'#0e3a6e','edgeLabelBackground':'#0c1a30','lineColor':'#334155','secondaryColor':'#0f172a','clusterBkg':'#060c18','clusterBorder':'#1e3a5f','fontFamily':'JetBrains Mono','fontSize':'14'}}}%%
+graph LR
+  classDef ssr fill:#0d1a0d,stroke:#16a34a,color:#86efac
+  classDef csr fill:#2d1200,stroke:#c2410c,color:#fb923c
+  classDef ssg fill:#1a0d1a,stroke:#7c3aed,color:#c4b5fd
+  classDef isr fill:#1a1a0d,stroke:#ca8a04,color:#fde047
+  classDef ppr fill:#0d1a2d,stroke:#2563eb,color:#93c5fd
+  classDef unk fill:#1a1a1a,stroke:#6b7280,color:#9ca3af
+  classDef pkg fill:#0c1018,stroke:#475569,color:#cbd5e1
+  classDef muted fill:#0a0d14,stroke:#374151,color:#64748b,stroke-dasharray: 3 3
+  classDef hdr fill:#06080f,stroke:#1e3a5f,color:#7dd3fc
+  classDef apiAxios fill:#1a0d1a,stroke:#a855f7,color:#e9d5ff
+  classDef apiFetch fill:#0d1a1a,stroke:#06b6d4,color:#a5f3fc
+  classDef apiQuery fill:#1a0d0d,stroke:#f43f5e,color:#fecdd3
+  subgraph ORDER_PLAN_API["📄 /order-plan"]
+    subgraph ORDER_PLAN_SPEC_API["📄 /spec"]
+      route_src_router_tsx__order_plan_spec["spec · CSR"]:::csr
+      ep_GET__api_partner_ord_prod_plan_spec["GET /api/partner/ord-prod-plan/spec → axios"]:::apiAxios
+    end
+  end
+  subgraph MATERIAL_API["📄 /material"]
+    subgraph MATERIAL_DECO_API["📄 /deco"]
+      route_src_router_tsx__material_deco["deco · CSR"]:::csr
+      ep_GET__api_partner_mat_mgmt_deco["GET /api/partner/mat-mgmt/deco → axios"]:::apiAxios
+    end
+  end
+  subgraph AGENCY_API["📄 /agency"]
+    subgraph AGENCY_USERS_API["📄 /users"]
+      route_src_router_tsx__agency_users["users · CSR"]:::csr
+      ep_GET__api_agency_users["GET /api/agency/users → axios"]:::apiAxios
+    end
+  end
+  subgraph HEAD_OFFICE_API["📄 /head-office"]
+    subgraph HEAD_OFFICE_PROC_CODE_API["📄 /proc-code"]
+      route_src_router_tsx__head_office_proc_code["proc-code · CSR"]:::csr
+      ep_GET__api_head_office_proc_code["GET /api/head-office/proc-code → axios"]:::apiAxios
+    end
+  end
+  subgraph PERF_API["📄 /perf"]
+    subgraph PERF_TRANS_API["📄 /trans"]
+      route_src_router_tsx__perf_trans["trans · CSR"]:::csr
+      ep_GET__api_partner_perf_trans["GET /api/partner/perf/trans → axios"]:::apiAxios
+    end
+  end
+  route_src_router_tsx__order_plan_spec --> ep_GET__api_partner_ord_prod_plan_spec
+  route_src_router_tsx__material_deco --> ep_GET__api_partner_mat_mgmt_deco
+  route_src_router_tsx__agency_users --> ep_GET__api_agency_users
+  route_src_router_tsx__head_office_proc_code --> ep_GET__api_head_office_proc_code
+  route_src_router_tsx__perf_trans --> ep_GET__api_partner_perf_trans"
 `;
 
 exports[`Phase XI — fixture baseline snapshots (P1) > mini-remix-app > IRGraph summary 1`] = `
@@ -1421,11 +1665,11 @@ graph TD
     direction TB
   subgraph di_component_src_main_java_com_wina_admin_controller_AdminController_java_AdminController["[ DI ]"]
     direction TB
-    component_src_main_java_com_wina_admin_controller_AdminController_java_AdminController["AdminController"]:::ssr
-    component_src_main_java_com_wina_admin_service_AdminService_java_AdminService["AdminService"]:::unk
-    component_src_main_java_com_wina_admin_controller_AdminController_java_AdminController -.-> component_src_main_java_com_wina_admin_service_AdminService_java_AdminService
-    component_src_main_java_com_wina_admin_repository_AdminRepository_java_AdminRepository["AdminRepository"]:::ssg
-    component_src_main_java_com_wina_admin_service_AdminService_java_AdminService -.-> component_src_main_java_com_wina_admin_repository_AdminRepository_java_AdminRepository
+    di_component_src_main_java_com_wina_admin_controller_AdminController_java_AdminController__component_src_main_java_com_wina_admin_controller_AdminController_java_AdminController["AdminController"]:::ssr
+    di_component_src_main_java_com_wina_admin_controller_AdminController_java_AdminController__component_src_main_java_com_wina_admin_service_AdminService_java_AdminService["AdminService"]:::unk
+    di_component_src_main_java_com_wina_admin_controller_AdminController_java_AdminController__component_src_main_java_com_wina_admin_controller_AdminController_java_AdminController -.-> di_component_src_main_java_com_wina_admin_controller_AdminController_java_AdminController__component_src_main_java_com_wina_admin_service_AdminService_java_AdminService
+    di_component_src_main_java_com_wina_admin_controller_AdminController_java_AdminController__component_src_main_java_com_wina_admin_repository_AdminRepository_java_AdminRepository["AdminRepository"]:::ssg
+    di_component_src_main_java_com_wina_admin_controller_AdminController_java_AdminController__component_src_main_java_com_wina_admin_service_AdminService_java_AdminService -.-> di_component_src_main_java_com_wina_admin_controller_AdminController_java_AdminController__component_src_main_java_com_wina_admin_repository_AdminRepository_java_AdminRepository
   end
   end
 %%--CHUNK--%%
@@ -1449,20 +1693,20 @@ graph TD
   pkg_partner__order["order"]:::pkg
   subgraph di_component_src_main_java_com_wina_partner_matMgmt_decoSheet_controller_DecoSheetController_java_DecoSheetController["[ DI ]"]
     direction TB
-    component_src_main_java_com_wina_partner_matMgmt_decoSheet_controller_DecoSheetController_java_DecoSheetController["DecoSheetController"]:::ssr
-    component_src_main_java_com_wina_partner_matMgmt_decoSheet_service_DecoSheetService_java_DecoSheetService["DecoSheetService"]:::unk
-    component_src_main_java_com_wina_partner_matMgmt_decoSheet_controller_DecoSheetController_java_DecoSheetController -.-> component_src_main_java_com_wina_partner_matMgmt_decoSheet_service_DecoSheetService_java_DecoSheetService
-    component_src_main_java_com_wina_partner_matMgmt_decoSheet_repository_DecoSheetRepository_java_DecoSheetRepository["DecoSheetRepository"]:::ssg
-    component_src_main_java_com_wina_partner_matMgmt_decoSheet_service_DecoSheetService_java_DecoSheetService -.-> component_src_main_java_com_wina_partner_matMgmt_decoSheet_repository_DecoSheetRepository_java_DecoSheetRepository
+    di_component_src_main_java_com_wina_partner_matMgmt_decoSheet_controller_DecoSheetController_java_DecoSheetController__component_src_main_java_com_wina_partner_matMgmt_decoSheet_controller_DecoSheetController_java_DecoSheetController["DecoSheetController"]:::ssr
+    di_component_src_main_java_com_wina_partner_matMgmt_decoSheet_controller_DecoSheetController_java_DecoSheetController__component_src_main_java_com_wina_partner_matMgmt_decoSheet_service_DecoSheetService_java_DecoSheetService["DecoSheetService"]:::unk
+    di_component_src_main_java_com_wina_partner_matMgmt_decoSheet_controller_DecoSheetController_java_DecoSheetController__component_src_main_java_com_wina_partner_matMgmt_decoSheet_controller_DecoSheetController_java_DecoSheetController -.-> di_component_src_main_java_com_wina_partner_matMgmt_decoSheet_controller_DecoSheetController_java_DecoSheetController__component_src_main_java_com_wina_partner_matMgmt_decoSheet_service_DecoSheetService_java_DecoSheetService
+    di_component_src_main_java_com_wina_partner_matMgmt_decoSheet_controller_DecoSheetController_java_DecoSheetController__component_src_main_java_com_wina_partner_matMgmt_decoSheet_repository_DecoSheetRepository_java_DecoSheetRepository["DecoSheetRepository"]:::ssg
+    di_component_src_main_java_com_wina_partner_matMgmt_decoSheet_controller_DecoSheetController_java_DecoSheetController__component_src_main_java_com_wina_partner_matMgmt_decoSheet_service_DecoSheetService_java_DecoSheetService -.-> di_component_src_main_java_com_wina_partner_matMgmt_decoSheet_controller_DecoSheetController_java_DecoSheetController__component_src_main_java_com_wina_partner_matMgmt_decoSheet_repository_DecoSheetRepository_java_DecoSheetRepository
   end
   pkg_partner__matMgmt__decoSheet --> di_component_src_main_java_com_wina_partner_matMgmt_decoSheet_controller_DecoSheetController_java_DecoSheetController
   subgraph di_component_src_main_java_com_wina_partner_order_controller_OrderController_java_OrderController["[ DI ]"]
     direction TB
-    component_src_main_java_com_wina_partner_order_controller_OrderController_java_OrderController["OrderController"]:::ssr
-    component_src_main_java_com_wina_partner_order_service_OrderService_java_OrderService["OrderService"]:::unk
-    component_src_main_java_com_wina_partner_order_controller_OrderController_java_OrderController -.-> component_src_main_java_com_wina_partner_order_service_OrderService_java_OrderService
-    component_src_main_java_com_wina_partner_order_repository_OrderRepository_java_OrderRepository["OrderRepository"]:::ssg
-    component_src_main_java_com_wina_partner_order_service_OrderService_java_OrderService -.-> component_src_main_java_com_wina_partner_order_repository_OrderRepository_java_OrderRepository
+    di_component_src_main_java_com_wina_partner_order_controller_OrderController_java_OrderController__component_src_main_java_com_wina_partner_order_controller_OrderController_java_OrderController["OrderController"]:::ssr
+    di_component_src_main_java_com_wina_partner_order_controller_OrderController_java_OrderController__component_src_main_java_com_wina_partner_order_service_OrderService_java_OrderService["OrderService"]:::unk
+    di_component_src_main_java_com_wina_partner_order_controller_OrderController_java_OrderController__component_src_main_java_com_wina_partner_order_controller_OrderController_java_OrderController -.-> di_component_src_main_java_com_wina_partner_order_controller_OrderController_java_OrderController__component_src_main_java_com_wina_partner_order_service_OrderService_java_OrderService
+    di_component_src_main_java_com_wina_partner_order_controller_OrderController_java_OrderController__component_src_main_java_com_wina_partner_order_repository_OrderRepository_java_OrderRepository["OrderRepository"]:::ssg
+    di_component_src_main_java_com_wina_partner_order_controller_OrderController_java_OrderController__component_src_main_java_com_wina_partner_order_service_OrderService_java_OrderService -.-> di_component_src_main_java_com_wina_partner_order_controller_OrderController_java_OrderController__component_src_main_java_com_wina_partner_order_repository_OrderRepository_java_OrderRepository
   end
   pkg_partner__order --> di_component_src_main_java_com_wina_partner_order_controller_OrderController_java_OrderController
   end"
@@ -1500,49 +1744,218 @@ erDiagram
   }"
 `;
 
+exports[`Phase XI — fixture baseline snapshots (P1) > mini-spring-lombok-mybatis-app > IRGraph summary 1`] = `
+{
+  "edgeIds": [
+    "calls:component:src/main/java/com/wina/partner/common/commonPop/controller/CommonPopController.java:CommonPopController:component:src/main/java/com/wina/partner/common/commonPop/service/CommonPopService.java:CommonPopService",
+    "calls:component:src/main/java/com/wina/partner/common/commonPop/controller/CommonPopController.java:CommonPopController:component:src/main/java/com/wina/partner/common/commonPop/service/PerfStatusService.java:PerfStatusService",
+    "calls:component:src/main/java/com/wina/partner/common/commonPop/repository/CommonPopRepository.java:CommonPopRepository:component:src/main/resources/mapper/CommonPopMapper.xml:CommonPopMapper.xml",
+    "calls:component:src/main/java/com/wina/partner/common/commonPop/repository/OrderRepository.java:OrderRepository:component:src/main/resources/mapper/OrderMapper.xml:OrderMapper.xml",
+    "calls:component:src/main/java/com/wina/partner/common/commonPop/repository/PerfStatusRepository.java:PerfStatusRepository:component:src/main/resources/mapper/PerfStatusMapper.xml:PerfStatusMapper.xml",
+    "calls:component:src/main/java/com/wina/partner/common/commonPop/service/CommonPopService.java:CommonPopService:component:src/main/java/com/wina/partner/common/commonPop/service/CommonPopServiceImpl.java:CommonPopServiceImpl",
+    "calls:component:src/main/java/com/wina/partner/common/commonPop/service/CommonPopServiceImpl.java:CommonPopServiceImpl:component:src/main/java/com/wina/partner/common/commonPop/repository/CommonPopRepository.java:CommonPopRepository",
+    "calls:component:src/main/java/com/wina/partner/common/commonPop/service/CommonPopServiceImpl.java:CommonPopServiceImpl:component:src/main/java/com/wina/partner/common/commonPop/repository/OrderRepository.java:OrderRepository",
+    "calls:component:src/main/java/com/wina/partner/common/commonPop/service/PerfStatusService.java:PerfStatusService:component:src/main/java/com/wina/partner/common/commonPop/service/PerfStatusServiceImpl.java:PerfStatusServiceImpl",
+    "calls:component:src/main/java/com/wina/partner/common/commonPop/service/PerfStatusServiceImpl.java:PerfStatusServiceImpl:component:src/main/java/com/wina/partner/common/commonPop/repository/PerfStatusRepository.java:PerfStatusRepository",
+  ],
+  "edgesByKind": {
+    "calls": 10,
+  },
+  "nodeIds": [
+    "component:src/main/java/com/wina/partner/common/commonPop/controller/CommonPopController.java:CommonPopController",
+    "component:src/main/java/com/wina/partner/common/commonPop/repository/CommonPopRepository.java:CommonPopRepository",
+    "component:src/main/java/com/wina/partner/common/commonPop/repository/OrderRepository.java:OrderRepository",
+    "component:src/main/java/com/wina/partner/common/commonPop/repository/PerfStatusRepository.java:PerfStatusRepository",
+    "component:src/main/java/com/wina/partner/common/commonPop/service/CommonPopService.java:CommonPopService",
+    "component:src/main/java/com/wina/partner/common/commonPop/service/CommonPopServiceImpl.java:CommonPopServiceImpl",
+    "component:src/main/java/com/wina/partner/common/commonPop/service/PerfStatusService.java:PerfStatusService",
+    "component:src/main/java/com/wina/partner/common/commonPop/service/PerfStatusServiceImpl.java:PerfStatusServiceImpl",
+    "component:src/main/resources/mapper/CommonPopMapper.xml:CommonPopMapper.xml",
+    "component:src/main/resources/mapper/OrderMapper.xml:OrderMapper.xml",
+    "component:src/main/resources/mapper/PerfStatusMapper.xml:PerfStatusMapper.xml",
+    "route:src/main/java/com/wina/partner/common/commonPop/controller/CommonPopController.java:/api/v1/partner/agency-popup:GetMapping",
+    "route:src/main/java/com/wina/partner/common/commonPop/controller/CommonPopController.java:/api/v1/partner/label-yn:PostMapping",
+    "route:src/main/java/com/wina/partner/common/commonPop/controller/CommonPopController.java:/api/v1/partner/perf:GetMapping",
+    "table:src/main/resources/mapper/CommonPopMapper.xml:TB_AGENCY",
+    "table:src/main/resources/mapper/CommonPopMapper.xml:TB_PRDO_WRY",
+    "table:src/main/resources/mapper/OrderMapper.xml:TB_ORDER",
+    "table:src/main/resources/mapper/PerfStatusMapper.xml:TB_PERF_STATUS",
+  ],
+  "nodesByKind": {
+    "component": 11,
+    "route": 3,
+    "table": 4,
+  },
+}
+`;
+
+exports[`Phase XI — fixture baseline snapshots (P1) > mini-spring-lombok-mybatis-app > Tab1 rendering diagram 1`] = `
+"%%{init:{'theme':'base','themeVariables':{'background':'#060810','primaryColor':'#0c1a30','primaryTextColor':'#7dd3fc','primaryBorderColor':'#0e3a6e','edgeLabelBackground':'#0c1a30','lineColor':'#334155','secondaryColor':'#0f172a','clusterBkg':'#060c18','clusterBorder':'#1e3a5f','fontFamily':'JetBrains Mono','fontSize':'14'},'flowchart':{'nodeSpacing':25,'rankSpacing':8,'padding':4}}}%%
+graph TD
+  classDef ssr fill:#0d1a0d,stroke:#16a34a,color:#86efac
+  classDef csr fill:#2d1200,stroke:#c2410c,color:#fb923c
+  classDef ssg fill:#1a0d1a,stroke:#7c3aed,color:#c4b5fd
+  classDef isr fill:#1a1a0d,stroke:#ca8a04,color:#fde047
+  classDef ppr fill:#0d1a2d,stroke:#2563eb,color:#93c5fd
+  classDef unk fill:#1a1a1a,stroke:#6b7280,color:#9ca3af
+  classDef pkg fill:#0c1018,stroke:#475569,color:#cbd5e1
+  classDef muted fill:#0a0d14,stroke:#374151,color:#64748b,stroke-dasharray: 3 3
+  classDef hdr fill:#06080f,stroke:#1e3a5f,color:#7dd3fc
+  subgraph HDR_PKG ["📁 src/main/java/com.wina.partner.common.commonPop.controller"]
+    direction TB
+  leaf_CommonPopController["📄 CommonPopController [/api/v1/partner]"]:::ssr
+  subgraph endpoints_CommonPopController["endpoints"]
+    direction TB
+    route_src_main_java_com_wina_partner_common_commonPop_controller_CommonPopController_java__api_v1_partner_agency_popup_GetMapping["GET /agency-popup"]:::ssr
+    route_src_main_java_com_wina_partner_common_commonPop_controller_CommonPopController_java__api_v1_partner_label_yn_PostMapping["POST /label-yn"]:::ssr
+    route_src_main_java_com_wina_partner_common_commonPop_controller_CommonPopController_java__api_v1_partner_perf_GetMapping["GET /perf"]:::ssr
+    route_src_main_java_com_wina_partner_common_commonPop_controller_CommonPopController_java__api_v1_partner_agency_popup_GetMapping --- route_src_main_java_com_wina_partner_common_commonPop_controller_CommonPopController_java__api_v1_partner_label_yn_PostMapping
+    route_src_main_java_com_wina_partner_common_commonPop_controller_CommonPopController_java__api_v1_partner_label_yn_PostMapping --- route_src_main_java_com_wina_partner_common_commonPop_controller_CommonPopController_java__api_v1_partner_perf_GetMapping
+  end
+  leaf_CommonPopController --> endpoints_CommonPopController
+  end"
+`;
+
+exports[`Phase XI — fixture baseline snapshots (P1) > mini-spring-lombok-mybatis-app > Tab2 screen-component diagram 1`] = `
+"%%{init:{'theme':'base','themeVariables':{'background':'#060810','primaryColor':'#0c1a30','primaryTextColor':'#7dd3fc','primaryBorderColor':'#0e3a6e','edgeLabelBackground':'#0c1a30','lineColor':'#334155','secondaryColor':'#0f172a','clusterBkg':'#060c18','clusterBorder':'#1e3a5f','fontFamily':'JetBrains Mono','fontSize':'14'},'flowchart':{'nodeSpacing':25,'rankSpacing':8,'padding':4}}}%%
+graph TD
+  classDef ssr fill:#0d1a0d,stroke:#16a34a,color:#86efac
+  classDef csr fill:#2d1200,stroke:#c2410c,color:#fb923c
+  classDef ssg fill:#1a0d1a,stroke:#7c3aed,color:#c4b5fd
+  classDef isr fill:#1a1a0d,stroke:#ca8a04,color:#fde047
+  classDef ppr fill:#0d1a2d,stroke:#2563eb,color:#93c5fd
+  classDef unk fill:#1a1a1a,stroke:#6b7280,color:#9ca3af
+  classDef pkg fill:#0c1018,stroke:#475569,color:#cbd5e1
+  classDef muted fill:#0a0d14,stroke:#374151,color:#64748b,stroke-dasharray: 3 3
+  classDef hdr fill:#06080f,stroke:#1e3a5f,color:#7dd3fc
+  subgraph HDR_PKG ["📁 src/main/java/com.wina.partner.common.commonPop.controller"]
+    direction TB
+  subgraph di_component_src_main_java_com_wina_partner_common_commonPop_controller_CommonPopController_java_CommonPopController["[ DI ]"]
+    direction TB
+    di_component_src_main_java_com_wina_partner_common_commonPop_controller_CommonPopController_java_CommonPopController__component_src_main_java_com_wina_partner_common_commonPop_controller_CommonPopController_java_CommonPopController["CommonPopController"]:::ssr
+    di_component_src_main_java_com_wina_partner_common_commonPop_controller_CommonPopController_java_CommonPopController__component_src_main_java_com_wina_partner_common_commonPop_service_CommonPopService_java_CommonPopService["CommonPopService"]:::unk
+    di_component_src_main_java_com_wina_partner_common_commonPop_controller_CommonPopController_java_CommonPopController__component_src_main_java_com_wina_partner_common_commonPop_controller_CommonPopController_java_CommonPopController -.-> di_component_src_main_java_com_wina_partner_common_commonPop_controller_CommonPopController_java_CommonPopController__component_src_main_java_com_wina_partner_common_commonPop_service_CommonPopService_java_CommonPopService
+    di_component_src_main_java_com_wina_partner_common_commonPop_controller_CommonPopController_java_CommonPopController__component_src_main_java_com_wina_partner_common_commonPop_service_CommonPopServiceImpl_java_CommonPopServiceImpl["CommonPopServiceImpl"]:::unk
+    di_component_src_main_java_com_wina_partner_common_commonPop_controller_CommonPopController_java_CommonPopController__component_src_main_java_com_wina_partner_common_commonPop_service_CommonPopService_java_CommonPopService -.-> di_component_src_main_java_com_wina_partner_common_commonPop_controller_CommonPopController_java_CommonPopController__component_src_main_java_com_wina_partner_common_commonPop_service_CommonPopServiceImpl_java_CommonPopServiceImpl
+    di_component_src_main_java_com_wina_partner_common_commonPop_controller_CommonPopController_java_CommonPopController__component_src_main_java_com_wina_partner_common_commonPop_repository_CommonPopRepository_java_CommonPopRepository["CommonPopRepository"]:::ssg
+    di_component_src_main_java_com_wina_partner_common_commonPop_controller_CommonPopController_java_CommonPopController__component_src_main_java_com_wina_partner_common_commonPop_service_CommonPopServiceImpl_java_CommonPopServiceImpl -.-> di_component_src_main_java_com_wina_partner_common_commonPop_controller_CommonPopController_java_CommonPopController__component_src_main_java_com_wina_partner_common_commonPop_repository_CommonPopRepository_java_CommonPopRepository
+    di_component_src_main_java_com_wina_partner_common_commonPop_controller_CommonPopController_java_CommonPopController__component_src_main_resources_mapper_CommonPopMapper_xml_CommonPopMapper_xml["CommonPopMapper.xml"]:::pkg
+    di_component_src_main_java_com_wina_partner_common_commonPop_controller_CommonPopController_java_CommonPopController__component_src_main_java_com_wina_partner_common_commonPop_repository_CommonPopRepository_java_CommonPopRepository --> di_component_src_main_java_com_wina_partner_common_commonPop_controller_CommonPopController_java_CommonPopController__component_src_main_resources_mapper_CommonPopMapper_xml_CommonPopMapper_xml
+    di_component_src_main_java_com_wina_partner_common_commonPop_controller_CommonPopController_java_CommonPopController__component_src_main_java_com_wina_partner_common_commonPop_repository_OrderRepository_java_OrderRepository["OrderRepository"]:::ssg
+    di_component_src_main_java_com_wina_partner_common_commonPop_controller_CommonPopController_java_CommonPopController__component_src_main_java_com_wina_partner_common_commonPop_service_CommonPopServiceImpl_java_CommonPopServiceImpl -.-> di_component_src_main_java_com_wina_partner_common_commonPop_controller_CommonPopController_java_CommonPopController__component_src_main_java_com_wina_partner_common_commonPop_repository_OrderRepository_java_OrderRepository
+    di_component_src_main_java_com_wina_partner_common_commonPop_controller_CommonPopController_java_CommonPopController__component_src_main_resources_mapper_OrderMapper_xml_OrderMapper_xml["OrderMapper.xml"]:::pkg
+    di_component_src_main_java_com_wina_partner_common_commonPop_controller_CommonPopController_java_CommonPopController__component_src_main_java_com_wina_partner_common_commonPop_repository_OrderRepository_java_OrderRepository --> di_component_src_main_java_com_wina_partner_common_commonPop_controller_CommonPopController_java_CommonPopController__component_src_main_resources_mapper_OrderMapper_xml_OrderMapper_xml
+    di_component_src_main_java_com_wina_partner_common_commonPop_controller_CommonPopController_java_CommonPopController__component_src_main_java_com_wina_partner_common_commonPop_service_PerfStatusService_java_PerfStatusService["PerfStatusService"]:::unk
+    di_component_src_main_java_com_wina_partner_common_commonPop_controller_CommonPopController_java_CommonPopController__component_src_main_java_com_wina_partner_common_commonPop_controller_CommonPopController_java_CommonPopController -.-> di_component_src_main_java_com_wina_partner_common_commonPop_controller_CommonPopController_java_CommonPopController__component_src_main_java_com_wina_partner_common_commonPop_service_PerfStatusService_java_PerfStatusService
+    di_component_src_main_java_com_wina_partner_common_commonPop_controller_CommonPopController_java_CommonPopController__component_src_main_java_com_wina_partner_common_commonPop_service_PerfStatusServiceImpl_java_PerfStatusServiceImpl["PerfStatusServiceImpl"]:::unk
+    di_component_src_main_java_com_wina_partner_common_commonPop_controller_CommonPopController_java_CommonPopController__component_src_main_java_com_wina_partner_common_commonPop_service_PerfStatusService_java_PerfStatusService -.-> di_component_src_main_java_com_wina_partner_common_commonPop_controller_CommonPopController_java_CommonPopController__component_src_main_java_com_wina_partner_common_commonPop_service_PerfStatusServiceImpl_java_PerfStatusServiceImpl
+    di_component_src_main_java_com_wina_partner_common_commonPop_controller_CommonPopController_java_CommonPopController__component_src_main_java_com_wina_partner_common_commonPop_repository_PerfStatusRepository_java_PerfStatusRepository["PerfStatusRepository"]:::ssg
+    di_component_src_main_java_com_wina_partner_common_commonPop_controller_CommonPopController_java_CommonPopController__component_src_main_java_com_wina_partner_common_commonPop_service_PerfStatusServiceImpl_java_PerfStatusServiceImpl -.-> di_component_src_main_java_com_wina_partner_common_commonPop_controller_CommonPopController_java_CommonPopController__component_src_main_java_com_wina_partner_common_commonPop_repository_PerfStatusRepository_java_PerfStatusRepository
+    di_component_src_main_java_com_wina_partner_common_commonPop_controller_CommonPopController_java_CommonPopController__component_src_main_resources_mapper_PerfStatusMapper_xml_PerfStatusMapper_xml["PerfStatusMapper.xml"]:::pkg
+    di_component_src_main_java_com_wina_partner_common_commonPop_controller_CommonPopController_java_CommonPopController__component_src_main_java_com_wina_partner_common_commonPop_repository_PerfStatusRepository_java_PerfStatusRepository --> di_component_src_main_java_com_wina_partner_common_commonPop_controller_CommonPopController_java_CommonPopController__component_src_main_resources_mapper_PerfStatusMapper_xml_PerfStatusMapper_xml
+  end
+  end"
+`;
+
+exports[`Phase XI — fixture baseline snapshots (P1) > mini-spring-lombok-mybatis-app > Tab3 db-screen diagram 1`] = `
+"%%{init:{'theme':'base','themeVariables':{'background':'#060810','primaryColor':'#2a4055','primaryTextColor':'#f8fafc','primaryBorderColor':'#1e4060','lineColor':'#f59e0b','secondaryColor':'#0f172a','tertiaryColor':'#1a0a20','attributeBackgroundColorEven':'#ffffff','attributeBackgroundColorOdd':'#f1f5f9','textColor':'#1e293b','nodeBorder':'#1e4060','clusterBkg':'#0a0e1a','fontFamily':'JetBrains Mono','fontSize':'14'}}}%%
+erDiagram
+%% table:TB_AGENCY path:src/main/resources/mapper/CommonPopMapper.xml
+%% table:TB_PRDO_WRY path:src/main/resources/mapper/CommonPopMapper.xml
+%% table:TB_ORDER path:src/main/resources/mapper/OrderMapper.xml
+%% table:TB_PERF_STATUS path:src/main/resources/mapper/PerfStatusMapper.xml
+  TB_AGENCY {
+    unknown AGENCY_CD PK
+    unknown AGENCY_NM
+  }
+  TB_PRDO_WRY {
+  }
+  TB_ORDER {
+  }
+  TB_PERF_STATUS {
+  }
+  CommonPopRepository {
+    string name
+  }
+  OrderRepository {
+    string name
+  }
+  PerfStatusRepository {
+    string name
+  }"
+`;
+
 exports[`Phase XI — fixture baseline snapshots (P1) > mini-spring-partner-mock-app > IRGraph summary 1`] = `
 {
   "edgeIds": [
-    "calls:component:src/main/java/com/wina/agency/contractMgmt/controller/ContractMgmtController.java:ContractMgmtController:component:src/main/java/com/wina/agency/contractMgmt/service/ContractMgmtServiceImpl.java:ContractMgmtServiceImpl",
+    "calls:component:src/main/java/com/wina/agency/contractMgmt/controller/ContractMgmtController.java:ContractMgmtController:component:src/main/java/com/wina/agency/contractMgmt/service/ContractMgmtService.java:ContractMgmtService",
+    "calls:component:src/main/java/com/wina/agency/contractMgmt/repository/ContractMgmtRepository.java:ContractMgmtRepository:component:src/main/resources/mapper/contractMgmt.xml:contractMgmt.xml",
+    "calls:component:src/main/java/com/wina/agency/contractMgmt/service/ContractMgmtService.java:ContractMgmtService:component:src/main/java/com/wina/agency/contractMgmt/service/ContractMgmtServiceImpl.java:ContractMgmtServiceImpl",
     "calls:component:src/main/java/com/wina/agency/contractMgmt/service/ContractMgmtServiceImpl.java:ContractMgmtServiceImpl:component:src/main/java/com/wina/agency/contractMgmt/repository/ContractMgmtRepository.java:ContractMgmtRepository",
-    "calls:component:src/main/java/com/wina/agency/userMgmt/controller/UserMgmtController.java:UserMgmtController:component:src/main/java/com/wina/agency/userMgmt/service/UserMgmtServiceImpl.java:UserMgmtServiceImpl",
+    "calls:component:src/main/java/com/wina/agency/userMgmt/controller/UserMgmtController.java:UserMgmtController:component:src/main/java/com/wina/agency/userMgmt/service/UserMgmtService.java:UserMgmtService",
+    "calls:component:src/main/java/com/wina/agency/userMgmt/repository/UserMgmtRepository.java:UserMgmtRepository:component:src/main/resources/mapper/userMgmt.xml:userMgmt.xml",
+    "calls:component:src/main/java/com/wina/agency/userMgmt/service/UserMgmtService.java:UserMgmtService:component:src/main/java/com/wina/agency/userMgmt/service/UserMgmtServiceImpl.java:UserMgmtServiceImpl",
     "calls:component:src/main/java/com/wina/agency/userMgmt/service/UserMgmtServiceImpl.java:UserMgmtServiceImpl:component:src/main/java/com/wina/agency/userMgmt/repository/UserMgmtRepository.java:UserMgmtRepository",
-    "calls:component:src/main/java/com/wina/headoffice/materialMgmt/cuttingPlanInfoMgmt/controller/CuttingPlanMgmtController.java:CuttingPlanMgmtController:component:src/main/java/com/wina/headoffice/materialMgmt/cuttingPlanInfoMgmt/service/CuttingPlanMgmtServiceImpl.java:CuttingPlanMgmtServiceImpl",
+    "calls:component:src/main/java/com/wina/headoffice/materialMgmt/cuttingPlanInfoMgmt/controller/CuttingPlanMgmtController.java:CuttingPlanMgmtController:component:src/main/java/com/wina/headoffice/materialMgmt/cuttingPlanInfoMgmt/service/CuttingPlanMgmtService.java:CuttingPlanMgmtService",
+    "calls:component:src/main/java/com/wina/headoffice/materialMgmt/cuttingPlanInfoMgmt/repository/CuttingPlanMgmtRepository.java:CuttingPlanMgmtRepository:component:src/main/resources/mapper/cuttingPlanInfoMgmt.xml:cuttingPlanInfoMgmt.xml",
+    "calls:component:src/main/java/com/wina/headoffice/materialMgmt/cuttingPlanInfoMgmt/service/CuttingPlanMgmtService.java:CuttingPlanMgmtService:component:src/main/java/com/wina/headoffice/materialMgmt/cuttingPlanInfoMgmt/service/CuttingPlanMgmtServiceImpl.java:CuttingPlanMgmtServiceImpl",
     "calls:component:src/main/java/com/wina/headoffice/materialMgmt/cuttingPlanInfoMgmt/service/CuttingPlanMgmtServiceImpl.java:CuttingPlanMgmtServiceImpl:component:src/main/java/com/wina/headoffice/materialMgmt/cuttingPlanInfoMgmt/repository/CuttingPlanMgmtRepository.java:CuttingPlanMgmtRepository",
-    "calls:component:src/main/java/com/wina/headoffice/partnerBaseInfo/procCodeMgmt/controller/ProcCodeMgmtController.java:ProcCodeMgmtController:component:src/main/java/com/wina/headoffice/partnerBaseInfo/procCodeMgmt/service/ProcCodeMgmtServiceImpl.java:ProcCodeMgmtServiceImpl",
+    "calls:component:src/main/java/com/wina/headoffice/partnerBaseInfo/procCodeMgmt/controller/ProcCodeMgmtController.java:ProcCodeMgmtController:component:src/main/java/com/wina/headoffice/partnerBaseInfo/procCodeMgmt/service/ProcCodeMgmtService.java:ProcCodeMgmtService",
+    "calls:component:src/main/java/com/wina/headoffice/partnerBaseInfo/procCodeMgmt/repository/ProcCodeMgmtRepository.java:ProcCodeMgmtRepository:component:src/main/resources/mapper/procCodeMgmt.xml:procCodeMgmt.xml",
+    "calls:component:src/main/java/com/wina/headoffice/partnerBaseInfo/procCodeMgmt/service/ProcCodeMgmtService.java:ProcCodeMgmtService:component:src/main/java/com/wina/headoffice/partnerBaseInfo/procCodeMgmt/service/ProcCodeMgmtServiceImpl.java:ProcCodeMgmtServiceImpl",
     "calls:component:src/main/java/com/wina/headoffice/partnerBaseInfo/procCodeMgmt/service/ProcCodeMgmtServiceImpl.java:ProcCodeMgmtServiceImpl:component:src/main/java/com/wina/headoffice/partnerBaseInfo/procCodeMgmt/repository/ProcCodeMgmtRepository.java:ProcCodeMgmtRepository",
-    "calls:component:src/main/java/com/wina/partner/matMgmt/decoSheet/controller/DecoSheetController.java:DecoSheetController:component:src/main/java/com/wina/partner/matMgmt/decoSheet/service/DecoSheetServiceImpl.java:DecoSheetServiceImpl",
+    "calls:component:src/main/java/com/wina/partner/matMgmt/decoSheet/controller/DecoSheetController.java:DecoSheetController:component:src/main/java/com/wina/partner/matMgmt/decoSheet/service/DecoSheetService.java:DecoSheetService",
+    "calls:component:src/main/java/com/wina/partner/matMgmt/decoSheet/repository/DecoSheetRepository.java:DecoSheetRepository:component:src/main/resources/mapper/decoSheet.xml:decoSheet.xml",
+    "calls:component:src/main/java/com/wina/partner/matMgmt/decoSheet/service/DecoSheetService.java:DecoSheetService:component:src/main/java/com/wina/partner/matMgmt/decoSheet/service/DecoSheetServiceImpl.java:DecoSheetServiceImpl",
     "calls:component:src/main/java/com/wina/partner/matMgmt/decoSheet/service/DecoSheetServiceImpl.java:DecoSheetServiceImpl:component:src/main/java/com/wina/partner/matMgmt/decoSheet/repository/DecoSheetRepository.java:DecoSheetRepository",
-    "calls:component:src/main/java/com/wina/partner/ordProdPlanMgmt/prodOrdSpec/controller/ProdOrdSpecController.java:ProdOrdSpecController:component:src/main/java/com/wina/partner/ordProdPlanMgmt/prodOrdSpec/service/ProdOrdSpecServiceImpl.java:ProdOrdSpecServiceImpl",
+    "calls:component:src/main/java/com/wina/partner/ordProdPlanMgmt/prodOrdSpec/controller/ProdOrdSpecController.java:ProdOrdSpecController:component:src/main/java/com/wina/partner/ordProdPlanMgmt/prodOrdSpec/service/ProdOrdSpecService.java:ProdOrdSpecService",
+    "calls:component:src/main/java/com/wina/partner/ordProdPlanMgmt/prodOrdSpec/repository/ProdOrdSpecRepository.java:ProdOrdSpecRepository:component:src/main/resources/mapper/prodOrdSpec.xml:prodOrdSpec.xml",
+    "calls:component:src/main/java/com/wina/partner/ordProdPlanMgmt/prodOrdSpec/service/ProdOrdSpecService.java:ProdOrdSpecService:component:src/main/java/com/wina/partner/ordProdPlanMgmt/prodOrdSpec/service/ProdOrdSpecServiceImpl.java:ProdOrdSpecServiceImpl",
     "calls:component:src/main/java/com/wina/partner/ordProdPlanMgmt/prodOrdSpec/service/ProdOrdSpecServiceImpl.java:ProdOrdSpecServiceImpl:component:src/main/java/com/wina/partner/ordProdPlanMgmt/prodOrdSpec/repository/ProdOrdSpecRepository.java:ProdOrdSpecRepository",
-    "calls:component:src/main/java/com/wina/partner/perfMgmt/transStmt/controller/TransStmtController.java:TransStmtController:component:src/main/java/com/wina/partner/perfMgmt/transStmt/service/TransStmtServiceImpl.java:TransStmtServiceImpl",
+    "calls:component:src/main/java/com/wina/partner/perfMgmt/transStmt/controller/TransStmtController.java:TransStmtController:component:src/main/java/com/wina/partner/perfMgmt/transStmt/service/TransStmtService.java:TransStmtService",
+    "calls:component:src/main/java/com/wina/partner/perfMgmt/transStmt/repository/TransStmtRepository.java:TransStmtRepository:component:src/main/resources/mapper/transStmt.xml:transStmt.xml",
+    "calls:component:src/main/java/com/wina/partner/perfMgmt/transStmt/service/TransStmtService.java:TransStmtService:component:src/main/java/com/wina/partner/perfMgmt/transStmt/service/TransStmtServiceImpl.java:TransStmtServiceImpl",
     "calls:component:src/main/java/com/wina/partner/perfMgmt/transStmt/service/TransStmtServiceImpl.java:TransStmtServiceImpl:component:src/main/java/com/wina/partner/perfMgmt/transStmt/repository/TransStmtRepository.java:TransStmtRepository",
   ],
   "edgesByKind": {
-    "calls": 14,
+    "calls": 28,
   },
   "nodeIds": [
     "component:src/main/java/com/wina/agency/contractMgmt/controller/ContractMgmtController.java:ContractMgmtController",
     "component:src/main/java/com/wina/agency/contractMgmt/repository/ContractMgmtRepository.java:ContractMgmtRepository",
+    "component:src/main/java/com/wina/agency/contractMgmt/service/ContractMgmtService.java:ContractMgmtService",
     "component:src/main/java/com/wina/agency/contractMgmt/service/ContractMgmtServiceImpl.java:ContractMgmtServiceImpl",
     "component:src/main/java/com/wina/agency/userMgmt/controller/UserMgmtController.java:UserMgmtController",
     "component:src/main/java/com/wina/agency/userMgmt/repository/UserMgmtRepository.java:UserMgmtRepository",
+    "component:src/main/java/com/wina/agency/userMgmt/service/UserMgmtService.java:UserMgmtService",
     "component:src/main/java/com/wina/agency/userMgmt/service/UserMgmtServiceImpl.java:UserMgmtServiceImpl",
     "component:src/main/java/com/wina/headoffice/materialMgmt/cuttingPlanInfoMgmt/controller/CuttingPlanMgmtController.java:CuttingPlanMgmtController",
     "component:src/main/java/com/wina/headoffice/materialMgmt/cuttingPlanInfoMgmt/repository/CuttingPlanMgmtRepository.java:CuttingPlanMgmtRepository",
+    "component:src/main/java/com/wina/headoffice/materialMgmt/cuttingPlanInfoMgmt/service/CuttingPlanMgmtService.java:CuttingPlanMgmtService",
     "component:src/main/java/com/wina/headoffice/materialMgmt/cuttingPlanInfoMgmt/service/CuttingPlanMgmtServiceImpl.java:CuttingPlanMgmtServiceImpl",
     "component:src/main/java/com/wina/headoffice/partnerBaseInfo/procCodeMgmt/controller/ProcCodeMgmtController.java:ProcCodeMgmtController",
     "component:src/main/java/com/wina/headoffice/partnerBaseInfo/procCodeMgmt/repository/ProcCodeMgmtRepository.java:ProcCodeMgmtRepository",
+    "component:src/main/java/com/wina/headoffice/partnerBaseInfo/procCodeMgmt/service/ProcCodeMgmtService.java:ProcCodeMgmtService",
     "component:src/main/java/com/wina/headoffice/partnerBaseInfo/procCodeMgmt/service/ProcCodeMgmtServiceImpl.java:ProcCodeMgmtServiceImpl",
     "component:src/main/java/com/wina/partner/matMgmt/decoSheet/controller/DecoSheetController.java:DecoSheetController",
     "component:src/main/java/com/wina/partner/matMgmt/decoSheet/repository/DecoSheetRepository.java:DecoSheetRepository",
+    "component:src/main/java/com/wina/partner/matMgmt/decoSheet/service/DecoSheetService.java:DecoSheetService",
     "component:src/main/java/com/wina/partner/matMgmt/decoSheet/service/DecoSheetServiceImpl.java:DecoSheetServiceImpl",
     "component:src/main/java/com/wina/partner/ordProdPlanMgmt/prodOrdSpec/controller/ProdOrdSpecController.java:ProdOrdSpecController",
     "component:src/main/java/com/wina/partner/ordProdPlanMgmt/prodOrdSpec/repository/ProdOrdSpecRepository.java:ProdOrdSpecRepository",
+    "component:src/main/java/com/wina/partner/ordProdPlanMgmt/prodOrdSpec/service/ProdOrdSpecService.java:ProdOrdSpecService",
     "component:src/main/java/com/wina/partner/ordProdPlanMgmt/prodOrdSpec/service/ProdOrdSpecServiceImpl.java:ProdOrdSpecServiceImpl",
     "component:src/main/java/com/wina/partner/perfMgmt/transStmt/controller/TransStmtController.java:TransStmtController",
     "component:src/main/java/com/wina/partner/perfMgmt/transStmt/repository/TransStmtRepository.java:TransStmtRepository",
+    "component:src/main/java/com/wina/partner/perfMgmt/transStmt/service/TransStmtService.java:TransStmtService",
     "component:src/main/java/com/wina/partner/perfMgmt/transStmt/service/TransStmtServiceImpl.java:TransStmtServiceImpl",
+    "component:src/main/resources/mapper/contractMgmt.xml:contractMgmt.xml",
+    "component:src/main/resources/mapper/cuttingPlanInfoMgmt.xml:cuttingPlanInfoMgmt.xml",
+    "component:src/main/resources/mapper/decoSheet.xml:decoSheet.xml",
+    "component:src/main/resources/mapper/procCodeMgmt.xml:procCodeMgmt.xml",
+    "component:src/main/resources/mapper/prodOrdSpec.xml:prodOrdSpec.xml",
+    "component:src/main/resources/mapper/transStmt.xml:transStmt.xml",
+    "component:src/main/resources/mapper/userMgmt.xml:userMgmt.xml",
     "route:src/main/java/com/wina/agency/contractMgmt/controller/ContractMgmtController.java:/v1/agency/contractMgmt/:contractNo:GetMapping",
     "route:src/main/java/com/wina/agency/contractMgmt/controller/ContractMgmtController.java:/v1/agency/contractMgmt/list:GetMapping",
     "route:src/main/java/com/wina/agency/contractMgmt/controller/ContractMgmtController.java:/v1/agency/contractMgmt/save:PostMapping",
@@ -1578,7 +1991,7 @@ exports[`Phase XI — fixture baseline snapshots (P1) > mini-spring-partner-mock
     "table:src/main/resources/mapper/transStmt.xml:TWO_SPSL_PRO_DOC",
   ],
   "nodesByKind": {
-    "component": 21,
+    "component": 35,
     "route": 21,
     "table": 12,
   },
@@ -1748,20 +2161,28 @@ graph TD
   pkg_agency__userMgmt["userMgmt"]:::pkg
   subgraph di_component_src_main_java_com_wina_agency_contractMgmt_controller_ContractMgmtController_java_ContractMgmtController["[ DI ]"]
     direction TB
-    component_src_main_java_com_wina_agency_contractMgmt_controller_ContractMgmtController_java_ContractMgmtController["ContractMgmtController"]:::ssr
-    component_src_main_java_com_wina_agency_contractMgmt_service_ContractMgmtServiceImpl_java_ContractMgmtServiceImpl["ContractMgmtServiceImpl"]:::unk
-    component_src_main_java_com_wina_agency_contractMgmt_controller_ContractMgmtController_java_ContractMgmtController -.-> component_src_main_java_com_wina_agency_contractMgmt_service_ContractMgmtServiceImpl_java_ContractMgmtServiceImpl
-    component_src_main_java_com_wina_agency_contractMgmt_repository_ContractMgmtRepository_java_ContractMgmtRepository["ContractMgmtRepository"]:::ssg
-    component_src_main_java_com_wina_agency_contractMgmt_service_ContractMgmtServiceImpl_java_ContractMgmtServiceImpl -.-> component_src_main_java_com_wina_agency_contractMgmt_repository_ContractMgmtRepository_java_ContractMgmtRepository
+    di_component_src_main_java_com_wina_agency_contractMgmt_controller_ContractMgmtController_java_ContractMgmtController__component_src_main_java_com_wina_agency_contractMgmt_controller_ContractMgmtController_java_ContractMgmtController["ContractMgmtController"]:::ssr
+    di_component_src_main_java_com_wina_agency_contractMgmt_controller_ContractMgmtController_java_ContractMgmtController__component_src_main_java_com_wina_agency_contractMgmt_service_ContractMgmtService_java_ContractMgmtService["ContractMgmtService"]:::unk
+    di_component_src_main_java_com_wina_agency_contractMgmt_controller_ContractMgmtController_java_ContractMgmtController__component_src_main_java_com_wina_agency_contractMgmt_controller_ContractMgmtController_java_ContractMgmtController -.-> di_component_src_main_java_com_wina_agency_contractMgmt_controller_ContractMgmtController_java_ContractMgmtController__component_src_main_java_com_wina_agency_contractMgmt_service_ContractMgmtService_java_ContractMgmtService
+    di_component_src_main_java_com_wina_agency_contractMgmt_controller_ContractMgmtController_java_ContractMgmtController__component_src_main_java_com_wina_agency_contractMgmt_service_ContractMgmtServiceImpl_java_ContractMgmtServiceImpl["ContractMgmtServiceImpl"]:::unk
+    di_component_src_main_java_com_wina_agency_contractMgmt_controller_ContractMgmtController_java_ContractMgmtController__component_src_main_java_com_wina_agency_contractMgmt_service_ContractMgmtService_java_ContractMgmtService -.-> di_component_src_main_java_com_wina_agency_contractMgmt_controller_ContractMgmtController_java_ContractMgmtController__component_src_main_java_com_wina_agency_contractMgmt_service_ContractMgmtServiceImpl_java_ContractMgmtServiceImpl
+    di_component_src_main_java_com_wina_agency_contractMgmt_controller_ContractMgmtController_java_ContractMgmtController__component_src_main_java_com_wina_agency_contractMgmt_repository_ContractMgmtRepository_java_ContractMgmtRepository["ContractMgmtRepository"]:::ssg
+    di_component_src_main_java_com_wina_agency_contractMgmt_controller_ContractMgmtController_java_ContractMgmtController__component_src_main_java_com_wina_agency_contractMgmt_service_ContractMgmtServiceImpl_java_ContractMgmtServiceImpl -.-> di_component_src_main_java_com_wina_agency_contractMgmt_controller_ContractMgmtController_java_ContractMgmtController__component_src_main_java_com_wina_agency_contractMgmt_repository_ContractMgmtRepository_java_ContractMgmtRepository
+    di_component_src_main_java_com_wina_agency_contractMgmt_controller_ContractMgmtController_java_ContractMgmtController__component_src_main_resources_mapper_contractMgmt_xml_contractMgmt_xml["contractMgmt.xml"]:::pkg
+    di_component_src_main_java_com_wina_agency_contractMgmt_controller_ContractMgmtController_java_ContractMgmtController__component_src_main_java_com_wina_agency_contractMgmt_repository_ContractMgmtRepository_java_ContractMgmtRepository --> di_component_src_main_java_com_wina_agency_contractMgmt_controller_ContractMgmtController_java_ContractMgmtController__component_src_main_resources_mapper_contractMgmt_xml_contractMgmt_xml
   end
   pkg_agency__contractMgmt --> di_component_src_main_java_com_wina_agency_contractMgmt_controller_ContractMgmtController_java_ContractMgmtController
   subgraph di_component_src_main_java_com_wina_agency_userMgmt_controller_UserMgmtController_java_UserMgmtController["[ DI ]"]
     direction TB
-    component_src_main_java_com_wina_agency_userMgmt_controller_UserMgmtController_java_UserMgmtController["UserMgmtController"]:::ssr
-    component_src_main_java_com_wina_agency_userMgmt_service_UserMgmtServiceImpl_java_UserMgmtServiceImpl["UserMgmtServiceImpl"]:::unk
-    component_src_main_java_com_wina_agency_userMgmt_controller_UserMgmtController_java_UserMgmtController -.-> component_src_main_java_com_wina_agency_userMgmt_service_UserMgmtServiceImpl_java_UserMgmtServiceImpl
-    component_src_main_java_com_wina_agency_userMgmt_repository_UserMgmtRepository_java_UserMgmtRepository["UserMgmtRepository"]:::ssg
-    component_src_main_java_com_wina_agency_userMgmt_service_UserMgmtServiceImpl_java_UserMgmtServiceImpl -.-> component_src_main_java_com_wina_agency_userMgmt_repository_UserMgmtRepository_java_UserMgmtRepository
+    di_component_src_main_java_com_wina_agency_userMgmt_controller_UserMgmtController_java_UserMgmtController__component_src_main_java_com_wina_agency_userMgmt_controller_UserMgmtController_java_UserMgmtController["UserMgmtController"]:::ssr
+    di_component_src_main_java_com_wina_agency_userMgmt_controller_UserMgmtController_java_UserMgmtController__component_src_main_java_com_wina_agency_userMgmt_service_UserMgmtService_java_UserMgmtService["UserMgmtService"]:::unk
+    di_component_src_main_java_com_wina_agency_userMgmt_controller_UserMgmtController_java_UserMgmtController__component_src_main_java_com_wina_agency_userMgmt_controller_UserMgmtController_java_UserMgmtController -.-> di_component_src_main_java_com_wina_agency_userMgmt_controller_UserMgmtController_java_UserMgmtController__component_src_main_java_com_wina_agency_userMgmt_service_UserMgmtService_java_UserMgmtService
+    di_component_src_main_java_com_wina_agency_userMgmt_controller_UserMgmtController_java_UserMgmtController__component_src_main_java_com_wina_agency_userMgmt_service_UserMgmtServiceImpl_java_UserMgmtServiceImpl["UserMgmtServiceImpl"]:::unk
+    di_component_src_main_java_com_wina_agency_userMgmt_controller_UserMgmtController_java_UserMgmtController__component_src_main_java_com_wina_agency_userMgmt_service_UserMgmtService_java_UserMgmtService -.-> di_component_src_main_java_com_wina_agency_userMgmt_controller_UserMgmtController_java_UserMgmtController__component_src_main_java_com_wina_agency_userMgmt_service_UserMgmtServiceImpl_java_UserMgmtServiceImpl
+    di_component_src_main_java_com_wina_agency_userMgmt_controller_UserMgmtController_java_UserMgmtController__component_src_main_java_com_wina_agency_userMgmt_repository_UserMgmtRepository_java_UserMgmtRepository["UserMgmtRepository"]:::ssg
+    di_component_src_main_java_com_wina_agency_userMgmt_controller_UserMgmtController_java_UserMgmtController__component_src_main_java_com_wina_agency_userMgmt_service_UserMgmtServiceImpl_java_UserMgmtServiceImpl -.-> di_component_src_main_java_com_wina_agency_userMgmt_controller_UserMgmtController_java_UserMgmtController__component_src_main_java_com_wina_agency_userMgmt_repository_UserMgmtRepository_java_UserMgmtRepository
+    di_component_src_main_java_com_wina_agency_userMgmt_controller_UserMgmtController_java_UserMgmtController__component_src_main_resources_mapper_userMgmt_xml_userMgmt_xml["userMgmt.xml"]:::pkg
+    di_component_src_main_java_com_wina_agency_userMgmt_controller_UserMgmtController_java_UserMgmtController__component_src_main_java_com_wina_agency_userMgmt_repository_UserMgmtRepository_java_UserMgmtRepository --> di_component_src_main_java_com_wina_agency_userMgmt_controller_UserMgmtController_java_UserMgmtController__component_src_main_resources_mapper_userMgmt_xml_userMgmt_xml
   end
   pkg_agency__userMgmt --> di_component_src_main_java_com_wina_agency_userMgmt_controller_UserMgmtController_java_UserMgmtController
   end
@@ -1788,20 +2209,28 @@ graph TD
   pkg_headoffice__partnerBaseInfo --> pkg_headoffice__partnerBaseInfo__procCodeMgmt
   subgraph di_component_src_main_java_com_wina_headoffice_materialMgmt_cuttingPlanInfoMgmt_controller_CuttingPlanMgmtController_java_CuttingPlanMgmtController["[ DI ]"]
     direction TB
-    component_src_main_java_com_wina_headoffice_materialMgmt_cuttingPlanInfoMgmt_controller_CuttingPlanMgmtController_java_CuttingPlanMgmtController["CuttingPlanMgmtController"]:::ssr
-    component_src_main_java_com_wina_headoffice_materialMgmt_cuttingPlanInfoMgmt_service_CuttingPlanMgmtServiceImpl_java_CuttingPlanMgmtServiceImpl["CuttingPlanMgmtServiceImpl"]:::unk
-    component_src_main_java_com_wina_headoffice_materialMgmt_cuttingPlanInfoMgmt_controller_CuttingPlanMgmtController_java_CuttingPlanMgmtController -.-> component_src_main_java_com_wina_headoffice_materialMgmt_cuttingPlanInfoMgmt_service_CuttingPlanMgmtServiceImpl_java_CuttingPlanMgmtServiceImpl
-    component_src_main_java_com_wina_headoffice_materialMgmt_cuttingPlanInfoMgmt_repository_CuttingPlanMgmtRepository_java_CuttingPlanMgmtRepository["CuttingPlanMgmtRepository"]:::ssg
-    component_src_main_java_com_wina_headoffice_materialMgmt_cuttingPlanInfoMgmt_service_CuttingPlanMgmtServiceImpl_java_CuttingPlanMgmtServiceImpl -.-> component_src_main_java_com_wina_headoffice_materialMgmt_cuttingPlanInfoMgmt_repository_CuttingPlanMgmtRepository_java_CuttingPlanMgmtRepository
+    di_component_src_main_java_com_wina_headoffice_materialMgmt_cuttingPlanInfoMgmt_controller_CuttingPlanMgmtController_java_CuttingPlanMgmtController__component_src_main_java_com_wina_headoffice_materialMgmt_cuttingPlanInfoMgmt_controller_CuttingPlanMgmtController_java_CuttingPlanMgmtController["CuttingPlanMgmtController"]:::ssr
+    di_component_src_main_java_com_wina_headoffice_materialMgmt_cuttingPlanInfoMgmt_controller_CuttingPlanMgmtController_java_CuttingPlanMgmtController__component_src_main_java_com_wina_headoffice_materialMgmt_cuttingPlanInfoMgmt_service_CuttingPlanMgmtService_java_CuttingPlanMgmtService["CuttingPlanMgmtService"]:::unk
+    di_component_src_main_java_com_wina_headoffice_materialMgmt_cuttingPlanInfoMgmt_controller_CuttingPlanMgmtController_java_CuttingPlanMgmtController__component_src_main_java_com_wina_headoffice_materialMgmt_cuttingPlanInfoMgmt_controller_CuttingPlanMgmtController_java_CuttingPlanMgmtController -.-> di_component_src_main_java_com_wina_headoffice_materialMgmt_cuttingPlanInfoMgmt_controller_CuttingPlanMgmtController_java_CuttingPlanMgmtController__component_src_main_java_com_wina_headoffice_materialMgmt_cuttingPlanInfoMgmt_service_CuttingPlanMgmtService_java_CuttingPlanMgmtService
+    di_component_src_main_java_com_wina_headoffice_materialMgmt_cuttingPlanInfoMgmt_controller_CuttingPlanMgmtController_java_CuttingPlanMgmtController__component_src_main_java_com_wina_headoffice_materialMgmt_cuttingPlanInfoMgmt_service_CuttingPlanMgmtServiceImpl_java_CuttingPlanMgmtServiceImpl["CuttingPlanMgmtServiceImpl"]:::unk
+    di_component_src_main_java_com_wina_headoffice_materialMgmt_cuttingPlanInfoMgmt_controller_CuttingPlanMgmtController_java_CuttingPlanMgmtController__component_src_main_java_com_wina_headoffice_materialMgmt_cuttingPlanInfoMgmt_service_CuttingPlanMgmtService_java_CuttingPlanMgmtService -.-> di_component_src_main_java_com_wina_headoffice_materialMgmt_cuttingPlanInfoMgmt_controller_CuttingPlanMgmtController_java_CuttingPlanMgmtController__component_src_main_java_com_wina_headoffice_materialMgmt_cuttingPlanInfoMgmt_service_CuttingPlanMgmtServiceImpl_java_CuttingPlanMgmtServiceImpl
+    di_component_src_main_java_com_wina_headoffice_materialMgmt_cuttingPlanInfoMgmt_controller_CuttingPlanMgmtController_java_CuttingPlanMgmtController__component_src_main_java_com_wina_headoffice_materialMgmt_cuttingPlanInfoMgmt_repository_CuttingPlanMgmtRepository_java_CuttingPlanMgmtRepository["CuttingPlanMgmtRepository"]:::ssg
+    di_component_src_main_java_com_wina_headoffice_materialMgmt_cuttingPlanInfoMgmt_controller_CuttingPlanMgmtController_java_CuttingPlanMgmtController__component_src_main_java_com_wina_headoffice_materialMgmt_cuttingPlanInfoMgmt_service_CuttingPlanMgmtServiceImpl_java_CuttingPlanMgmtServiceImpl -.-> di_component_src_main_java_com_wina_headoffice_materialMgmt_cuttingPlanInfoMgmt_controller_CuttingPlanMgmtController_java_CuttingPlanMgmtController__component_src_main_java_com_wina_headoffice_materialMgmt_cuttingPlanInfoMgmt_repository_CuttingPlanMgmtRepository_java_CuttingPlanMgmtRepository
+    di_component_src_main_java_com_wina_headoffice_materialMgmt_cuttingPlanInfoMgmt_controller_CuttingPlanMgmtController_java_CuttingPlanMgmtController__component_src_main_resources_mapper_cuttingPlanInfoMgmt_xml_cuttingPlanInfoMgmt_xml["cuttingPlanInfoMgmt.xml"]:::pkg
+    di_component_src_main_java_com_wina_headoffice_materialMgmt_cuttingPlanInfoMgmt_controller_CuttingPlanMgmtController_java_CuttingPlanMgmtController__component_src_main_java_com_wina_headoffice_materialMgmt_cuttingPlanInfoMgmt_repository_CuttingPlanMgmtRepository_java_CuttingPlanMgmtRepository --> di_component_src_main_java_com_wina_headoffice_materialMgmt_cuttingPlanInfoMgmt_controller_CuttingPlanMgmtController_java_CuttingPlanMgmtController__component_src_main_resources_mapper_cuttingPlanInfoMgmt_xml_cuttingPlanInfoMgmt_xml
   end
   pkg_headoffice__materialMgmt__cuttingPlanInfoMgmt --> di_component_src_main_java_com_wina_headoffice_materialMgmt_cuttingPlanInfoMgmt_controller_CuttingPlanMgmtController_java_CuttingPlanMgmtController
   subgraph di_component_src_main_java_com_wina_headoffice_partnerBaseInfo_procCodeMgmt_controller_ProcCodeMgmtController_java_ProcCodeMgmtController["[ DI ]"]
     direction TB
-    component_src_main_java_com_wina_headoffice_partnerBaseInfo_procCodeMgmt_controller_ProcCodeMgmtController_java_ProcCodeMgmtController["ProcCodeMgmtController"]:::ssr
-    component_src_main_java_com_wina_headoffice_partnerBaseInfo_procCodeMgmt_service_ProcCodeMgmtServiceImpl_java_ProcCodeMgmtServiceImpl["ProcCodeMgmtServiceImpl"]:::unk
-    component_src_main_java_com_wina_headoffice_partnerBaseInfo_procCodeMgmt_controller_ProcCodeMgmtController_java_ProcCodeMgmtController -.-> component_src_main_java_com_wina_headoffice_partnerBaseInfo_procCodeMgmt_service_ProcCodeMgmtServiceImpl_java_ProcCodeMgmtServiceImpl
-    component_src_main_java_com_wina_headoffice_partnerBaseInfo_procCodeMgmt_repository_ProcCodeMgmtRepository_java_ProcCodeMgmtRepository["ProcCodeMgmtRepository"]:::ssg
-    component_src_main_java_com_wina_headoffice_partnerBaseInfo_procCodeMgmt_service_ProcCodeMgmtServiceImpl_java_ProcCodeMgmtServiceImpl -.-> component_src_main_java_com_wina_headoffice_partnerBaseInfo_procCodeMgmt_repository_ProcCodeMgmtRepository_java_ProcCodeMgmtRepository
+    di_component_src_main_java_com_wina_headoffice_partnerBaseInfo_procCodeMgmt_controller_ProcCodeMgmtController_java_ProcCodeMgmtController__component_src_main_java_com_wina_headoffice_partnerBaseInfo_procCodeMgmt_controller_ProcCodeMgmtController_java_ProcCodeMgmtController["ProcCodeMgmtController"]:::ssr
+    di_component_src_main_java_com_wina_headoffice_partnerBaseInfo_procCodeMgmt_controller_ProcCodeMgmtController_java_ProcCodeMgmtController__component_src_main_java_com_wina_headoffice_partnerBaseInfo_procCodeMgmt_service_ProcCodeMgmtService_java_ProcCodeMgmtService["ProcCodeMgmtService"]:::unk
+    di_component_src_main_java_com_wina_headoffice_partnerBaseInfo_procCodeMgmt_controller_ProcCodeMgmtController_java_ProcCodeMgmtController__component_src_main_java_com_wina_headoffice_partnerBaseInfo_procCodeMgmt_controller_ProcCodeMgmtController_java_ProcCodeMgmtController -.-> di_component_src_main_java_com_wina_headoffice_partnerBaseInfo_procCodeMgmt_controller_ProcCodeMgmtController_java_ProcCodeMgmtController__component_src_main_java_com_wina_headoffice_partnerBaseInfo_procCodeMgmt_service_ProcCodeMgmtService_java_ProcCodeMgmtService
+    di_component_src_main_java_com_wina_headoffice_partnerBaseInfo_procCodeMgmt_controller_ProcCodeMgmtController_java_ProcCodeMgmtController__component_src_main_java_com_wina_headoffice_partnerBaseInfo_procCodeMgmt_service_ProcCodeMgmtServiceImpl_java_ProcCodeMgmtServiceImpl["ProcCodeMgmtServiceImpl"]:::unk
+    di_component_src_main_java_com_wina_headoffice_partnerBaseInfo_procCodeMgmt_controller_ProcCodeMgmtController_java_ProcCodeMgmtController__component_src_main_java_com_wina_headoffice_partnerBaseInfo_procCodeMgmt_service_ProcCodeMgmtService_java_ProcCodeMgmtService -.-> di_component_src_main_java_com_wina_headoffice_partnerBaseInfo_procCodeMgmt_controller_ProcCodeMgmtController_java_ProcCodeMgmtController__component_src_main_java_com_wina_headoffice_partnerBaseInfo_procCodeMgmt_service_ProcCodeMgmtServiceImpl_java_ProcCodeMgmtServiceImpl
+    di_component_src_main_java_com_wina_headoffice_partnerBaseInfo_procCodeMgmt_controller_ProcCodeMgmtController_java_ProcCodeMgmtController__component_src_main_java_com_wina_headoffice_partnerBaseInfo_procCodeMgmt_repository_ProcCodeMgmtRepository_java_ProcCodeMgmtRepository["ProcCodeMgmtRepository"]:::ssg
+    di_component_src_main_java_com_wina_headoffice_partnerBaseInfo_procCodeMgmt_controller_ProcCodeMgmtController_java_ProcCodeMgmtController__component_src_main_java_com_wina_headoffice_partnerBaseInfo_procCodeMgmt_service_ProcCodeMgmtServiceImpl_java_ProcCodeMgmtServiceImpl -.-> di_component_src_main_java_com_wina_headoffice_partnerBaseInfo_procCodeMgmt_controller_ProcCodeMgmtController_java_ProcCodeMgmtController__component_src_main_java_com_wina_headoffice_partnerBaseInfo_procCodeMgmt_repository_ProcCodeMgmtRepository_java_ProcCodeMgmtRepository
+    di_component_src_main_java_com_wina_headoffice_partnerBaseInfo_procCodeMgmt_controller_ProcCodeMgmtController_java_ProcCodeMgmtController__component_src_main_resources_mapper_procCodeMgmt_xml_procCodeMgmt_xml["procCodeMgmt.xml"]:::pkg
+    di_component_src_main_java_com_wina_headoffice_partnerBaseInfo_procCodeMgmt_controller_ProcCodeMgmtController_java_ProcCodeMgmtController__component_src_main_java_com_wina_headoffice_partnerBaseInfo_procCodeMgmt_repository_ProcCodeMgmtRepository_java_ProcCodeMgmtRepository --> di_component_src_main_java_com_wina_headoffice_partnerBaseInfo_procCodeMgmt_controller_ProcCodeMgmtController_java_ProcCodeMgmtController__component_src_main_resources_mapper_procCodeMgmt_xml_procCodeMgmt_xml
   end
   pkg_headoffice__partnerBaseInfo__procCodeMgmt --> di_component_src_main_java_com_wina_headoffice_partnerBaseInfo_procCodeMgmt_controller_ProcCodeMgmtController_java_ProcCodeMgmtController
   end
@@ -1831,29 +2260,41 @@ graph TD
   pkg_partner__perfMgmt --> pkg_partner__perfMgmt__transStmt
   subgraph di_component_src_main_java_com_wina_partner_matMgmt_decoSheet_controller_DecoSheetController_java_DecoSheetController["[ DI ]"]
     direction TB
-    component_src_main_java_com_wina_partner_matMgmt_decoSheet_controller_DecoSheetController_java_DecoSheetController["DecoSheetController"]:::ssr
-    component_src_main_java_com_wina_partner_matMgmt_decoSheet_service_DecoSheetServiceImpl_java_DecoSheetServiceImpl["DecoSheetServiceImpl"]:::unk
-    component_src_main_java_com_wina_partner_matMgmt_decoSheet_controller_DecoSheetController_java_DecoSheetController -.-> component_src_main_java_com_wina_partner_matMgmt_decoSheet_service_DecoSheetServiceImpl_java_DecoSheetServiceImpl
-    component_src_main_java_com_wina_partner_matMgmt_decoSheet_repository_DecoSheetRepository_java_DecoSheetRepository["DecoSheetRepository"]:::ssg
-    component_src_main_java_com_wina_partner_matMgmt_decoSheet_service_DecoSheetServiceImpl_java_DecoSheetServiceImpl -.-> component_src_main_java_com_wina_partner_matMgmt_decoSheet_repository_DecoSheetRepository_java_DecoSheetRepository
+    di_component_src_main_java_com_wina_partner_matMgmt_decoSheet_controller_DecoSheetController_java_DecoSheetController__component_src_main_java_com_wina_partner_matMgmt_decoSheet_controller_DecoSheetController_java_DecoSheetController["DecoSheetController"]:::ssr
+    di_component_src_main_java_com_wina_partner_matMgmt_decoSheet_controller_DecoSheetController_java_DecoSheetController__component_src_main_java_com_wina_partner_matMgmt_decoSheet_service_DecoSheetService_java_DecoSheetService["DecoSheetService"]:::unk
+    di_component_src_main_java_com_wina_partner_matMgmt_decoSheet_controller_DecoSheetController_java_DecoSheetController__component_src_main_java_com_wina_partner_matMgmt_decoSheet_controller_DecoSheetController_java_DecoSheetController -.-> di_component_src_main_java_com_wina_partner_matMgmt_decoSheet_controller_DecoSheetController_java_DecoSheetController__component_src_main_java_com_wina_partner_matMgmt_decoSheet_service_DecoSheetService_java_DecoSheetService
+    di_component_src_main_java_com_wina_partner_matMgmt_decoSheet_controller_DecoSheetController_java_DecoSheetController__component_src_main_java_com_wina_partner_matMgmt_decoSheet_service_DecoSheetServiceImpl_java_DecoSheetServiceImpl["DecoSheetServiceImpl"]:::unk
+    di_component_src_main_java_com_wina_partner_matMgmt_decoSheet_controller_DecoSheetController_java_DecoSheetController__component_src_main_java_com_wina_partner_matMgmt_decoSheet_service_DecoSheetService_java_DecoSheetService -.-> di_component_src_main_java_com_wina_partner_matMgmt_decoSheet_controller_DecoSheetController_java_DecoSheetController__component_src_main_java_com_wina_partner_matMgmt_decoSheet_service_DecoSheetServiceImpl_java_DecoSheetServiceImpl
+    di_component_src_main_java_com_wina_partner_matMgmt_decoSheet_controller_DecoSheetController_java_DecoSheetController__component_src_main_java_com_wina_partner_matMgmt_decoSheet_repository_DecoSheetRepository_java_DecoSheetRepository["DecoSheetRepository"]:::ssg
+    di_component_src_main_java_com_wina_partner_matMgmt_decoSheet_controller_DecoSheetController_java_DecoSheetController__component_src_main_java_com_wina_partner_matMgmt_decoSheet_service_DecoSheetServiceImpl_java_DecoSheetServiceImpl -.-> di_component_src_main_java_com_wina_partner_matMgmt_decoSheet_controller_DecoSheetController_java_DecoSheetController__component_src_main_java_com_wina_partner_matMgmt_decoSheet_repository_DecoSheetRepository_java_DecoSheetRepository
+    di_component_src_main_java_com_wina_partner_matMgmt_decoSheet_controller_DecoSheetController_java_DecoSheetController__component_src_main_resources_mapper_decoSheet_xml_decoSheet_xml["decoSheet.xml"]:::pkg
+    di_component_src_main_java_com_wina_partner_matMgmt_decoSheet_controller_DecoSheetController_java_DecoSheetController__component_src_main_java_com_wina_partner_matMgmt_decoSheet_repository_DecoSheetRepository_java_DecoSheetRepository --> di_component_src_main_java_com_wina_partner_matMgmt_decoSheet_controller_DecoSheetController_java_DecoSheetController__component_src_main_resources_mapper_decoSheet_xml_decoSheet_xml
   end
   pkg_partner__matMgmt__decoSheet --> di_component_src_main_java_com_wina_partner_matMgmt_decoSheet_controller_DecoSheetController_java_DecoSheetController
   subgraph di_component_src_main_java_com_wina_partner_ordProdPlanMgmt_prodOrdSpec_controller_ProdOrdSpecController_java_ProdOrdSpecController["[ DI ]"]
     direction TB
-    component_src_main_java_com_wina_partner_ordProdPlanMgmt_prodOrdSpec_controller_ProdOrdSpecController_java_ProdOrdSpecController["ProdOrdSpecController"]:::ssr
-    component_src_main_java_com_wina_partner_ordProdPlanMgmt_prodOrdSpec_service_ProdOrdSpecServiceImpl_java_ProdOrdSpecServiceImpl["ProdOrdSpecServiceImpl"]:::unk
-    component_src_main_java_com_wina_partner_ordProdPlanMgmt_prodOrdSpec_controller_ProdOrdSpecController_java_ProdOrdSpecController -.-> component_src_main_java_com_wina_partner_ordProdPlanMgmt_prodOrdSpec_service_ProdOrdSpecServiceImpl_java_ProdOrdSpecServiceImpl
-    component_src_main_java_com_wina_partner_ordProdPlanMgmt_prodOrdSpec_repository_ProdOrdSpecRepository_java_ProdOrdSpecRepository["ProdOrdSpecRepository"]:::ssg
-    component_src_main_java_com_wina_partner_ordProdPlanMgmt_prodOrdSpec_service_ProdOrdSpecServiceImpl_java_ProdOrdSpecServiceImpl -.-> component_src_main_java_com_wina_partner_ordProdPlanMgmt_prodOrdSpec_repository_ProdOrdSpecRepository_java_ProdOrdSpecRepository
+    di_component_src_main_java_com_wina_partner_ordProdPlanMgmt_prodOrdSpec_controller_ProdOrdSpecController_java_ProdOrdSpecController__component_src_main_java_com_wina_partner_ordProdPlanMgmt_prodOrdSpec_controller_ProdOrdSpecController_java_ProdOrdSpecController["ProdOrdSpecController"]:::ssr
+    di_component_src_main_java_com_wina_partner_ordProdPlanMgmt_prodOrdSpec_controller_ProdOrdSpecController_java_ProdOrdSpecController__component_src_main_java_com_wina_partner_ordProdPlanMgmt_prodOrdSpec_service_ProdOrdSpecService_java_ProdOrdSpecService["ProdOrdSpecService"]:::unk
+    di_component_src_main_java_com_wina_partner_ordProdPlanMgmt_prodOrdSpec_controller_ProdOrdSpecController_java_ProdOrdSpecController__component_src_main_java_com_wina_partner_ordProdPlanMgmt_prodOrdSpec_controller_ProdOrdSpecController_java_ProdOrdSpecController -.-> di_component_src_main_java_com_wina_partner_ordProdPlanMgmt_prodOrdSpec_controller_ProdOrdSpecController_java_ProdOrdSpecController__component_src_main_java_com_wina_partner_ordProdPlanMgmt_prodOrdSpec_service_ProdOrdSpecService_java_ProdOrdSpecService
+    di_component_src_main_java_com_wina_partner_ordProdPlanMgmt_prodOrdSpec_controller_ProdOrdSpecController_java_ProdOrdSpecController__component_src_main_java_com_wina_partner_ordProdPlanMgmt_prodOrdSpec_service_ProdOrdSpecServiceImpl_java_ProdOrdSpecServiceImpl["ProdOrdSpecServiceImpl"]:::unk
+    di_component_src_main_java_com_wina_partner_ordProdPlanMgmt_prodOrdSpec_controller_ProdOrdSpecController_java_ProdOrdSpecController__component_src_main_java_com_wina_partner_ordProdPlanMgmt_prodOrdSpec_service_ProdOrdSpecService_java_ProdOrdSpecService -.-> di_component_src_main_java_com_wina_partner_ordProdPlanMgmt_prodOrdSpec_controller_ProdOrdSpecController_java_ProdOrdSpecController__component_src_main_java_com_wina_partner_ordProdPlanMgmt_prodOrdSpec_service_ProdOrdSpecServiceImpl_java_ProdOrdSpecServiceImpl
+    di_component_src_main_java_com_wina_partner_ordProdPlanMgmt_prodOrdSpec_controller_ProdOrdSpecController_java_ProdOrdSpecController__component_src_main_java_com_wina_partner_ordProdPlanMgmt_prodOrdSpec_repository_ProdOrdSpecRepository_java_ProdOrdSpecRepository["ProdOrdSpecRepository"]:::ssg
+    di_component_src_main_java_com_wina_partner_ordProdPlanMgmt_prodOrdSpec_controller_ProdOrdSpecController_java_ProdOrdSpecController__component_src_main_java_com_wina_partner_ordProdPlanMgmt_prodOrdSpec_service_ProdOrdSpecServiceImpl_java_ProdOrdSpecServiceImpl -.-> di_component_src_main_java_com_wina_partner_ordProdPlanMgmt_prodOrdSpec_controller_ProdOrdSpecController_java_ProdOrdSpecController__component_src_main_java_com_wina_partner_ordProdPlanMgmt_prodOrdSpec_repository_ProdOrdSpecRepository_java_ProdOrdSpecRepository
+    di_component_src_main_java_com_wina_partner_ordProdPlanMgmt_prodOrdSpec_controller_ProdOrdSpecController_java_ProdOrdSpecController__component_src_main_resources_mapper_prodOrdSpec_xml_prodOrdSpec_xml["prodOrdSpec.xml"]:::pkg
+    di_component_src_main_java_com_wina_partner_ordProdPlanMgmt_prodOrdSpec_controller_ProdOrdSpecController_java_ProdOrdSpecController__component_src_main_java_com_wina_partner_ordProdPlanMgmt_prodOrdSpec_repository_ProdOrdSpecRepository_java_ProdOrdSpecRepository --> di_component_src_main_java_com_wina_partner_ordProdPlanMgmt_prodOrdSpec_controller_ProdOrdSpecController_java_ProdOrdSpecController__component_src_main_resources_mapper_prodOrdSpec_xml_prodOrdSpec_xml
   end
   pkg_partner__ordProdPlanMgmt__prodOrdSpec --> di_component_src_main_java_com_wina_partner_ordProdPlanMgmt_prodOrdSpec_controller_ProdOrdSpecController_java_ProdOrdSpecController
   subgraph di_component_src_main_java_com_wina_partner_perfMgmt_transStmt_controller_TransStmtController_java_TransStmtController["[ DI ]"]
     direction TB
-    component_src_main_java_com_wina_partner_perfMgmt_transStmt_controller_TransStmtController_java_TransStmtController["TransStmtController"]:::ssr
-    component_src_main_java_com_wina_partner_perfMgmt_transStmt_service_TransStmtServiceImpl_java_TransStmtServiceImpl["TransStmtServiceImpl"]:::unk
-    component_src_main_java_com_wina_partner_perfMgmt_transStmt_controller_TransStmtController_java_TransStmtController -.-> component_src_main_java_com_wina_partner_perfMgmt_transStmt_service_TransStmtServiceImpl_java_TransStmtServiceImpl
-    component_src_main_java_com_wina_partner_perfMgmt_transStmt_repository_TransStmtRepository_java_TransStmtRepository["TransStmtRepository"]:::ssg
-    component_src_main_java_com_wina_partner_perfMgmt_transStmt_service_TransStmtServiceImpl_java_TransStmtServiceImpl -.-> component_src_main_java_com_wina_partner_perfMgmt_transStmt_repository_TransStmtRepository_java_TransStmtRepository
+    di_component_src_main_java_com_wina_partner_perfMgmt_transStmt_controller_TransStmtController_java_TransStmtController__component_src_main_java_com_wina_partner_perfMgmt_transStmt_controller_TransStmtController_java_TransStmtController["TransStmtController"]:::ssr
+    di_component_src_main_java_com_wina_partner_perfMgmt_transStmt_controller_TransStmtController_java_TransStmtController__component_src_main_java_com_wina_partner_perfMgmt_transStmt_service_TransStmtService_java_TransStmtService["TransStmtService"]:::unk
+    di_component_src_main_java_com_wina_partner_perfMgmt_transStmt_controller_TransStmtController_java_TransStmtController__component_src_main_java_com_wina_partner_perfMgmt_transStmt_controller_TransStmtController_java_TransStmtController -.-> di_component_src_main_java_com_wina_partner_perfMgmt_transStmt_controller_TransStmtController_java_TransStmtController__component_src_main_java_com_wina_partner_perfMgmt_transStmt_service_TransStmtService_java_TransStmtService
+    di_component_src_main_java_com_wina_partner_perfMgmt_transStmt_controller_TransStmtController_java_TransStmtController__component_src_main_java_com_wina_partner_perfMgmt_transStmt_service_TransStmtServiceImpl_java_TransStmtServiceImpl["TransStmtServiceImpl"]:::unk
+    di_component_src_main_java_com_wina_partner_perfMgmt_transStmt_controller_TransStmtController_java_TransStmtController__component_src_main_java_com_wina_partner_perfMgmt_transStmt_service_TransStmtService_java_TransStmtService -.-> di_component_src_main_java_com_wina_partner_perfMgmt_transStmt_controller_TransStmtController_java_TransStmtController__component_src_main_java_com_wina_partner_perfMgmt_transStmt_service_TransStmtServiceImpl_java_TransStmtServiceImpl
+    di_component_src_main_java_com_wina_partner_perfMgmt_transStmt_controller_TransStmtController_java_TransStmtController__component_src_main_java_com_wina_partner_perfMgmt_transStmt_repository_TransStmtRepository_java_TransStmtRepository["TransStmtRepository"]:::ssg
+    di_component_src_main_java_com_wina_partner_perfMgmt_transStmt_controller_TransStmtController_java_TransStmtController__component_src_main_java_com_wina_partner_perfMgmt_transStmt_service_TransStmtServiceImpl_java_TransStmtServiceImpl -.-> di_component_src_main_java_com_wina_partner_perfMgmt_transStmt_controller_TransStmtController_java_TransStmtController__component_src_main_java_com_wina_partner_perfMgmt_transStmt_repository_TransStmtRepository_java_TransStmtRepository
+    di_component_src_main_java_com_wina_partner_perfMgmt_transStmt_controller_TransStmtController_java_TransStmtController__component_src_main_resources_mapper_transStmt_xml_transStmt_xml["transStmt.xml"]:::pkg
+    di_component_src_main_java_com_wina_partner_perfMgmt_transStmt_controller_TransStmtController_java_TransStmtController__component_src_main_java_com_wina_partner_perfMgmt_transStmt_repository_TransStmtRepository_java_TransStmtRepository --> di_component_src_main_java_com_wina_partner_perfMgmt_transStmt_controller_TransStmtController_java_TransStmtController__component_src_main_resources_mapper_transStmt_xml_transStmt_xml
   end
   pkg_partner__perfMgmt__transStmt --> di_component_src_main_java_com_wina_partner_perfMgmt_transStmt_controller_TransStmtController_java_TransStmtController
   end"
@@ -2375,11 +2816,11 @@ graph TD
   pkg_agency__main["main"]:::pkg
   subgraph di_component_src_main_java_com_wina_agency_main_controller_MainController_java_MainController["[ DI ]"]
     direction TB
-    component_src_main_java_com_wina_agency_main_controller_MainController_java_MainController["MainController"]:::ssr
-    component_src_main_java_com_wina_agency_main_service_MainService_java_MainService["MainService"]:::unk
-    component_src_main_java_com_wina_agency_main_controller_MainController_java_MainController -.-> component_src_main_java_com_wina_agency_main_service_MainService_java_MainService
-    component_src_main_java_com_wina_agency_main_repository_MainRepository_java_MainRepository["MainRepository"]:::ssg
-    component_src_main_java_com_wina_agency_main_service_MainService_java_MainService -.-> component_src_main_java_com_wina_agency_main_repository_MainRepository_java_MainRepository
+    di_component_src_main_java_com_wina_agency_main_controller_MainController_java_MainController__component_src_main_java_com_wina_agency_main_controller_MainController_java_MainController["MainController"]:::ssr
+    di_component_src_main_java_com_wina_agency_main_controller_MainController_java_MainController__component_src_main_java_com_wina_agency_main_service_MainService_java_MainService["MainService"]:::unk
+    di_component_src_main_java_com_wina_agency_main_controller_MainController_java_MainController__component_src_main_java_com_wina_agency_main_controller_MainController_java_MainController -.-> di_component_src_main_java_com_wina_agency_main_controller_MainController_java_MainController__component_src_main_java_com_wina_agency_main_service_MainService_java_MainService
+    di_component_src_main_java_com_wina_agency_main_controller_MainController_java_MainController__component_src_main_java_com_wina_agency_main_repository_MainRepository_java_MainRepository["MainRepository"]:::ssg
+    di_component_src_main_java_com_wina_agency_main_controller_MainController_java_MainController__component_src_main_java_com_wina_agency_main_service_MainService_java_MainService -.-> di_component_src_main_java_com_wina_agency_main_controller_MainController_java_MainController__component_src_main_java_com_wina_agency_main_repository_MainRepository_java_MainRepository
   end
   pkg_agency__main --> di_component_src_main_java_com_wina_agency_main_controller_MainController_java_MainController
   end
@@ -2420,182 +2861,182 @@ graph TD
   pkg_partner__vendor["vendor"]:::pkg
   subgraph di_component_src_main_java_com_wina_partner_billing_controller_BillingController_java_BillingController["[ DI ]"]
     direction TB
-    component_src_main_java_com_wina_partner_billing_controller_BillingController_java_BillingController["BillingController"]:::ssr
-    component_src_main_java_com_wina_partner_billing_service_BillingService_java_BillingService["BillingService"]:::unk
-    component_src_main_java_com_wina_partner_billing_controller_BillingController_java_BillingController -.-> component_src_main_java_com_wina_partner_billing_service_BillingService_java_BillingService
-    component_src_main_java_com_wina_partner_billing_repository_BillingRepository_java_BillingRepository["BillingRepository"]:::ssg
-    component_src_main_java_com_wina_partner_billing_service_BillingService_java_BillingService -.-> component_src_main_java_com_wina_partner_billing_repository_BillingRepository_java_BillingRepository
+    di_component_src_main_java_com_wina_partner_billing_controller_BillingController_java_BillingController__component_src_main_java_com_wina_partner_billing_controller_BillingController_java_BillingController["BillingController"]:::ssr
+    di_component_src_main_java_com_wina_partner_billing_controller_BillingController_java_BillingController__component_src_main_java_com_wina_partner_billing_service_BillingService_java_BillingService["BillingService"]:::unk
+    di_component_src_main_java_com_wina_partner_billing_controller_BillingController_java_BillingController__component_src_main_java_com_wina_partner_billing_controller_BillingController_java_BillingController -.-> di_component_src_main_java_com_wina_partner_billing_controller_BillingController_java_BillingController__component_src_main_java_com_wina_partner_billing_service_BillingService_java_BillingService
+    di_component_src_main_java_com_wina_partner_billing_controller_BillingController_java_BillingController__component_src_main_java_com_wina_partner_billing_repository_BillingRepository_java_BillingRepository["BillingRepository"]:::ssg
+    di_component_src_main_java_com_wina_partner_billing_controller_BillingController_java_BillingController__component_src_main_java_com_wina_partner_billing_service_BillingService_java_BillingService -.-> di_component_src_main_java_com_wina_partner_billing_controller_BillingController_java_BillingController__component_src_main_java_com_wina_partner_billing_repository_BillingRepository_java_BillingRepository
   end
   pkg_partner__billing --> di_component_src_main_java_com_wina_partner_billing_controller_BillingController_java_BillingController
   subgraph di_component_src_main_java_com_wina_partner_campaign_controller_CampaignController_java_CampaignController["[ DI ]"]
     direction TB
-    component_src_main_java_com_wina_partner_campaign_controller_CampaignController_java_CampaignController["CampaignController"]:::ssr
-    component_src_main_java_com_wina_partner_campaign_service_CampaignService_java_CampaignService["CampaignService"]:::unk
-    component_src_main_java_com_wina_partner_campaign_controller_CampaignController_java_CampaignController -.-> component_src_main_java_com_wina_partner_campaign_service_CampaignService_java_CampaignService
-    component_src_main_java_com_wina_partner_campaign_repository_CampaignRepository_java_CampaignRepository["CampaignRepository"]:::ssg
-    component_src_main_java_com_wina_partner_campaign_service_CampaignService_java_CampaignService -.-> component_src_main_java_com_wina_partner_campaign_repository_CampaignRepository_java_CampaignRepository
+    di_component_src_main_java_com_wina_partner_campaign_controller_CampaignController_java_CampaignController__component_src_main_java_com_wina_partner_campaign_controller_CampaignController_java_CampaignController["CampaignController"]:::ssr
+    di_component_src_main_java_com_wina_partner_campaign_controller_CampaignController_java_CampaignController__component_src_main_java_com_wina_partner_campaign_service_CampaignService_java_CampaignService["CampaignService"]:::unk
+    di_component_src_main_java_com_wina_partner_campaign_controller_CampaignController_java_CampaignController__component_src_main_java_com_wina_partner_campaign_controller_CampaignController_java_CampaignController -.-> di_component_src_main_java_com_wina_partner_campaign_controller_CampaignController_java_CampaignController__component_src_main_java_com_wina_partner_campaign_service_CampaignService_java_CampaignService
+    di_component_src_main_java_com_wina_partner_campaign_controller_CampaignController_java_CampaignController__component_src_main_java_com_wina_partner_campaign_repository_CampaignRepository_java_CampaignRepository["CampaignRepository"]:::ssg
+    di_component_src_main_java_com_wina_partner_campaign_controller_CampaignController_java_CampaignController__component_src_main_java_com_wina_partner_campaign_service_CampaignService_java_CampaignService -.-> di_component_src_main_java_com_wina_partner_campaign_controller_CampaignController_java_CampaignController__component_src_main_java_com_wina_partner_campaign_repository_CampaignRepository_java_CampaignRepository
   end
   pkg_partner__campaign --> di_component_src_main_java_com_wina_partner_campaign_controller_CampaignController_java_CampaignController
   subgraph di_component_src_main_java_com_wina_partner_contract_controller_ContractController_java_ContractController["[ DI ]"]
     direction TB
-    component_src_main_java_com_wina_partner_contract_controller_ContractController_java_ContractController["ContractController"]:::ssr
-    component_src_main_java_com_wina_partner_contract_service_ContractService_java_ContractService["ContractService"]:::unk
-    component_src_main_java_com_wina_partner_contract_controller_ContractController_java_ContractController -.-> component_src_main_java_com_wina_partner_contract_service_ContractService_java_ContractService
-    component_src_main_java_com_wina_partner_contract_repository_ContractRepository_java_ContractRepository["ContractRepository"]:::ssg
-    component_src_main_java_com_wina_partner_contract_service_ContractService_java_ContractService -.-> component_src_main_java_com_wina_partner_contract_repository_ContractRepository_java_ContractRepository
+    di_component_src_main_java_com_wina_partner_contract_controller_ContractController_java_ContractController__component_src_main_java_com_wina_partner_contract_controller_ContractController_java_ContractController["ContractController"]:::ssr
+    di_component_src_main_java_com_wina_partner_contract_controller_ContractController_java_ContractController__component_src_main_java_com_wina_partner_contract_service_ContractService_java_ContractService["ContractService"]:::unk
+    di_component_src_main_java_com_wina_partner_contract_controller_ContractController_java_ContractController__component_src_main_java_com_wina_partner_contract_controller_ContractController_java_ContractController -.-> di_component_src_main_java_com_wina_partner_contract_controller_ContractController_java_ContractController__component_src_main_java_com_wina_partner_contract_service_ContractService_java_ContractService
+    di_component_src_main_java_com_wina_partner_contract_controller_ContractController_java_ContractController__component_src_main_java_com_wina_partner_contract_repository_ContractRepository_java_ContractRepository["ContractRepository"]:::ssg
+    di_component_src_main_java_com_wina_partner_contract_controller_ContractController_java_ContractController__component_src_main_java_com_wina_partner_contract_service_ContractService_java_ContractService -.-> di_component_src_main_java_com_wina_partner_contract_controller_ContractController_java_ContractController__component_src_main_java_com_wina_partner_contract_repository_ContractRepository_java_ContractRepository
   end
   pkg_partner__contract --> di_component_src_main_java_com_wina_partner_contract_controller_ContractController_java_ContractController
   subgraph di_component_src_main_java_com_wina_partner_dashboard_controller_DashboardController_java_DashboardController["[ DI ]"]
     direction TB
-    component_src_main_java_com_wina_partner_dashboard_controller_DashboardController_java_DashboardController["DashboardController"]:::ssr
-    component_src_main_java_com_wina_partner_dashboard_service_DashboardService_java_DashboardService["DashboardService"]:::unk
-    component_src_main_java_com_wina_partner_dashboard_controller_DashboardController_java_DashboardController -.-> component_src_main_java_com_wina_partner_dashboard_service_DashboardService_java_DashboardService
-    component_src_main_java_com_wina_partner_dashboard_repository_DashboardRepository_java_DashboardRepository["DashboardRepository"]:::ssg
-    component_src_main_java_com_wina_partner_dashboard_service_DashboardService_java_DashboardService -.-> component_src_main_java_com_wina_partner_dashboard_repository_DashboardRepository_java_DashboardRepository
+    di_component_src_main_java_com_wina_partner_dashboard_controller_DashboardController_java_DashboardController__component_src_main_java_com_wina_partner_dashboard_controller_DashboardController_java_DashboardController["DashboardController"]:::ssr
+    di_component_src_main_java_com_wina_partner_dashboard_controller_DashboardController_java_DashboardController__component_src_main_java_com_wina_partner_dashboard_service_DashboardService_java_DashboardService["DashboardService"]:::unk
+    di_component_src_main_java_com_wina_partner_dashboard_controller_DashboardController_java_DashboardController__component_src_main_java_com_wina_partner_dashboard_controller_DashboardController_java_DashboardController -.-> di_component_src_main_java_com_wina_partner_dashboard_controller_DashboardController_java_DashboardController__component_src_main_java_com_wina_partner_dashboard_service_DashboardService_java_DashboardService
+    di_component_src_main_java_com_wina_partner_dashboard_controller_DashboardController_java_DashboardController__component_src_main_java_com_wina_partner_dashboard_repository_DashboardRepository_java_DashboardRepository["DashboardRepository"]:::ssg
+    di_component_src_main_java_com_wina_partner_dashboard_controller_DashboardController_java_DashboardController__component_src_main_java_com_wina_partner_dashboard_service_DashboardService_java_DashboardService -.-> di_component_src_main_java_com_wina_partner_dashboard_controller_DashboardController_java_DashboardController__component_src_main_java_com_wina_partner_dashboard_repository_DashboardRepository_java_DashboardRepository
   end
   pkg_partner__dashboard --> di_component_src_main_java_com_wina_partner_dashboard_controller_DashboardController_java_DashboardController
   subgraph di_component_src_main_java_com_wina_partner_decoSheet_controller_DecosheetController_java_DecosheetController["[ DI ]"]
     direction TB
-    component_src_main_java_com_wina_partner_decoSheet_controller_DecosheetController_java_DecosheetController["DecosheetController"]:::ssr
-    component_src_main_java_com_wina_partner_decoSheet_service_DecosheetService_java_DecosheetService["DecosheetService"]:::unk
-    component_src_main_java_com_wina_partner_decoSheet_controller_DecosheetController_java_DecosheetController -.-> component_src_main_java_com_wina_partner_decoSheet_service_DecosheetService_java_DecosheetService
-    component_src_main_java_com_wina_partner_decoSheet_repository_DecosheetRepository_java_DecosheetRepository["DecosheetRepository"]:::ssg
-    component_src_main_java_com_wina_partner_decoSheet_service_DecosheetService_java_DecosheetService -.-> component_src_main_java_com_wina_partner_decoSheet_repository_DecosheetRepository_java_DecosheetRepository
+    di_component_src_main_java_com_wina_partner_decoSheet_controller_DecosheetController_java_DecosheetController__component_src_main_java_com_wina_partner_decoSheet_controller_DecosheetController_java_DecosheetController["DecosheetController"]:::ssr
+    di_component_src_main_java_com_wina_partner_decoSheet_controller_DecosheetController_java_DecosheetController__component_src_main_java_com_wina_partner_decoSheet_service_DecosheetService_java_DecosheetService["DecosheetService"]:::unk
+    di_component_src_main_java_com_wina_partner_decoSheet_controller_DecosheetController_java_DecosheetController__component_src_main_java_com_wina_partner_decoSheet_controller_DecosheetController_java_DecosheetController -.-> di_component_src_main_java_com_wina_partner_decoSheet_controller_DecosheetController_java_DecosheetController__component_src_main_java_com_wina_partner_decoSheet_service_DecosheetService_java_DecosheetService
+    di_component_src_main_java_com_wina_partner_decoSheet_controller_DecosheetController_java_DecosheetController__component_src_main_java_com_wina_partner_decoSheet_repository_DecosheetRepository_java_DecosheetRepository["DecosheetRepository"]:::ssg
+    di_component_src_main_java_com_wina_partner_decoSheet_controller_DecosheetController_java_DecosheetController__component_src_main_java_com_wina_partner_decoSheet_service_DecosheetService_java_DecosheetService -.-> di_component_src_main_java_com_wina_partner_decoSheet_controller_DecosheetController_java_DecosheetController__component_src_main_java_com_wina_partner_decoSheet_repository_DecosheetRepository_java_DecosheetRepository
   end
   pkg_partner__decoSheet --> di_component_src_main_java_com_wina_partner_decoSheet_controller_DecosheetController_java_DecosheetController
   subgraph di_component_src_main_java_com_wina_partner_inv_controller_InvController_java_InvController["[ DI ]"]
     direction TB
-    component_src_main_java_com_wina_partner_inv_controller_InvController_java_InvController["InvController"]:::ssr
-    component_src_main_java_com_wina_partner_inv_service_InvService_java_InvService["InvService"]:::unk
-    component_src_main_java_com_wina_partner_inv_controller_InvController_java_InvController -.-> component_src_main_java_com_wina_partner_inv_service_InvService_java_InvService
-    component_src_main_java_com_wina_partner_inv_repository_InvRepository_java_InvRepository["InvRepository"]:::ssg
-    component_src_main_java_com_wina_partner_inv_service_InvService_java_InvService -.-> component_src_main_java_com_wina_partner_inv_repository_InvRepository_java_InvRepository
+    di_component_src_main_java_com_wina_partner_inv_controller_InvController_java_InvController__component_src_main_java_com_wina_partner_inv_controller_InvController_java_InvController["InvController"]:::ssr
+    di_component_src_main_java_com_wina_partner_inv_controller_InvController_java_InvController__component_src_main_java_com_wina_partner_inv_service_InvService_java_InvService["InvService"]:::unk
+    di_component_src_main_java_com_wina_partner_inv_controller_InvController_java_InvController__component_src_main_java_com_wina_partner_inv_controller_InvController_java_InvController -.-> di_component_src_main_java_com_wina_partner_inv_controller_InvController_java_InvController__component_src_main_java_com_wina_partner_inv_service_InvService_java_InvService
+    di_component_src_main_java_com_wina_partner_inv_controller_InvController_java_InvController__component_src_main_java_com_wina_partner_inv_repository_InvRepository_java_InvRepository["InvRepository"]:::ssg
+    di_component_src_main_java_com_wina_partner_inv_controller_InvController_java_InvController__component_src_main_java_com_wina_partner_inv_service_InvService_java_InvService -.-> di_component_src_main_java_com_wina_partner_inv_controller_InvController_java_InvController__component_src_main_java_com_wina_partner_inv_repository_InvRepository_java_InvRepository
   end
   pkg_partner__inv --> di_component_src_main_java_com_wina_partner_inv_controller_InvController_java_InvController
   subgraph di_component_src_main_java_com_wina_partner_inventory_controller_InventoryController_java_InventoryController["[ DI ]"]
     direction TB
-    component_src_main_java_com_wina_partner_inventory_controller_InventoryController_java_InventoryController["InventoryController"]:::ssr
-    component_src_main_java_com_wina_partner_inventory_service_InventoryService_java_InventoryService["InventoryService"]:::unk
-    component_src_main_java_com_wina_partner_inventory_controller_InventoryController_java_InventoryController -.-> component_src_main_java_com_wina_partner_inventory_service_InventoryService_java_InventoryService
-    component_src_main_java_com_wina_partner_inventory_repository_InventoryRepository_java_InventoryRepository["InventoryRepository"]:::ssg
-    component_src_main_java_com_wina_partner_inventory_service_InventoryService_java_InventoryService -.-> component_src_main_java_com_wina_partner_inventory_repository_InventoryRepository_java_InventoryRepository
+    di_component_src_main_java_com_wina_partner_inventory_controller_InventoryController_java_InventoryController__component_src_main_java_com_wina_partner_inventory_controller_InventoryController_java_InventoryController["InventoryController"]:::ssr
+    di_component_src_main_java_com_wina_partner_inventory_controller_InventoryController_java_InventoryController__component_src_main_java_com_wina_partner_inventory_service_InventoryService_java_InventoryService["InventoryService"]:::unk
+    di_component_src_main_java_com_wina_partner_inventory_controller_InventoryController_java_InventoryController__component_src_main_java_com_wina_partner_inventory_controller_InventoryController_java_InventoryController -.-> di_component_src_main_java_com_wina_partner_inventory_controller_InventoryController_java_InventoryController__component_src_main_java_com_wina_partner_inventory_service_InventoryService_java_InventoryService
+    di_component_src_main_java_com_wina_partner_inventory_controller_InventoryController_java_InventoryController__component_src_main_java_com_wina_partner_inventory_repository_InventoryRepository_java_InventoryRepository["InventoryRepository"]:::ssg
+    di_component_src_main_java_com_wina_partner_inventory_controller_InventoryController_java_InventoryController__component_src_main_java_com_wina_partner_inventory_service_InventoryService_java_InventoryService -.-> di_component_src_main_java_com_wina_partner_inventory_controller_InventoryController_java_InventoryController__component_src_main_java_com_wina_partner_inventory_repository_InventoryRepository_java_InventoryRepository
   end
   pkg_partner__inventory --> di_component_src_main_java_com_wina_partner_inventory_controller_InventoryController_java_InventoryController
   subgraph di_component_src_main_java_com_wina_partner_invoice_controller_InvoiceController_java_InvoiceController["[ DI ]"]
     direction TB
-    component_src_main_java_com_wina_partner_invoice_controller_InvoiceController_java_InvoiceController["InvoiceController"]:::ssr
-    component_src_main_java_com_wina_partner_invoice_service_InvoiceService_java_InvoiceService["InvoiceService"]:::unk
-    component_src_main_java_com_wina_partner_invoice_controller_InvoiceController_java_InvoiceController -.-> component_src_main_java_com_wina_partner_invoice_service_InvoiceService_java_InvoiceService
-    component_src_main_java_com_wina_partner_invoice_repository_InvoiceRepository_java_InvoiceRepository["InvoiceRepository"]:::ssg
-    component_src_main_java_com_wina_partner_invoice_service_InvoiceService_java_InvoiceService -.-> component_src_main_java_com_wina_partner_invoice_repository_InvoiceRepository_java_InvoiceRepository
+    di_component_src_main_java_com_wina_partner_invoice_controller_InvoiceController_java_InvoiceController__component_src_main_java_com_wina_partner_invoice_controller_InvoiceController_java_InvoiceController["InvoiceController"]:::ssr
+    di_component_src_main_java_com_wina_partner_invoice_controller_InvoiceController_java_InvoiceController__component_src_main_java_com_wina_partner_invoice_service_InvoiceService_java_InvoiceService["InvoiceService"]:::unk
+    di_component_src_main_java_com_wina_partner_invoice_controller_InvoiceController_java_InvoiceController__component_src_main_java_com_wina_partner_invoice_controller_InvoiceController_java_InvoiceController -.-> di_component_src_main_java_com_wina_partner_invoice_controller_InvoiceController_java_InvoiceController__component_src_main_java_com_wina_partner_invoice_service_InvoiceService_java_InvoiceService
+    di_component_src_main_java_com_wina_partner_invoice_controller_InvoiceController_java_InvoiceController__component_src_main_java_com_wina_partner_invoice_repository_InvoiceRepository_java_InvoiceRepository["InvoiceRepository"]:::ssg
+    di_component_src_main_java_com_wina_partner_invoice_controller_InvoiceController_java_InvoiceController__component_src_main_java_com_wina_partner_invoice_service_InvoiceService_java_InvoiceService -.-> di_component_src_main_java_com_wina_partner_invoice_controller_InvoiceController_java_InvoiceController__component_src_main_java_com_wina_partner_invoice_repository_InvoiceRepository_java_InvoiceRepository
   end
   pkg_partner__invoice --> di_component_src_main_java_com_wina_partner_invoice_controller_InvoiceController_java_InvoiceController
   subgraph di_component_src_main_java_com_wina_partner_loyalty_controller_LoyaltyController_java_LoyaltyController["[ DI ]"]
     direction TB
-    component_src_main_java_com_wina_partner_loyalty_controller_LoyaltyController_java_LoyaltyController["LoyaltyController"]:::ssr
-    component_src_main_java_com_wina_partner_loyalty_service_LoyaltyService_java_LoyaltyService["LoyaltyService"]:::unk
-    component_src_main_java_com_wina_partner_loyalty_controller_LoyaltyController_java_LoyaltyController -.-> component_src_main_java_com_wina_partner_loyalty_service_LoyaltyService_java_LoyaltyService
-    component_src_main_java_com_wina_partner_loyalty_repository_LoyaltyRepository_java_LoyaltyRepository["LoyaltyRepository"]:::ssg
-    component_src_main_java_com_wina_partner_loyalty_service_LoyaltyService_java_LoyaltyService -.-> component_src_main_java_com_wina_partner_loyalty_repository_LoyaltyRepository_java_LoyaltyRepository
+    di_component_src_main_java_com_wina_partner_loyalty_controller_LoyaltyController_java_LoyaltyController__component_src_main_java_com_wina_partner_loyalty_controller_LoyaltyController_java_LoyaltyController["LoyaltyController"]:::ssr
+    di_component_src_main_java_com_wina_partner_loyalty_controller_LoyaltyController_java_LoyaltyController__component_src_main_java_com_wina_partner_loyalty_service_LoyaltyService_java_LoyaltyService["LoyaltyService"]:::unk
+    di_component_src_main_java_com_wina_partner_loyalty_controller_LoyaltyController_java_LoyaltyController__component_src_main_java_com_wina_partner_loyalty_controller_LoyaltyController_java_LoyaltyController -.-> di_component_src_main_java_com_wina_partner_loyalty_controller_LoyaltyController_java_LoyaltyController__component_src_main_java_com_wina_partner_loyalty_service_LoyaltyService_java_LoyaltyService
+    di_component_src_main_java_com_wina_partner_loyalty_controller_LoyaltyController_java_LoyaltyController__component_src_main_java_com_wina_partner_loyalty_repository_LoyaltyRepository_java_LoyaltyRepository["LoyaltyRepository"]:::ssg
+    di_component_src_main_java_com_wina_partner_loyalty_controller_LoyaltyController_java_LoyaltyController__component_src_main_java_com_wina_partner_loyalty_service_LoyaltyService_java_LoyaltyService -.-> di_component_src_main_java_com_wina_partner_loyalty_controller_LoyaltyController_java_LoyaltyController__component_src_main_java_com_wina_partner_loyalty_repository_LoyaltyRepository_java_LoyaltyRepository
   end
   pkg_partner__loyalty --> di_component_src_main_java_com_wina_partner_loyalty_controller_LoyaltyController_java_LoyaltyController
   subgraph di_component_src_main_java_com_wina_partner_mat_controller_MatController_java_MatController["[ DI ]"]
     direction TB
-    component_src_main_java_com_wina_partner_mat_controller_MatController_java_MatController["MatController"]:::ssr
-    component_src_main_java_com_wina_partner_mat_service_MatService_java_MatService["MatService"]:::unk
-    component_src_main_java_com_wina_partner_mat_controller_MatController_java_MatController -.-> component_src_main_java_com_wina_partner_mat_service_MatService_java_MatService
-    component_src_main_java_com_wina_partner_mat_repository_MatRepository_java_MatRepository["MatRepository"]:::ssg
-    component_src_main_java_com_wina_partner_mat_service_MatService_java_MatService -.-> component_src_main_java_com_wina_partner_mat_repository_MatRepository_java_MatRepository
+    di_component_src_main_java_com_wina_partner_mat_controller_MatController_java_MatController__component_src_main_java_com_wina_partner_mat_controller_MatController_java_MatController["MatController"]:::ssr
+    di_component_src_main_java_com_wina_partner_mat_controller_MatController_java_MatController__component_src_main_java_com_wina_partner_mat_service_MatService_java_MatService["MatService"]:::unk
+    di_component_src_main_java_com_wina_partner_mat_controller_MatController_java_MatController__component_src_main_java_com_wina_partner_mat_controller_MatController_java_MatController -.-> di_component_src_main_java_com_wina_partner_mat_controller_MatController_java_MatController__component_src_main_java_com_wina_partner_mat_service_MatService_java_MatService
+    di_component_src_main_java_com_wina_partner_mat_controller_MatController_java_MatController__component_src_main_java_com_wina_partner_mat_repository_MatRepository_java_MatRepository["MatRepository"]:::ssg
+    di_component_src_main_java_com_wina_partner_mat_controller_MatController_java_MatController__component_src_main_java_com_wina_partner_mat_service_MatService_java_MatService -.-> di_component_src_main_java_com_wina_partner_mat_controller_MatController_java_MatController__component_src_main_java_com_wina_partner_mat_repository_MatRepository_java_MatRepository
   end
   pkg_partner__mat --> di_component_src_main_java_com_wina_partner_mat_controller_MatController_java_MatController
   subgraph di_component_src_main_java_com_wina_partner_member_controller_MemberController_java_MemberController["[ DI ]"]
     direction TB
-    component_src_main_java_com_wina_partner_member_controller_MemberController_java_MemberController["MemberController"]:::ssr
-    component_src_main_java_com_wina_partner_member_service_MemberService_java_MemberService["MemberService"]:::unk
-    component_src_main_java_com_wina_partner_member_controller_MemberController_java_MemberController -.-> component_src_main_java_com_wina_partner_member_service_MemberService_java_MemberService
-    component_src_main_java_com_wina_partner_member_repository_MemberRepository_java_MemberRepository["MemberRepository"]:::ssg
-    component_src_main_java_com_wina_partner_member_service_MemberService_java_MemberService -.-> component_src_main_java_com_wina_partner_member_repository_MemberRepository_java_MemberRepository
+    di_component_src_main_java_com_wina_partner_member_controller_MemberController_java_MemberController__component_src_main_java_com_wina_partner_member_controller_MemberController_java_MemberController["MemberController"]:::ssr
+    di_component_src_main_java_com_wina_partner_member_controller_MemberController_java_MemberController__component_src_main_java_com_wina_partner_member_service_MemberService_java_MemberService["MemberService"]:::unk
+    di_component_src_main_java_com_wina_partner_member_controller_MemberController_java_MemberController__component_src_main_java_com_wina_partner_member_controller_MemberController_java_MemberController -.-> di_component_src_main_java_com_wina_partner_member_controller_MemberController_java_MemberController__component_src_main_java_com_wina_partner_member_service_MemberService_java_MemberService
+    di_component_src_main_java_com_wina_partner_member_controller_MemberController_java_MemberController__component_src_main_java_com_wina_partner_member_repository_MemberRepository_java_MemberRepository["MemberRepository"]:::ssg
+    di_component_src_main_java_com_wina_partner_member_controller_MemberController_java_MemberController__component_src_main_java_com_wina_partner_member_service_MemberService_java_MemberService -.-> di_component_src_main_java_com_wina_partner_member_controller_MemberController_java_MemberController__component_src_main_java_com_wina_partner_member_repository_MemberRepository_java_MemberRepository
   end
   pkg_partner__member --> di_component_src_main_java_com_wina_partner_member_controller_MemberController_java_MemberController
   subgraph di_component_src_main_java_com_wina_partner_order_controller_OrderController_java_OrderController["[ DI ]"]
     direction TB
-    component_src_main_java_com_wina_partner_order_controller_OrderController_java_OrderController["OrderController"]:::ssr
-    component_src_main_java_com_wina_partner_order_service_OrderService_java_OrderService["OrderService"]:::unk
-    component_src_main_java_com_wina_partner_order_controller_OrderController_java_OrderController -.-> component_src_main_java_com_wina_partner_order_service_OrderService_java_OrderService
-    component_src_main_java_com_wina_partner_order_repository_OrderRepository_java_OrderRepository["OrderRepository"]:::ssg
-    component_src_main_java_com_wina_partner_order_service_OrderService_java_OrderService -.-> component_src_main_java_com_wina_partner_order_repository_OrderRepository_java_OrderRepository
+    di_component_src_main_java_com_wina_partner_order_controller_OrderController_java_OrderController__component_src_main_java_com_wina_partner_order_controller_OrderController_java_OrderController["OrderController"]:::ssr
+    di_component_src_main_java_com_wina_partner_order_controller_OrderController_java_OrderController__component_src_main_java_com_wina_partner_order_service_OrderService_java_OrderService["OrderService"]:::unk
+    di_component_src_main_java_com_wina_partner_order_controller_OrderController_java_OrderController__component_src_main_java_com_wina_partner_order_controller_OrderController_java_OrderController -.-> di_component_src_main_java_com_wina_partner_order_controller_OrderController_java_OrderController__component_src_main_java_com_wina_partner_order_service_OrderService_java_OrderService
+    di_component_src_main_java_com_wina_partner_order_controller_OrderController_java_OrderController__component_src_main_java_com_wina_partner_order_repository_OrderRepository_java_OrderRepository["OrderRepository"]:::ssg
+    di_component_src_main_java_com_wina_partner_order_controller_OrderController_java_OrderController__component_src_main_java_com_wina_partner_order_service_OrderService_java_OrderService -.-> di_component_src_main_java_com_wina_partner_order_controller_OrderController_java_OrderController__component_src_main_java_com_wina_partner_order_repository_OrderRepository_java_OrderRepository
   end
   pkg_partner__order --> di_component_src_main_java_com_wina_partner_order_controller_OrderController_java_OrderController
   subgraph di_component_src_main_java_com_wina_partner_pricing_controller_PricingController_java_PricingController["[ DI ]"]
     direction TB
-    component_src_main_java_com_wina_partner_pricing_controller_PricingController_java_PricingController["PricingController"]:::ssr
-    component_src_main_java_com_wina_partner_pricing_service_PricingService_java_PricingService["PricingService"]:::unk
-    component_src_main_java_com_wina_partner_pricing_controller_PricingController_java_PricingController -.-> component_src_main_java_com_wina_partner_pricing_service_PricingService_java_PricingService
-    component_src_main_java_com_wina_partner_pricing_repository_PricingRepository_java_PricingRepository["PricingRepository"]:::ssg
-    component_src_main_java_com_wina_partner_pricing_service_PricingService_java_PricingService -.-> component_src_main_java_com_wina_partner_pricing_repository_PricingRepository_java_PricingRepository
+    di_component_src_main_java_com_wina_partner_pricing_controller_PricingController_java_PricingController__component_src_main_java_com_wina_partner_pricing_controller_PricingController_java_PricingController["PricingController"]:::ssr
+    di_component_src_main_java_com_wina_partner_pricing_controller_PricingController_java_PricingController__component_src_main_java_com_wina_partner_pricing_service_PricingService_java_PricingService["PricingService"]:::unk
+    di_component_src_main_java_com_wina_partner_pricing_controller_PricingController_java_PricingController__component_src_main_java_com_wina_partner_pricing_controller_PricingController_java_PricingController -.-> di_component_src_main_java_com_wina_partner_pricing_controller_PricingController_java_PricingController__component_src_main_java_com_wina_partner_pricing_service_PricingService_java_PricingService
+    di_component_src_main_java_com_wina_partner_pricing_controller_PricingController_java_PricingController__component_src_main_java_com_wina_partner_pricing_repository_PricingRepository_java_PricingRepository["PricingRepository"]:::ssg
+    di_component_src_main_java_com_wina_partner_pricing_controller_PricingController_java_PricingController__component_src_main_java_com_wina_partner_pricing_service_PricingService_java_PricingService -.-> di_component_src_main_java_com_wina_partner_pricing_controller_PricingController_java_PricingController__component_src_main_java_com_wina_partner_pricing_repository_PricingRepository_java_PricingRepository
   end
   pkg_partner__pricing --> di_component_src_main_java_com_wina_partner_pricing_controller_PricingController_java_PricingController
   subgraph di_component_src_main_java_com_wina_partner_procurement_controller_ProcurementController_java_ProcurementController["[ DI ]"]
     direction TB
-    component_src_main_java_com_wina_partner_procurement_controller_ProcurementController_java_ProcurementController["ProcurementController"]:::ssr
-    component_src_main_java_com_wina_partner_procurement_service_ProcurementService_java_ProcurementService["ProcurementService"]:::unk
-    component_src_main_java_com_wina_partner_procurement_controller_ProcurementController_java_ProcurementController -.-> component_src_main_java_com_wina_partner_procurement_service_ProcurementService_java_ProcurementService
-    component_src_main_java_com_wina_partner_procurement_repository_ProcurementRepository_java_ProcurementRepository["ProcurementRepository"]:::ssg
-    component_src_main_java_com_wina_partner_procurement_service_ProcurementService_java_ProcurementService -.-> component_src_main_java_com_wina_partner_procurement_repository_ProcurementRepository_java_ProcurementRepository
+    di_component_src_main_java_com_wina_partner_procurement_controller_ProcurementController_java_ProcurementController__component_src_main_java_com_wina_partner_procurement_controller_ProcurementController_java_ProcurementController["ProcurementController"]:::ssr
+    di_component_src_main_java_com_wina_partner_procurement_controller_ProcurementController_java_ProcurementController__component_src_main_java_com_wina_partner_procurement_service_ProcurementService_java_ProcurementService["ProcurementService"]:::unk
+    di_component_src_main_java_com_wina_partner_procurement_controller_ProcurementController_java_ProcurementController__component_src_main_java_com_wina_partner_procurement_controller_ProcurementController_java_ProcurementController -.-> di_component_src_main_java_com_wina_partner_procurement_controller_ProcurementController_java_ProcurementController__component_src_main_java_com_wina_partner_procurement_service_ProcurementService_java_ProcurementService
+    di_component_src_main_java_com_wina_partner_procurement_controller_ProcurementController_java_ProcurementController__component_src_main_java_com_wina_partner_procurement_repository_ProcurementRepository_java_ProcurementRepository["ProcurementRepository"]:::ssg
+    di_component_src_main_java_com_wina_partner_procurement_controller_ProcurementController_java_ProcurementController__component_src_main_java_com_wina_partner_procurement_service_ProcurementService_java_ProcurementService -.-> di_component_src_main_java_com_wina_partner_procurement_controller_ProcurementController_java_ProcurementController__component_src_main_java_com_wina_partner_procurement_repository_ProcurementRepository_java_ProcurementRepository
   end
   pkg_partner__procurement --> di_component_src_main_java_com_wina_partner_procurement_controller_ProcurementController_java_ProcurementController
   subgraph di_component_src_main_java_com_wina_partner_quality_controller_QualityController_java_QualityController["[ DI ]"]
     direction TB
-    component_src_main_java_com_wina_partner_quality_controller_QualityController_java_QualityController["QualityController"]:::ssr
-    component_src_main_java_com_wina_partner_quality_service_QualityService_java_QualityService["QualityService"]:::unk
-    component_src_main_java_com_wina_partner_quality_controller_QualityController_java_QualityController -.-> component_src_main_java_com_wina_partner_quality_service_QualityService_java_QualityService
-    component_src_main_java_com_wina_partner_quality_repository_QualityRepository_java_QualityRepository["QualityRepository"]:::ssg
-    component_src_main_java_com_wina_partner_quality_service_QualityService_java_QualityService -.-> component_src_main_java_com_wina_partner_quality_repository_QualityRepository_java_QualityRepository
+    di_component_src_main_java_com_wina_partner_quality_controller_QualityController_java_QualityController__component_src_main_java_com_wina_partner_quality_controller_QualityController_java_QualityController["QualityController"]:::ssr
+    di_component_src_main_java_com_wina_partner_quality_controller_QualityController_java_QualityController__component_src_main_java_com_wina_partner_quality_service_QualityService_java_QualityService["QualityService"]:::unk
+    di_component_src_main_java_com_wina_partner_quality_controller_QualityController_java_QualityController__component_src_main_java_com_wina_partner_quality_controller_QualityController_java_QualityController -.-> di_component_src_main_java_com_wina_partner_quality_controller_QualityController_java_QualityController__component_src_main_java_com_wina_partner_quality_service_QualityService_java_QualityService
+    di_component_src_main_java_com_wina_partner_quality_controller_QualityController_java_QualityController__component_src_main_java_com_wina_partner_quality_repository_QualityRepository_java_QualityRepository["QualityRepository"]:::ssg
+    di_component_src_main_java_com_wina_partner_quality_controller_QualityController_java_QualityController__component_src_main_java_com_wina_partner_quality_service_QualityService_java_QualityService -.-> di_component_src_main_java_com_wina_partner_quality_controller_QualityController_java_QualityController__component_src_main_java_com_wina_partner_quality_repository_QualityRepository_java_QualityRepository
   end
   pkg_partner__quality --> di_component_src_main_java_com_wina_partner_quality_controller_QualityController_java_QualityController
   subgraph di_component_src_main_java_com_wina_partner_report_controller_ReportController_java_ReportController["[ DI ]"]
     direction TB
-    component_src_main_java_com_wina_partner_report_controller_ReportController_java_ReportController["ReportController"]:::ssr
-    component_src_main_java_com_wina_partner_report_service_ReportService_java_ReportService["ReportService"]:::unk
-    component_src_main_java_com_wina_partner_report_controller_ReportController_java_ReportController -.-> component_src_main_java_com_wina_partner_report_service_ReportService_java_ReportService
-    component_src_main_java_com_wina_partner_report_repository_ReportRepository_java_ReportRepository["ReportRepository"]:::ssg
-    component_src_main_java_com_wina_partner_report_service_ReportService_java_ReportService -.-> component_src_main_java_com_wina_partner_report_repository_ReportRepository_java_ReportRepository
+    di_component_src_main_java_com_wina_partner_report_controller_ReportController_java_ReportController__component_src_main_java_com_wina_partner_report_controller_ReportController_java_ReportController["ReportController"]:::ssr
+    di_component_src_main_java_com_wina_partner_report_controller_ReportController_java_ReportController__component_src_main_java_com_wina_partner_report_service_ReportService_java_ReportService["ReportService"]:::unk
+    di_component_src_main_java_com_wina_partner_report_controller_ReportController_java_ReportController__component_src_main_java_com_wina_partner_report_controller_ReportController_java_ReportController -.-> di_component_src_main_java_com_wina_partner_report_controller_ReportController_java_ReportController__component_src_main_java_com_wina_partner_report_service_ReportService_java_ReportService
+    di_component_src_main_java_com_wina_partner_report_controller_ReportController_java_ReportController__component_src_main_java_com_wina_partner_report_repository_ReportRepository_java_ReportRepository["ReportRepository"]:::ssg
+    di_component_src_main_java_com_wina_partner_report_controller_ReportController_java_ReportController__component_src_main_java_com_wina_partner_report_service_ReportService_java_ReportService -.-> di_component_src_main_java_com_wina_partner_report_controller_ReportController_java_ReportController__component_src_main_java_com_wina_partner_report_repository_ReportRepository_java_ReportRepository
   end
   pkg_partner__report --> di_component_src_main_java_com_wina_partner_report_controller_ReportController_java_ReportController
   subgraph di_component_src_main_java_com_wina_partner_settings_controller_SettingsController_java_SettingsController["[ DI ]"]
     direction TB
-    component_src_main_java_com_wina_partner_settings_controller_SettingsController_java_SettingsController["SettingsController"]:::ssr
-    component_src_main_java_com_wina_partner_settings_service_SettingsService_java_SettingsService["SettingsService"]:::unk
-    component_src_main_java_com_wina_partner_settings_controller_SettingsController_java_SettingsController -.-> component_src_main_java_com_wina_partner_settings_service_SettingsService_java_SettingsService
-    component_src_main_java_com_wina_partner_settings_repository_SettingsRepository_java_SettingsRepository["SettingsRepository"]:::ssg
-    component_src_main_java_com_wina_partner_settings_service_SettingsService_java_SettingsService -.-> component_src_main_java_com_wina_partner_settings_repository_SettingsRepository_java_SettingsRepository
+    di_component_src_main_java_com_wina_partner_settings_controller_SettingsController_java_SettingsController__component_src_main_java_com_wina_partner_settings_controller_SettingsController_java_SettingsController["SettingsController"]:::ssr
+    di_component_src_main_java_com_wina_partner_settings_controller_SettingsController_java_SettingsController__component_src_main_java_com_wina_partner_settings_service_SettingsService_java_SettingsService["SettingsService"]:::unk
+    di_component_src_main_java_com_wina_partner_settings_controller_SettingsController_java_SettingsController__component_src_main_java_com_wina_partner_settings_controller_SettingsController_java_SettingsController -.-> di_component_src_main_java_com_wina_partner_settings_controller_SettingsController_java_SettingsController__component_src_main_java_com_wina_partner_settings_service_SettingsService_java_SettingsService
+    di_component_src_main_java_com_wina_partner_settings_controller_SettingsController_java_SettingsController__component_src_main_java_com_wina_partner_settings_repository_SettingsRepository_java_SettingsRepository["SettingsRepository"]:::ssg
+    di_component_src_main_java_com_wina_partner_settings_controller_SettingsController_java_SettingsController__component_src_main_java_com_wina_partner_settings_service_SettingsService_java_SettingsService -.-> di_component_src_main_java_com_wina_partner_settings_controller_SettingsController_java_SettingsController__component_src_main_java_com_wina_partner_settings_repository_SettingsRepository_java_SettingsRepository
   end
   pkg_partner__settings --> di_component_src_main_java_com_wina_partner_settings_controller_SettingsController_java_SettingsController
   subgraph di_component_src_main_java_com_wina_partner_shipment_controller_ShipmentController_java_ShipmentController["[ DI ]"]
     direction TB
-    component_src_main_java_com_wina_partner_shipment_controller_ShipmentController_java_ShipmentController["ShipmentController"]:::ssr
-    component_src_main_java_com_wina_partner_shipment_service_ShipmentService_java_ShipmentService["ShipmentService"]:::unk
-    component_src_main_java_com_wina_partner_shipment_controller_ShipmentController_java_ShipmentController -.-> component_src_main_java_com_wina_partner_shipment_service_ShipmentService_java_ShipmentService
-    component_src_main_java_com_wina_partner_shipment_repository_ShipmentRepository_java_ShipmentRepository["ShipmentRepository"]:::ssg
-    component_src_main_java_com_wina_partner_shipment_service_ShipmentService_java_ShipmentService -.-> component_src_main_java_com_wina_partner_shipment_repository_ShipmentRepository_java_ShipmentRepository
+    di_component_src_main_java_com_wina_partner_shipment_controller_ShipmentController_java_ShipmentController__component_src_main_java_com_wina_partner_shipment_controller_ShipmentController_java_ShipmentController["ShipmentController"]:::ssr
+    di_component_src_main_java_com_wina_partner_shipment_controller_ShipmentController_java_ShipmentController__component_src_main_java_com_wina_partner_shipment_service_ShipmentService_java_ShipmentService["ShipmentService"]:::unk
+    di_component_src_main_java_com_wina_partner_shipment_controller_ShipmentController_java_ShipmentController__component_src_main_java_com_wina_partner_shipment_controller_ShipmentController_java_ShipmentController -.-> di_component_src_main_java_com_wina_partner_shipment_controller_ShipmentController_java_ShipmentController__component_src_main_java_com_wina_partner_shipment_service_ShipmentService_java_ShipmentService
+    di_component_src_main_java_com_wina_partner_shipment_controller_ShipmentController_java_ShipmentController__component_src_main_java_com_wina_partner_shipment_repository_ShipmentRepository_java_ShipmentRepository["ShipmentRepository"]:::ssg
+    di_component_src_main_java_com_wina_partner_shipment_controller_ShipmentController_java_ShipmentController__component_src_main_java_com_wina_partner_shipment_service_ShipmentService_java_ShipmentService -.-> di_component_src_main_java_com_wina_partner_shipment_controller_ShipmentController_java_ShipmentController__component_src_main_java_com_wina_partner_shipment_repository_ShipmentRepository_java_ShipmentRepository
   end
   pkg_partner__shipment --> di_component_src_main_java_com_wina_partner_shipment_controller_ShipmentController_java_ShipmentController
   subgraph di_component_src_main_java_com_wina_partner_stock_controller_StockController_java_StockController["[ DI ]"]
     direction TB
-    component_src_main_java_com_wina_partner_stock_controller_StockController_java_StockController["StockController"]:::ssr
-    component_src_main_java_com_wina_partner_stock_service_StockService_java_StockService["StockService"]:::unk
-    component_src_main_java_com_wina_partner_stock_controller_StockController_java_StockController -.-> component_src_main_java_com_wina_partner_stock_service_StockService_java_StockService
-    component_src_main_java_com_wina_partner_stock_repository_StockRepository_java_StockRepository["StockRepository"]:::ssg
-    component_src_main_java_com_wina_partner_stock_service_StockService_java_StockService -.-> component_src_main_java_com_wina_partner_stock_repository_StockRepository_java_StockRepository
+    di_component_src_main_java_com_wina_partner_stock_controller_StockController_java_StockController__component_src_main_java_com_wina_partner_stock_controller_StockController_java_StockController["StockController"]:::ssr
+    di_component_src_main_java_com_wina_partner_stock_controller_StockController_java_StockController__component_src_main_java_com_wina_partner_stock_service_StockService_java_StockService["StockService"]:::unk
+    di_component_src_main_java_com_wina_partner_stock_controller_StockController_java_StockController__component_src_main_java_com_wina_partner_stock_controller_StockController_java_StockController -.-> di_component_src_main_java_com_wina_partner_stock_controller_StockController_java_StockController__component_src_main_java_com_wina_partner_stock_service_StockService_java_StockService
+    di_component_src_main_java_com_wina_partner_stock_controller_StockController_java_StockController__component_src_main_java_com_wina_partner_stock_repository_StockRepository_java_StockRepository["StockRepository"]:::ssg
+    di_component_src_main_java_com_wina_partner_stock_controller_StockController_java_StockController__component_src_main_java_com_wina_partner_stock_service_StockService_java_StockService -.-> di_component_src_main_java_com_wina_partner_stock_controller_StockController_java_StockController__component_src_main_java_com_wina_partner_stock_repository_StockRepository_java_StockRepository
   end
   pkg_partner__stock --> di_component_src_main_java_com_wina_partner_stock_controller_StockController_java_StockController
   subgraph di_component_src_main_java_com_wina_partner_vendor_controller_VendorController_java_VendorController["[ DI ]"]
     direction TB
-    component_src_main_java_com_wina_partner_vendor_controller_VendorController_java_VendorController["VendorController"]:::ssr
-    component_src_main_java_com_wina_partner_vendor_service_VendorService_java_VendorService["VendorService"]:::unk
-    component_src_main_java_com_wina_partner_vendor_controller_VendorController_java_VendorController -.-> component_src_main_java_com_wina_partner_vendor_service_VendorService_java_VendorService
-    component_src_main_java_com_wina_partner_vendor_repository_VendorRepository_java_VendorRepository["VendorRepository"]:::ssg
-    component_src_main_java_com_wina_partner_vendor_service_VendorService_java_VendorService -.-> component_src_main_java_com_wina_partner_vendor_repository_VendorRepository_java_VendorRepository
+    di_component_src_main_java_com_wina_partner_vendor_controller_VendorController_java_VendorController__component_src_main_java_com_wina_partner_vendor_controller_VendorController_java_VendorController["VendorController"]:::ssr
+    di_component_src_main_java_com_wina_partner_vendor_controller_VendorController_java_VendorController__component_src_main_java_com_wina_partner_vendor_service_VendorService_java_VendorService["VendorService"]:::unk
+    di_component_src_main_java_com_wina_partner_vendor_controller_VendorController_java_VendorController__component_src_main_java_com_wina_partner_vendor_controller_VendorController_java_VendorController -.-> di_component_src_main_java_com_wina_partner_vendor_controller_VendorController_java_VendorController__component_src_main_java_com_wina_partner_vendor_service_VendorService_java_VendorService
+    di_component_src_main_java_com_wina_partner_vendor_controller_VendorController_java_VendorController__component_src_main_java_com_wina_partner_vendor_repository_VendorRepository_java_VendorRepository["VendorRepository"]:::ssg
+    di_component_src_main_java_com_wina_partner_vendor_controller_VendorController_java_VendorController__component_src_main_java_com_wina_partner_vendor_service_VendorService_java_VendorService -.-> di_component_src_main_java_com_wina_partner_vendor_controller_VendorController_java_VendorController__component_src_main_java_com_wina_partner_vendor_repository_VendorRepository_java_VendorRepository
   end
   pkg_partner__vendor --> di_component_src_main_java_com_wina_partner_vendor_controller_VendorController_java_VendorController
   end"

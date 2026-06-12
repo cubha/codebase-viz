@@ -1,5 +1,32 @@
 # Changelog
 
+## [1.2.50] — 2026-06-12
+
+### Spring Boot DI 체인 5단 fan-out + React Router 도메인 레이어 (사용자 단일검증 보강 2건 · 회귀 0)
+
+사용자 실제 Spring Boot·React 프로젝트 단일검증에서 보고된 2건을 통합 수정. 각각 FAIL 재현 fixture로 근본 원인 확정. verify.sh **778 PASS** · 1 skipped · 회귀 0 · IR EdgeKind 확장 0.
+
+#### 묶음 A — Spring Boot Tab2 "Controller에서 끊김" (`adapters/springboot/*` · `renderer/be/tab2.ts`)
+
+근본 원인: Lombok `@RequiredArgsConstructor` 미인식으로 DI edge 0 → Tab2가 Controller에서 단절. 재현 fixture `mini-spring-lombok-mybatis-app`(DI 0 FAIL).
+
+- **A-1 di-parser** — Lombok `@RequiredArgsConstructor`/`@AllArgsConstructor` final 필드 주입 인식(명시 초기화 제외) + `super_interfaces` `implements` 추적(`addImplementsEdge`: Service interface → ServiceImpl `calls` 엣지).
+- **A-2 component-parser** — 무어노테이션 `*Service`/`*Repository`/`*Dao`/`*Mapper` interface 등록 게이트 완화(`isNamedInterfaceComponent`). 일반 interface는 제외(Less is More).
+- **A-3 mapper-xml-parser (신규)** — `<mapper namespace="FQN">` ↔ 컴포넌트 FQN(`java/` 이후) 정확 매칭 → XML ComponentNode(`*.xml`) + Repository→XML `verified` `calls` 엣지. `adapter.ts` 배선.
+- **A-4 renderer** — 고정 2-hop DiChain 폐기 → **N-ary 재귀 emitter**(깊이 가드 6, `di_<ctrl>__<compId>` namespace, visited 순환 가드). 다중 Service 인라인 + ServiceImpl→다중 Repository fan-out + Repository→XML 5단. cross-pkg는 `(external)` placeholder, XML은 terminal 실노드. BE-DIAGRAM-STANDARD v1.1(§3 R-T2.2·2.5·2.7).
+
+#### 묶음 B — React Router route 누락 + src/pages 도메인 레이어 (`adapters/reactrouter/parsers/route-parser.ts` · `renderer/fe/tab2-domain.ts`)
+
+근본 원인: `` path: `${ORD_PROD_PLAN}/spec` `` 같은 template literal path를 파서가 `StringLiteral`만 허용해 전부 drop. 재현 fixture `mini-react-router-domain-app`(`ROUTES:0` FAIL, URL이 폴더와 divergent).
+
+- **B-1 path 정적 평가** — `extractRoutesFromArray`의 path StringLiteral 강제 제거 → `evalPathExpression`(NoSubstitutionTemplate · TemplateExpression const 치환 · bare Identifier). `evalStringConst`/`evalKeyExpression`에 **cross-file 1-hop** ctx 인지 추가(`locateVarInitializer`+`buildResolverCtxForFile` 재사용). spread 자식 ctx도 평가. reactrouter 73 test 회귀 0.
+- **B-2 FE Tab2 도메인 레이어 (신규 `fe/tab2-domain.ts`)** — 컴포넌트 filePath의 `src/pages/<Root 도메인>` 파일경로 트리로 레이어링. BE `pkg-tree`(`buildPkgTree`/`emitTreeNodes`/`chunkByTopLevelPackage`) 재사용해 도메인별 chunk 분리(BE Tab2 동일 사상). `framework==='react-router'` **AND** `isPagesDomainEligible`(≥2 도메인 폴더) 게이트 — 평탄(`src/pages/Home.tsx` 직속) fixture는 URL 그룹핑 fallback(회귀 0). chunk 분리로 프리즈 회피 → >100 route 게이트 이전 분기. FE-DIAGRAM-STANDARD v1.2(§3.4 R-T2.10·2.11).
+- **검증** — URL이 평탄(`/order-plan`·`/material`·`/perf`)이어도 5개 페이지가 `📁 src/pages/partner`/`agency`/`headoffice` 도메인 레이어로 정확히 묶임. partner-mock Tab2 snapshot 도메인레이어 갱신 + domain-app 4 베이스라인.
+
+#### 기타
+
+- **verify.sh 하드닝** — 단위 테스트 게이트를 fail-loud로 강화(테스트 파일 존재 시 러너/`test` 스크립트 부재면 exit 1, 실패 로그 캡처). reward-hacking 가드 정합.
+
 ## [1.2.49] — 2026-06-01
 
 ### React Router 파서 3결함 + 대형 프로젝트 webview 프리즈 수정 (회귀 0)

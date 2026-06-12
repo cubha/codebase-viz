@@ -38,6 +38,43 @@ function hasAutowired(modifiers: Parser.SyntaxNode): boolean {
   return false
 }
 
+// A-ST1: 클래스 레벨 Lombok 생성자 어노테이션 — final 필드를 생성자 주입으로 간주.
+function hasLombokCtorAnnotation(node: Parser.SyntaxNode): boolean {
+  for (let i = 0; i < node.childCount; i++) {
+    const child = node.child(i)
+    if (child === null || child.type !== 'modifiers') continue
+    for (let j = 0; j < child.childCount; j++) {
+      const mod = child.child(j)
+      if (mod === null || (mod.type !== 'annotation' && mod.type !== 'marker_annotation')) continue
+      const name = getAnnotationName(mod)
+      if (name === 'RequiredArgsConstructor' || name === 'AllArgsConstructor') return true
+    }
+  }
+  return false
+}
+
+function isFinalField(member: Parser.SyntaxNode): boolean {
+  for (let i = 0; i < member.childCount; i++) {
+    const part = member.child(i)
+    if (part === null || part.type !== 'modifiers') continue
+    for (let j = 0; j < part.childCount; j++) {
+      if (part.child(j)?.type === 'final') return true
+    }
+  }
+  return false
+}
+
+// A-ST1: `class X implements A, B` 의 구현 인터페이스 이름 목록.
+function extractImplementedInterfaces(node: Parser.SyntaxNode): string[] {
+  const names: string[] = []
+  for (let i = 0; i < node.childCount; i++) {
+    const child = node.child(i)
+    if (child === null || child.type !== 'super_interfaces') continue
+    for (const tid of child.descendantsOfType('type_identifier')) names.push(tid.text)
+  }
+  return names
+}
+
 function extractParamTypes(formalParams: Parser.SyntaxNode): string[] {
   const types: string[] = []
   for (let i = 0; i < formalParams.childCount; i++) {
@@ -96,6 +133,26 @@ export async function parseSpringDependencies(
     )
   }
 
+  // A-ST1: interface → 구현 클래스 calls 엣지 (DI 체인의 Service → ServiceImpl 단계).
+  function addImplementsEdge(implClass: ComponentNode, interfaceName: string, provenance: Provenance): void {
+    const ifaceNode = nameToNode.get(interfaceName)
+    if (ifaceNode === undefined || ifaceNode.id === implClass.id) return
+    const edgeId = makeEdgeId('calls', ifaceNode.id, implClass.id)
+    if (seenEdgeIds.has(edgeId)) return
+    seenEdgeIds.add(edgeId)
+    edges.push(
+      createEdge({
+        id: edgeId,
+        from: ifaceNode.id,
+        to: implClass.id,
+        kind: 'calls',
+        provenance,
+        confidence: 'inferred',
+        inferenceChain: [`spring-di: ${implClass.name} implements ${interfaceName} in ${provenance.file}`],
+      }),
+    )
+  }
+
   for (const filePath of javaFiles) {
     const source = await fs.readFile(filePath, 'utf-8').catch(() => null)
     if (source === null) continue
@@ -142,6 +199,14 @@ export async function parseSpringDependencies(
         analyzerVersion,
       }
 
+      // A-ST1: implements 인터페이스 → 구현 클래스 엣지 (Service → ServiceImpl)
+      for (const ifaceName of extractImplementedInterfaces(node)) {
+        addImplementsEdge(fromNode, ifaceName, provenance)
+      }
+
+      // A-ST1: Lombok @RequiredArgsConstructor/@AllArgsConstructor → final 필드 생성자 주입
+      const lombokCtorInject = hasLombokCtorAnnotation(node)
+
       for (let i = 0; i < node.childCount; i++) {
         const classBody = node.child(i)
         if (classBody === null || classBody.type !== 'class_body') continue
@@ -152,7 +217,7 @@ export async function parseSpringDependencies(
           const member = classBody.child(j)
           if (member === null) continue
 
-          // Field injection: @Autowired on field
+          // Field injection: @Autowired on field, 또는 Lombok 생성자 주입(final 필드)
           if (member.type === 'field_declaration') {
             let autowired = false
             let fieldType: string | undefined
@@ -162,7 +227,10 @@ export async function parseSpringDependencies(
               if (part.type === 'modifiers' && hasAutowired(part)) autowired = true
               if (part.type === 'type_identifier') fieldType = part.text
             }
-            if (autowired && fieldType !== undefined) addEdge(fromNode, fieldType, provenance)
+            // Lombok: 명시적 초기화 없는 final 필드만 주입 대상 (`= null` 등 초기화 시 제외)
+            const lombokInject = lombokCtorInject && isFinalField(member)
+              && member.descendantsOfType('variable_declarator').every(vd => vd.childForFieldName('value') === null)
+            if ((autowired || lombokInject) && fieldType !== undefined) addEdge(fromNode, fieldType, provenance)
           }
 
           // Constructor injection (collected for single-ctor auto-inject)

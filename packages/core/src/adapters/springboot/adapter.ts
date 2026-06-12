@@ -9,6 +9,7 @@ import { parseSpringComponents } from './parsers/component-parser.js'
 import { parseSpringDependencies } from './parsers/di-parser.js'
 import { parseJpaEntities } from './parsers/orm-parser.js'
 import { parseMybatisMappers } from './parsers/mybatis-parser.js'
+import { parseMapperXmlEdges } from './parsers/mapper-xml-parser.js'
 import { buildMapperEdges } from '../_shared/mapper-utils.js'
 import { parseFlywayMigrations, mergeFlywayTables } from '../../db/flyway-parser.js'
 
@@ -30,6 +31,12 @@ export class SpringBootAdapter implements IAdapter {
 
     const diEdges = await parseSpringDependencies(repoRoot, componentNodes, analyzerVersion).catch(() => [])
 
+    // A-ST3: MyBatis Mapper XML ↔ Repository interface 매칭 → XML 노드 + Repository→XML 엣지.
+    const { xmlNodes, xmlEdges } = await parseMapperXmlEdges(repoRoot, componentNodes, analyzerVersion)
+      .catch(() => ({ xmlNodes: [], xmlEdges: [] }))
+    const allComponentNodes = [...componentNodes, ...xmlNodes]
+    const allServerEdges = [...diEdges, ...xmlEdges]
+
     const tablesByName = new Map(jpaNodes.map(n => [n.name, n]))
     for (const n of mybatisNodes) {
       const existing = tablesByName.get(n.name)
@@ -41,14 +48,15 @@ export class SpringBootAdapter implements IAdapter {
     // Flyway DDL supplements ORM tables (ORM takes precedence)
     const tableNodes = mergeFlywayTables(ormTables, flywayNodes)
 
+    // buildMapperEdges(파일명 ↔ 테이블)는 XML 노드를 대상에서 제외 — 원본 컴포넌트만 전달.
     const mapperEdges = buildMapperEdges(routeNodes, componentNodes, tableNodes, analyzerVersion)
     return {
       ...EMPTY_ADAPTER_RESULT,
       routeNodes,
-      componentNodes,
+      componentNodes: allComponentNodes,
       tableNodes,
       mapperEdges,
-      serverEdges: diEdges,
+      serverEdges: allServerEdges,
     }
   }
 }

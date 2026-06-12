@@ -63,8 +63,9 @@ export function buildBeArchitectureDiagram(graph: IRGraph): string {
     segments: b.segments.slice(lcpLen, trimController ? -1 : undefined),
   }))
 
-  // Controller의 DI 체인 수집 (Less is More: edge 없으면 빈 체인 — placeholder도 안 그림)
-  type DiChain = { svc?: ComponentNode | undefined; repo?: ComponentNode | undefined; svcEdge?: IREdge | undefined; repoEdge?: IREdge | undefined }
+  // v1.2.50: Controller에서 출발하는 calls 엣지를 재귀 추적하여 N-ary DI 체인을 표현.
+  //   Controller → Service[] (인라인) → ServiceImpl → Repository[] (fan-out) → XML
+  // 고정 2-hop(svc·repo) 구조 폐기. 다중 Service 주입·다중 Repository 상속을 모두 표시한다.
   const compById = new Map<string, ComponentNode>()
   for (const c of componentNodes) compById.set(c.id, c)
   // O(C × E) find → O(E + C) Map lookup
@@ -73,25 +74,6 @@ export function buildBeArchitectureDiagram(graph: IRGraph): string {
     const list = callsEdgesByFrom.get(e.from) ?? []
     list.push(e)
     callsEdgesByFrom.set(e.from, list)
-  }
-  const findCallEdge = (fromId: string, kindCheck: (name: string) => boolean): IREdge | undefined => {
-    const candidates = callsEdgesByFrom.get(fromId) ?? []
-    return candidates.find(e => {
-      const target = compById.get(e.to)
-      return target !== undefined && kindCheck(target.name)
-    })
-  }
-  const chainByCtrl = new Map<string, DiChain>()
-  for (const c of controllers) {
-    const svcEdge = findCallEdge(c.id, isBeService)
-    const svc = svcEdge !== undefined ? compById.get(svcEdge.to) : undefined
-    let repoEdge: IREdge | undefined
-    let repo: ComponentNode | undefined
-    if (svc !== undefined) {
-      repoEdge = findCallEdge(svc.id, isBeRepository)
-      repo = repoEdge !== undefined ? compById.get(repoEdge.to) : undefined
-    }
-    chainByCtrl.set(c.id, { svc, repo, svcEdge, repoEdge })
   }
   // O(F²) find → O(1) lookup for walkFiles
   const ctrlByFilePath = new Map<string, ComponentNode>(trimmed.map(b => [b.filePath, b.controller]))
@@ -102,11 +84,27 @@ export function buildBeArchitectureDiagram(graph: IRGraph): string {
     return ap.length > 0 && ap.join('.') === bp.join('.')
   }
 
+  // 역할 분류 — XML 매퍼는 java 패키지 밖(resources)이라 cross-pkg 판정에서 제외(항상 terminal 실노드).
+  const isXmlNode = (c: ComponentNode): boolean => c.name.endsWith('.xml')
+  const roleClass = (c: ComponentNode): string => {
+    if (isXmlNode(c)) return 'pkg'
+    if (isBeController(c.name)) return 'ssr'
+    if (isBeRepository(c.name)) return 'ssg'
+    return 'unk' // Service / ServiceImpl / 기타
+  }
+  const externalRoleLabel = (c: ComponentNode): string => {
+    if (isBeRepository(c.name)) return '(external Repository)'
+    if (isBeService(c.name)) return '(external Service)'
+    return '(external component)'
+  }
+
+  // Controller가 resolvable calls 엣지를 1개 이상 가지면 DI 체인 보유.
+  const controllerHasDi = (ctrl: ComponentNode): boolean =>
+    (callsEdgesByFrom.get(ctrl.id) ?? []).some(e => compById.get(e.to) !== undefined)
+
   const renderControllerLeaf = (ctrl: ComponentNode, indent: string): string[] => {
     const out: string[] = []
-    const chain = chainByCtrl.get(ctrl.id)
-    const hasAnyDi = chain !== undefined && (chain.svc !== undefined || chain.repo !== undefined)
-    if (!hasAnyDi) {
+    if (!controllerHasDi(ctrl)) {
       // R-T2.5: pure non-DI controller — leaf만 표시. (none) 추정 안 함.
       out.push(`${indent}${sanitizeId(ctrl.id)}["📄 ${ctrl.name}"]:::ssr`)
       return out
@@ -114,38 +112,40 @@ export function buildBeArchitectureDiagram(graph: IRGraph): string {
     const diSgId = `di_${sanitizeId(ctrl.id)}`
     out.push(`${indent}subgraph ${diSgId}["[ DI ]"]`)
     out.push(`${indent}  direction TB`)
-    const ctrlNode = `${sanitizeId(ctrl.id)}`
-    out.push(`${indent}  ${ctrlNode}["${ctrl.name}"]:::ssr`)
-
-    // Service slot (R-T2.4: cross-pkg일 때는 leaf 내부에 emit 안 하고 외부 edge로 처리)
-    const svcCrossPkg = chain!.svc !== undefined && !samePkg(ctrl, chain!.svc)
-    const svcInChain = chain!.svc !== undefined && !svcCrossPkg
-    const svcId = svcInChain ? sanitizeId(chain!.svc!.id) : `${diSgId}__svc_none`
-    if (svcInChain) {
-      out.push(`${indent}  ${svcId}["${chain!.svc!.name}"]:::unk`)
-    } else if (svcCrossPkg) {
-      out.push(`${indent}  ${svcId}["(external Service)"]:::muted`)
-    } else {
-      out.push(`${indent}  ${svcId}["(no Service)"]:::muted`)
+    // 노드 ID는 leaf 단위로 namespace화 — 동일 컴포넌트가 여러 Controller에 주입돼도 subgraph 간 충돌 없음.
+    const localId = (c: ComponentNode): string => `${diSgId}__${sanitizeId(c.id)}`
+    const emittedNodes = new Set<string>()
+    const visited = new Set<string>()
+    let extCounter = 0
+    const emitNode = (c: ComponentNode, nid: string): void => {
+      if (emittedNodes.has(nid)) return
+      emittedNodes.add(nid)
+      out.push(`${indent}  ${nid}["${c.name}"]:::${roleClass(c)}`)
     }
-    const ctrlToSvcArrow = chain!.svcEdge !== undefined && !svcCrossPkg ? edgeArrow(chain!.svcEdge) : '-.->'
-    const ctrlToSvcLabel = svcCrossPkg ? '|"cross-pkg"|' : ''
-    out.push(`${indent}  ${ctrlNode} ${ctrlToSvcArrow}${ctrlToSvcLabel} ${svcId}`)
-
-    // Repository slot
-    const repoCrossPkg = chain!.repo !== undefined && chain!.svc !== undefined && !samePkg(chain!.svc, chain!.repo)
-    const repoInChain = chain!.repo !== undefined && !repoCrossPkg
-    const repoId = repoInChain ? sanitizeId(chain!.repo!.id) : `${diSgId}__repo_none`
-    if (repoInChain) {
-      out.push(`${indent}  ${repoId}["${chain!.repo!.name}"]:::ssg`)
-    } else if (repoCrossPkg) {
-      out.push(`${indent}  ${repoId}["(external Repository)"]:::muted`)
-    } else {
-      out.push(`${indent}  ${repoId}["(no Repository)"]:::muted`)
+    emitNode(ctrl, localId(ctrl))
+    // 깊이 가드(6) — 순환/이상 그래프 폭주 방지. 정상 체인은 Controller→Svc→Impl→Repo→XML = 4.
+    const recurse = (node: ComponentNode, depth: number): void => {
+      if (depth > 6 || visited.has(node.id)) return
+      visited.add(node.id)
+      const fromId = localId(node)
+      for (const edge of callsEdgesByFrom.get(node.id) ?? []) {
+        const target = compById.get(edge.to)
+        if (target === undefined) continue
+        const arrow = edgeArrow(edge)
+        // R-T2.4: cross-package 주입은 외부 노드 ID 직접 참조 금지(ghost-node 회피) → placeholder.
+        if (!isXmlNode(target) && !samePkg(node, target)) {
+          const extId = `${diSgId}__ext${extCounter++}`
+          out.push(`${indent}  ${extId}["${externalRoleLabel(target)}"]:::muted`)
+          out.push(`${indent}  ${fromId} ${arrow}|"cross-pkg"| ${extId}`)
+          continue
+        }
+        const tid = localId(target)
+        emitNode(target, tid)
+        out.push(`${indent}  ${fromId} ${arrow} ${tid}`)
+        recurse(target, depth + 1)
+      }
     }
-    const svcToRepoArrow = chain!.repoEdge !== undefined && !repoCrossPkg ? edgeArrow(chain!.repoEdge) : '-.->'
-    const svcToRepoLabel = repoCrossPkg ? '|"cross-pkg"|' : ''
-    out.push(`${indent}  ${svcId} ${svcToRepoArrow}${svcToRepoLabel} ${repoId}`)
+    recurse(ctrl, 0)
     out.push(`${indent}end`)
     return out
   }
@@ -172,9 +172,7 @@ export function buildBeArchitectureDiagram(graph: IRGraph): string {
         const ctrl = ctrlByFilePath.get(f.filePath)
         if (ctrl === undefined) continue
         lines.push(...renderControllerLeaf(ctrl, '  '))
-        const chain = chainByCtrl.get(ctrl.id)
-        const hasAnyDi = chain !== undefined && (chain.svc !== undefined || chain.repo !== undefined)
-        const leafTargetId = hasAnyDi ? `di_${sanitizeId(ctrl.id)}` : sanitizeId(ctrl.id)
+        const leafTargetId = controllerHasDi(ctrl) ? `di_${sanitizeId(ctrl.id)}` : sanitizeId(ctrl.id)
         if (!(isCluster && depth === 0)) {
           lines.push(`  ${parentId} --> ${leafTargetId}`)
         }

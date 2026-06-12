@@ -426,7 +426,8 @@ describe('BE 렌더러 — Tab2 (BE-D, v1.2.40 표준)', () => {
     expect(content).not.toContain('CTRL_G') // 구 v1.2.2 layout 폐기 확인
   })
 
-  it('Service/Repository 누락 시 (none) placeholder emit', async () => {
+  it('Repository 없는 Service 체인 — 실제 노드만 표시, (no Repository) 추정 안 함 (v1.2.50)', async () => {
+    // v1.2.50: 고정 슬롯 폐기. Controller→Service만 있으면 2단만 그리고 placeholder 미생성 (Less is More).
     const ctrl = makeBeComponent('AdminController', 'src/main/java/com/example/admin/controller/AdminController.java')
     const svc = makeBeComponent('AdminService', 'src/main/java/com/example/admin/service/AdminService.java')
     const prov = { file: ctrl.filePath, line: 1, adapter: 'test', analyzerVersion: '0.1' }
@@ -443,8 +444,54 @@ describe('BE 렌더러 — Tab2 (BE-D, v1.2.40 표준)', () => {
     })
     await renderMermaid(graph, OUTPUT_DIR)
     const content = await fs.readFile(path.join(OUTPUT_DIR, 'screen-component.md'), 'utf8')
-    expect(content).toContain('(no Repository)')
-    expect(content).toContain(':::muted')
+    expect(content).toContain('AdminController')
+    expect(content).toContain('AdminService')
+    expect(content).not.toContain('(no Repository)')
+    expect(content).not.toContain('(no Service)')
+  })
+
+  it('N-ary DI 체인: 다중 Service 인라인 + ServiceImpl→다중 Repository fan-out + Repository→XML (v1.2.50, A-ST4)', async () => {
+    const base = 'src/main/java/com/wina/partner/common/commonPop'
+    const ctrl = makeBeComponent('CommonPopController', `${base}/controller/CommonPopController.java`)
+    const svcA = makeBeComponent('CommonPopService', `${base}/service/CommonPopService.java`)
+    const svcB = makeBeComponent('PerfStatusService', `${base}/service/PerfStatusService.java`)
+    const implA = makeBeComponent('CommonPopServiceImpl', `${base}/service/CommonPopServiceImpl.java`)
+    const implB = makeBeComponent('PerfStatusServiceImpl', `${base}/service/PerfStatusServiceImpl.java`)
+    const repo1 = makeBeComponent('CommonPopRepository', `${base}/repository/CommonPopRepository.java`)
+    const repo2 = makeBeComponent('OrderRepository', `${base}/repository/OrderRepository.java`)
+    const repo3 = makeBeComponent('PerfStatusRepository', `${base}/repository/PerfStatusRepository.java`)
+    const xml1 = makeBeComponent('CommonPopMapper.xml', 'src/main/resources/mapper/CommonPopMapper.xml')
+    const prov = { file: ctrl.filePath, line: 1, adapter: 'test', analyzerVersion: '0.1' }
+    const ce = (from: typeof ctrl, to: typeof ctrl) => createEdge({
+      id: makeEdgeId('calls', from.id, to.id), from: from.id, to: to.id, kind: 'calls', provenance: prov, confidence: 'verified',
+    })
+    const graph = createIRGraph({
+      analyzerVersion: '0.1',
+      repoRoot: '/tmp/be',
+      metadata: { framework: 'springboot', hasSupabase: false, hasPrisma: false, hasDexie: false, hasFirebase: false, adapterCategory: 'BE' },
+      nodes: [ctrl, svcA, svcB, implA, implB, repo1, repo2, repo3, xml1],
+      edges: [
+        ce(ctrl, svcA), ce(ctrl, svcB),
+        ce(svcA, implA), ce(svcB, implB),
+        ce(implA, repo1), ce(implA, repo2), ce(implB, repo3),
+        ce(repo1, xml1),
+      ],
+    })
+    await renderMermaid(graph, OUTPUT_DIR)
+    const content = await fs.readFile(path.join(OUTPUT_DIR, 'screen-component.md'), 'utf8')
+    // 다중 Service 인라인 — 둘 다 노드 존재
+    expect(content).toContain('CommonPopService')
+    expect(content).toContain('PerfStatusService')
+    // Service → ServiceImpl
+    expect(content).toContain('CommonPopServiceImpl')
+    expect(content).toContain('PerfStatusServiceImpl')
+    // ServiceImpl → 다중 Repository fan-out
+    expect(content).toContain('CommonPopRepository')
+    expect(content).toContain('OrderRepository')
+    expect(content).toContain('PerfStatusRepository')
+    // Repository → XML
+    expect(content).toContain('CommonPopMapper.xml')
+    expect(content).not.toContain('cross-pkg') // 단일 도메인
   })
 
   it('DI edge 없는 Controller는 leaf만 표시 — (none) 추정 안 함 (R-T2.5)', async () => {

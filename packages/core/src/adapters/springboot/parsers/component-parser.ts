@@ -37,6 +37,13 @@ export async function parseSpringComponents(
     const source = await fs.readFile(filePath, 'utf-8').catch(() => null)
     if (source === null) continue
 
+    // A-ST2: 어노테이션 없는 interface도 게이트 통과시킨다.
+    //   - MyBatis @MapperScan 스타일 Repository interface (파일에 @Mapper 없음)
+    //   - Service interface (Controller가 주입받는 추상 타입, Impl만 @Service)
+    //   파일명 suffix(*Service/*Repository/*Dao/*Mapper) + `interface` 키워드로 1차 게이트.
+    const baseName = path.basename(filePath, path.extname(filePath))
+    const isNamedInterfaceFile = /(?:Service|Repository|Dao|Mapper)$/.test(baseName)
+      && /\binterface\b/.test(source)
     const hasComponent = source.includes('@Service')
       || source.includes('@Component')
       || source.includes('@Repository')
@@ -49,6 +56,7 @@ export async function parseSpringComponents(
       || source.includes('PagingAndSortingRepository')
       || source.includes('MongoRepository')
       || source.includes('ReactiveCrudRepository')
+      || isNamedInterfaceFile
     if (!hasComponent) continue
 
     const relPath = path.relative(repoRoot, filePath).replace(/\\/g, '/')
@@ -79,12 +87,13 @@ export async function parseSpringComponents(
         }
 
         const nameNode = node.childForFieldName('name')
-        // interface인 경우, @Repository 없어도 이름 패턴(*Repository/*Dao/*Mapper)이면 컴포넌트로 인정
-        const isJpaRepositoryByName = isInterface && matchedAnnotation === undefined
+        // interface인 경우, 어노테이션 없어도 이름 패턴이면 컴포넌트로 인정.
+        // A-ST2: *Service도 포함 — Controller가 주입받는 추상 타입(Impl만 @Service)을 DI 체인 노드로 표현.
+        const isNamedInterfaceComponent = isInterface && matchedAnnotation === undefined
           && nameNode !== null
-          && /(?:Repository|Dao|Mapper)$/.test(nameNode.text)
+          && /(?:Service|Repository|Dao|Mapper)$/.test(nameNode.text)
 
-        if ((matchedAnnotation !== undefined || isJpaRepositoryByName) && nameNode !== null) {
+        if ((matchedAnnotation !== undefined || isNamedInterfaceComponent) && nameNode !== null) {
           const className = nameNode.text
           const provenance: Provenance = {
             file: relPath,
@@ -94,7 +103,7 @@ export async function parseSpringComponents(
           }
           const inferenceTag = matchedAnnotation !== undefined
             ? `spring: @${matchedAnnotation} ${isInterface ? 'interface' : 'class'} ${className} in ${relPath}`
-            : `spring: JPA repository interface ${className} (name pattern) in ${relPath}`
+            : `spring: ${className} interface (name pattern, no annotation) in ${relPath}`
           nodes.push(
             createComponentNode({
               id: makeNodeId('component', relPath, className),

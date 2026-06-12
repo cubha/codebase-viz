@@ -92,8 +92,12 @@ function extractRoutesFromArray(arrayNode: import('ts-morph').Node, extraCompone
     const pathProp = obj.getProperty('path')
     if (!pathProp?.isKind(SyntaxKind.PropertyAssignment)) continue
     const pathInit = pathProp.asKindOrThrow(SyntaxKind.PropertyAssignment).getInitializer()
-    if (!pathInit?.isKind(SyntaxKind.StringLiteral)) continue
-    const routePath = pathInit.asKindOrThrow(SyntaxKind.StringLiteral).getLiteralValue()
+    if (pathInit === undefined) continue
+    // v1.2.50 (RR-1): path가 StringLiteral이 아니어도 정적 평가.
+    //   `${ORD_PROD_PLAN}/spec`(import 상수 치환 template) / bare const Identifier 지원.
+    //   평가 불가(동적 표현식)면 종전처럼 skip (Evidence-First).
+    const routePath = evalPathExpression(pathInit, obj.getSourceFile(), spreadCtx)
+    if (routePath === undefined) continue
 
     const entry: RouteEntry = { path: routePath }
 
@@ -440,15 +444,26 @@ function resolveObjectLiteralFromIdentifier(
   return undefined
 }
 
-// 같은 파일 const 문자열(StringLiteral·NoSubstitutionTemplate)을 정적 평가.
-function evalStringConst(idName: string, sf: import('ts-morph').SourceFile): string | undefined {
-  const v = sf.getVariableDeclarations().find(d => d.getName() === idName)
-  const init = v?.getInitializer()
-  if (init?.isKind(SyntaxKind.StringLiteral)) return init.asKindOrThrow(SyntaxKind.StringLiteral).getLiteralValue()
-  if (init?.isKind(SyntaxKind.NoSubstitutionTemplateLiteral)) {
-    return init.asKindOrThrow(SyntaxKind.NoSubstitutionTemplateLiteral).getLiteralValue()
+// const 문자열(StringLiteral·NoSubstitutionTemplate)을 정적 평가.
+// 같은 파일 우선, 실패 시 ctx가 있으면 import 1-hop(cross-file)으로 export const를 추적 (v1.2.50).
+function evalStringConst(
+  idName: string,
+  sf: import('ts-morph').SourceFile,
+  ctx?: ResolverCtx,
+): string | undefined {
+  const readLiteral = (init: import('ts-morph').Node | undefined): string | undefined => {
+    if (init?.isKind(SyntaxKind.StringLiteral)) return init.asKindOrThrow(SyntaxKind.StringLiteral).getLiteralValue()
+    if (init?.isKind(SyntaxKind.NoSubstitutionTemplateLiteral)) {
+      return init.asKindOrThrow(SyntaxKind.NoSubstitutionTemplateLiteral).getLiteralValue()
+    }
+    return undefined
   }
-  return undefined
+  const sameFile = readLiteral(sf.getVariableDeclarations().find(d => d.getName() === idName)?.getInitializer())
+  if (sameFile !== undefined) return sameFile
+  if (ctx === undefined) return undefined
+  // cross-file 1-hop — sf가 ctx.sourceFile과 다르면 그 파일 기준 ctx로 importMap 재구성.
+  const lookupCtx = sf === ctx.sourceFile ? ctx : buildResolverCtxForFile(sf, ctx)
+  return readLiteral(locateVarInitializer(idName, lookupCtx)?.init)
 }
 
 // template token 텍스트(`...${ / }...${ / }...`)에서 delimiter 제거.
@@ -461,7 +476,12 @@ function stripTemplateToken(raw: string): string {
 }
 
 // 계산된 객체 키 표현식을 정적 평가. StringLiteral / NoSubstitutionTemplate / TemplateExpression(const 치환) 지원.
-function evalKeyExpression(expr: import('ts-morph').Node, sf: import('ts-morph').SourceFile): string | undefined {
+// v1.2.50: ctx 전달 시 template span의 식별자를 cross-file import 1-hop으로도 평가.
+function evalKeyExpression(
+  expr: import('ts-morph').Node,
+  sf: import('ts-morph').SourceFile,
+  ctx?: ResolverCtx,
+): string | undefined {
   if (expr.isKind(SyntaxKind.StringLiteral)) return expr.asKindOrThrow(SyntaxKind.StringLiteral).getLiteralValue()
   if (expr.isKind(SyntaxKind.NoSubstitutionTemplateLiteral)) {
     return expr.asKindOrThrow(SyntaxKind.NoSubstitutionTemplateLiteral).getLiteralValue()
@@ -471,7 +491,7 @@ function evalKeyExpression(expr: import('ts-morph').Node, sf: import('ts-morph')
     let out = stripTemplateToken(te.getHead().getText())
     for (const span of te.getTemplateSpans()) {
       const spanExpr = span.getExpression()
-      const sub = spanExpr.isKind(SyntaxKind.Identifier) ? evalStringConst(spanExpr.getText(), sf) : undefined
+      const sub = spanExpr.isKind(SyntaxKind.Identifier) ? evalStringConst(spanExpr.getText(), sf, ctx) : undefined
       if (sub === undefined) return undefined
       out += sub
       out += stripTemplateToken(span.getLiteral().getText())
@@ -479,6 +499,16 @@ function evalKeyExpression(expr: import('ts-morph').Node, sf: import('ts-morph')
     return out
   }
   return undefined
+}
+
+// 라우트 path 표현식 정적 평가 (v1.2.50 RR-1). evalKeyExpression + bare const Identifier.
+function evalPathExpression(
+  expr: import('ts-morph').Node,
+  sf: import('ts-morph').SourceFile,
+  ctx?: ResolverCtx,
+): string | undefined {
+  if (expr.isKind(SyntaxKind.Identifier)) return evalStringConst(expr.getText(), sf, ctx)
+  return evalKeyExpression(expr, sf, ctx)
 }
 
 // v1.2.49 (결함③b): `Object.entries(obj).map((...) => ({path, component}))` 패턴에서

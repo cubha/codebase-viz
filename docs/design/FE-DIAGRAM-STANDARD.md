@@ -1,6 +1,7 @@
-# FE Diagram Standard (v1.0)
+# FE Diagram Standard (v1.2)
 
 작성: 2026-05-20 · v1.2.44 진입 직전 표준 amendment 포함
+v1.2 개정: 2026-06-12 (v1.2.50) — React Router(config-based)에서 컴포넌트 `src/pages/<도메인>` 깊은 구조일 때 Tab2를 **파일경로 도메인 레이어 트리**로 분리 (§3.4 R-T2.10·2.11). URL이 폴더 구조와 divergent한 실제 repo 대응.
 
 ## 0. 배경
 
@@ -105,6 +106,31 @@ file_page --> comp_button
 | angular | `component: FooComponent` (Identifier sync) · `loadComponent: () => import('./foo').then(m => m.Foo)` (dynamic) | 동일. `loadChildren`은 자체 모듈이라 fallback 유지. |
 
 resolve 실패 시 fallback: routes 정의 파일의 relPath (회귀 가드, 표시는 가능).
+
+### 3.4 React Router src/pages 도메인 레이어 (v1.2.50 RR-3)
+
+config-based React Router는 URL과 컴포넌트 파일 위치가 분리된다. 실제 repo는 URL을 평탄하게(`/order-plan/spec`) 두면서 컴포넌트는 깊은 도메인 폴더(`src/pages/partner/ordProdPlanMgmt/prodOrdSpec/...`)에 둔다. URL 그룹핑(R-T2.3)은 이 경우 도메인을 드러내지 못하고 평탄한 형제 group만 나열한다.
+
+→ **BE Tab2가 패키지 트리를 top-level 패키지 chunk로 분리하는 방식과 동일하게**, 컴포넌트의 `src/pages/<Root 도메인>` 파일경로 트리로 레이어링한다.
+
+```
+%% chunk per top-level 도메인 (partner / agency / headoffice)
+graph TD
+  subgraph HDR_PAGES ["📁 src/pages/partner"]
+    pkg_partner__ordProdPlanMgmt["ordProdPlanMgmt"]
+    pkg_partner__ordProdPlanMgmt__prodOrdSpec["prodOrdSpec"]
+    pkg_partner__ordProdPlanMgmt --> pkg_partner__ordProdPlanMgmt__prodOrdSpec
+    pageleaf_...["spec · csr<br/>📄 OrdSpecPrintPage.tsx"]
+    pkg_partner__ordProdPlanMgmt__prodOrdSpec --> pageleaf_...
+  end
+```
+
+| 규칙 | 정의 |
+|---|---|
+| **R-T2.10 도메인 레이어 적격** | `framework === 'react-router'` **AND** `isPagesDomainEligible`: `src/pages/` 하위에 ≥2개 도메인 폴더가 존재(컴포넌트가 `pages/<domain>/.../File` 깊이 보유)할 때만 적용. 평탄(`src/pages/Home.tsx` 직속)·기타 어댑터는 R-T2.3 URL 그룹핑 유지(회귀 0). |
+| **R-T2.11 도메인 chunk 트리** | 컴포넌트 filePath의 `pages/` 이후 segments로 `buildPkgTree` → `chunkByTopLevelPackage`로 top-level 도메인별 chunk 분리(`📁 src/pages/<domain>` 헤더). 중간 폴더 = `:::pkg` 트리 노드(BE R-T1.4 재사용), 페이지 = `pageleaf_<routeId>` leaf(라우트 표시 + 렌더모드 배지 + 📄 파일명). chunk 분리로 단일 대형 다이어그램 프리즈 회피 → R-T2.8 >100 route 게이트 이전 분기. |
+
+> **알려진 한계**: 단일 도메인 chunk 내 라우트가 매우 많을 때 node-bound 추가 분할은 미적용(BE chunkByTopLevelPackage와 동일 수준). 실 repo ship 후 재평가.
 
 ## 4. Tab3 — Data Flow (FE)
 

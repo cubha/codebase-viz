@@ -143,4 +143,51 @@ public class ApiController {
     expect(names).toContain('PostController')
     expect(names).toContain('UserService')
   })
+
+  it('어노테이션 없는 *Service interface 등록 (name 패턴, A-ST2)', async () => {
+    await writeFile('CommonPopService.java', `
+package com.wina.partner.common.commonPop.service;
+
+public interface CommonPopService {
+    Object retrieveAgencyPopup();
+}
+`)
+    const nodes = await parseSpringComponents(tmpDir, 'test')
+    expect(nodes.map(n => n.name)).toContain('CommonPopService')
+  })
+
+  it('어노테이션 없는 *Repository interface 등록 (MyBatis @MapperScan 스타일, A-ST2)', async () => {
+    await writeFile('CommonPopRepository.java', `
+package com.wina.partner.common.commonPop.repository;
+
+public interface CommonPopRepository {
+    Object selectAgencyPopup();
+}
+`)
+    const nodes = await parseSpringComponents(tmpDir, 'test')
+    expect(nodes.map(n => n.name)).toContain('CommonPopRepository')
+  })
+
+  it('어노테이션 없는 일반 interface(*Service/*Repository 아님)는 등록 안 함 (Less is More)', async () => {
+    await writeFile('PaymentGateway.java', `
+package com.example.gw;
+
+public interface PaymentGateway {
+    void charge();
+}
+`)
+    const nodes = await parseSpringComponents(tmpDir, 'test')
+    expect(nodes).toEqual([])
+  })
+
+  it('mini-spring-lombok-mybatis-app fixture — interface 5종 + Impl 2종 + Controller 추출 (A-ST2)', async () => {
+    const FIXTURE = path.resolve(process.cwd(), 'fixtures/mini-spring-lombok-mybatis-app')
+    const names = (await parseSpringComponents(FIXTURE, 'test')).map(n => n.name)
+    expect(names).toEqual(expect.arrayContaining([
+      'CommonPopController',
+      'CommonPopService', 'PerfStatusService',
+      'CommonPopServiceImpl', 'PerfStatusServiceImpl',
+      'CommonPopRepository', 'OrderRepository', 'PerfStatusRepository',
+    ]))
+  })
 })

@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.wina.partner.common.commonPop.repository.CommonPopRepository">
+
+    <resultMap id="agencyPopMap" type="com.wina.partner.common.commonPop.vo.AgencyPopResponseVO">
+        <id column="AGENCY_CD" property="agencyCd"/>
+        <result column="AGENCY_NM" property="agencyNm"/>
+    </resultMap>
+
+    <select id="selectAgencyPopup" resultMap="agencyPopMap">
+        SELECT AGENCY_CD, AGENCY_NM FROM TB_AGENCY
+    </select>
+
+    <update id="savePrdoWryLabelYn">
+        UPDATE TB_PRDO_WRY SET LABEL_YN = #{labelYn}
+    </update>
+</mapper>

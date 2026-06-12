@@ -17,6 +17,7 @@ const FIXTURE_LIST = [
   'mini-django-app',
   'mini-fastapi-app',
   'mini-spring-app',
+  'mini-spring-lombok-mybatis-app',
   'mini-spring-deep-pkg-app',
   'mini-spring-wide-pkg-app',
   'mini-spring-partner-mock-app',
@@ -26,6 +27,7 @@ const FIXTURE_LIST = [
   'mini-remix-app',
   'mini-react-router-app',
   'mini-react-partner-mock-app',
+  'mini-react-router-domain-app',
   'mini-nextpages-app',
 ] as const
 

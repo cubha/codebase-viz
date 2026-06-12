@@ -220,4 +220,89 @@ public class UserService {
 
     expect(edges.every(e => e.kind === 'calls')).toBe(true)
   })
+
+  it('Lombok @RequiredArgsConstructor: final 필드 → calls 엣지 (A-ST1)', async () => {
+    await writeFile('CommonPopService.java', `
+package x;
+public interface CommonPopService {}
+`)
+    await writeFile('CommonPopController.java', `
+package x;
+import lombok.RequiredArgsConstructor;
+import org.springframework.web.bind.annotation.RestController;
+
+@RestController
+@RequiredArgsConstructor
+public class CommonPopController {
+    private final CommonPopService commonPopService;
+}
+`)
+    const components = await parseSpringComponents(tmpDir, 'test')
+    const edges = await parseSpringDependencies(tmpDir, components, 'test')
+    const names = (id: string) => components.find(c => c.id === id)?.name
+    const e = edges.find(x => names(x.from) === 'CommonPopController' && names(x.to) === 'CommonPopService')
+    expect(e).toBeDefined()
+  })
+
+  it('Lombok 없는 final 필드는 주입 아님 (Less is More, A-ST1)', async () => {
+    await writeFile('FooRepository.java', `
+package x;
+public interface FooRepository {}
+`)
+    await writeFile('FooService.java', `
+package x;
+import org.springframework.stereotype.Service;
+
+@Service
+public class FooService {
+    private final FooRepository fooRepository = null;
+}
+`)
+    const components = await parseSpringComponents(tmpDir, 'test')
+    const edges = await parseSpringDependencies(tmpDir, components, 'test')
+    expect(edges).toHaveLength(0)
+  })
+
+  it('implements: ServiceImpl → 구현 interface 역방향 calls 엣지 (interface→Impl, A-ST1)', async () => {
+    await writeFile('CommonPopService.java', `
+package x;
+public interface CommonPopService {}
+`)
+    await writeFile('CommonPopServiceImpl.java', `
+package x;
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Service;
+
+@Service
+@RequiredArgsConstructor
+public class CommonPopServiceImpl implements CommonPopService {}
+`)
+    const components = await parseSpringComponents(tmpDir, 'test')
+    const edges = await parseSpringDependencies(tmpDir, components, 'test')
+    const names = (id: string) => components.find(c => c.id === id)?.name
+    const e = edges.find(x => names(x.from) === 'CommonPopService' && names(x.to) === 'CommonPopServiceImpl')
+    expect(e).toBeDefined()
+    expect(e?.confidence).toBe('inferred')
+    if (e?.confidence === 'inferred') {
+      expect(e.inferenceChain.some((c: string) => /implements/i.test(c))).toBe(true)
+    }
+  })
+
+  it('mini-spring-lombok-mybatis-app fixture — 5단 체인 엣지 모두 감지 (A-ST1)', async () => {
+    const FIXTURE = path.resolve(process.cwd(), 'fixtures/mini-spring-lombok-mybatis-app')
+    const components = await parseSpringComponents(FIXTURE, 'test')
+    const edges = await parseSpringDependencies(FIXTURE, components, 'test')
+    const names = (id: string) => components.find(c => c.id === id)?.name
+    const has = (from: string, to: string) => edges.some(e => names(e.from) === from && names(e.to) === to)
+    // Controller → 다중 Service (인라인)
+    expect(has('CommonPopController', 'CommonPopService')).toBe(true)
+    expect(has('CommonPopController', 'PerfStatusService')).toBe(true)
+    // Service(interface) → ServiceImpl
+    expect(has('CommonPopService', 'CommonPopServiceImpl')).toBe(true)
+    expect(has('PerfStatusService', 'PerfStatusServiceImpl')).toBe(true)
+    // ServiceImpl → 다중 Repository (fan-out)
+    expect(has('CommonPopServiceImpl', 'CommonPopRepository')).toBe(true)
+    expect(has('CommonPopServiceImpl', 'OrderRepository')).toBe(true)
+    expect(has('PerfStatusServiceImpl', 'PerfStatusRepository')).toBe(true)
+  })
 })
