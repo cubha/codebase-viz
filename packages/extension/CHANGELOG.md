@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.2.53] — 2026-06-18
+
+### Fixed — Tab1 lost its framework/backend layers on large projects + standardized Tab2 vertical spacing
+
+- **Tab1 now always shows the full architecture, even for large apps.** Projects with more than 5 top-level URL domains (very common) fell into a chunked path that dropped the entire infrastructure stack (`Browser → Router → React`) and the data/backend layer, leaving Tab1 as a bare URL tree — duplicating Tab2 and breaking the Tab1/2/3 hierarchy. Tab1 is now redefined as a **domain summary**: one box per top-level domain with a route-count badge (`📁 partner · 24 routes`). Detailed route/screen breakdown stays in Tab2. Because the summary is small (O(domains)), Tab1 no longer needs chunking and always keeps its framework + backend layers.
+- **No more over-nested sub-domains in Tab1.** Tab1 used to nest every URL segment (e.g. `matMgmt` inside `partner` as its own layer), diverging from Tab2's folder-based view. The domain summary removes that.
+- **Tab2 vertical connectors are tighter and uniform.** Domain trees and file trees used Mermaid's default rank spacing (~50), which stretched the vertical lines between layers and made them uneven across layers. A compact spacing profile standardizes them (no overlap, consistent gaps).
+- Verification: build + unit tests pass (806 passed) · webview before/after confirmed tighter, non-overlapping spacing.
+
 ## [1.2.52] — 2026-06-17
 
 ### Improved — Large-project viewer loads faster, scrolls smoother

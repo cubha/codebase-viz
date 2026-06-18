@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.2.53] — 2026-06-18
+
+### React Tab1 도메인 요약 재정의 + FE Tab2 Y축 연결선 표준화 (사용자 v1.2.52 후속 3현상 · 회귀 0)
+
+사용자 보고(1.2.52 결과): ①Tab1·Tab2 레이어 불일치(partner 내부 matMgmt 별도 레이어) ②Tab1 프레임워크·BE 연계 누락(URL만 분석) ③레이어 내부 Y축 연결선 과대·불균일. 코드레벨 분석으로 real-bug vs 구조적 판정 → `docs/analysis/v1.2.52-fe-tab1-yaxis-findings.md`.
+
+**진단(귀속 정정)**: v1.2.52는 viewer 단독이라 무관. 실제 원인은 v1.2.51 C2 청킹 게이트(`branchingGroups>5`)가 chunked 경로(`buildRouteRowDiagram`)로 빠뜨려 **Tab1 인프라 wrapper(R-T1.1)·외부분기(R-T1.5)를 통째로 폐기**시킨 것 + Tab1이 URL 전 세그먼트를 중첩 레이어링하던 설계.
+
+- **Phase A — Tab1 도메인 요약 재정의 (1b·1a 해소)**: Tab1을 top-level URL 도메인 **요약 박스**(`📁 <도메인> · N routes`, `buildDomainSummaryLines`)로 재정의. 라우트 leaf 열거·하위 세분화는 Tab2로 위임 → 노드 수 O(도메인)라 **청킹 폐지**(R-T1.7 v1.2), wrapper·외부분기 항상 유지. 도메인>`GROUPS_PER_ROW`는 inner-row wrapper 줄넘김(청킹 아님). 실측: 7도메인 앱 0 청크·`BROWSER/ROUTER/REACT`+`API LAYER` 유지, partner 내부 matMgmt 별도 레이어 소멸. FE-DIAGRAM-STANDARD R-T1.2/R-T1.3/R-T1.4/R-T1.7 amendment(§9).
+- **Phase B — FE Tab2 Y축 표준화 (2)**: Tab2(도메인 트리·file-tree)는 평탄 subgraph + visible `pkg-->leaf` edge라 spacing 옵션 정상 반영(BE Tab2 선례). 신규 `FE_TREE_INIT`(`rankSpacing:24, nodeSpacing:40, padding:8`)로 기본(≈50)이 깊이마다 Y축 연결선을 과도·불균일하게 늘리던 문제 표준화. webview 실측(before/after): `matMgmt→decoSheet→leaf` 세로 간격 ~114/127px→~89/100px, 겹침 0. Tab1(nested+`~~~`+외부edge)은 spacing 무시 케이스라 미적용(RENDERING_INIT 유지).
+- 검증: verify.sh **PASS**(tsc+vitest) · **806 passed/1 skip/0 fail** · 스냅샷 재생성(Tab1 rendering 도메인박스 + Tab2 init 라인, Tab3/summary byte-identical) · 신규 단위테스트(tab1-summary 4 + tab2 spacing 1). 구 Tab1 청킹/leaf 계약 단언 8건은 표준 v1.2 변경에 맞춰 갱신(명시).
+
 ## [1.2.52] — 2026-06-17
 
 ### 대형 라우트 viewer perf 개선 — 점진 주입 + content-visibility (레버 1+2 · 회귀 0)

@@ -1,7 +1,7 @@
 import type { IREdge, ComponentNode, RouteNode } from '@codebase-viz/types'
 import type { NestedGroup } from '../url-grouper.js'
 import { sanitizeId, modeClass } from '../helpers/ids.js'
-import { RENDERING_INIT, CLASS_DEFS } from '../helpers/constants.js'
+import { FE_TREE_INIT, CLASS_DEFS } from '../helpers/constants.js'
 import { groupSubgraphId, sectionLabel } from './labels.js'
 
 // 읽기 전용 lookup 묶음. T1 lookup table·T4 시퀀스 신규 빌더는 본 ctx에 필드 추가만으로 주입 가능.
@@ -26,7 +26,7 @@ export function buildFeFileTreeScreenDiagram(
 ): string {
   const compById = new Map(componentNodes.map(c => [c.id, c]))
   const ctx: FileTreeCtx = { compById, rendersEdges, importsEdges }
-  const lines: string[] = [RENDERING_INIT, 'graph LR', CLASS_DEFS]
+  const lines: string[] = [FE_TREE_INIT, 'graph LR', CLASS_DEFS]
   const edges: string[] = []
   const fileNodeRendered = new Set<string>()
 

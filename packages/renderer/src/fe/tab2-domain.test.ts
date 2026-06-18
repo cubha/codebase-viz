@@ -87,4 +87,11 @@ describe('FE Tab2 도메인 레이어 (v1.2.50 B-ST2)', () => {
     expect(agencyIdx).toBeGreaterThanOrEqual(0)
     if (rootIdx >= 0) expect(out.indexOf('customerMgmt')).toBeLessThan(rootIdx > agencyIdx ? rootIdx : out.length)
   })
+
+  // v1.2.53 ST4: Tab2 도메인 트리는 FE_TREE_INIT(compact rankSpacing)로 Y축 연결선 표준화.
+  it('FE_TREE_INIT compact rankSpacing 적용 (Y축 연결선 표준화)', () => {
+    const out = buildFeDomainLayeredScreenDiagram(routes, edges, comps)
+    expect(out).toContain("'rankSpacing':24")
+    expect(out).toContain("'nodeSpacing':40")
+  })
 })

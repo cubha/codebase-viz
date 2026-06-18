@@ -1,6 +1,6 @@
 import type { IREdge, ComponentNode, RouteNode } from '@codebase-viz/types'
 import { sanitizeId, modeClass } from '../helpers/ids.js'
-import { RENDERING_INIT, CLASS_DEFS } from '../helpers/constants.js'
+import { FE_TREE_INIT, CLASS_DEFS } from '../helpers/constants.js'
 import { joinChunks } from '../_shared/wrap-fallback.js'
 import {
   type PkgTreeNode,
@@ -110,7 +110,7 @@ export function buildFeDomainLayeredScreenDiagram(
   const emitChunk = (topSeg: string, subtree: PkgTreeNode): string[] => {
     const headerLabel = topSeg === '_root' ? 'src/pages' : `src/pages/${topSeg}`
     const chunkPath = topSeg === '_root' ? [] : [topSeg]
-    const lines: string[] = [RENDERING_INIT, 'graph TD', CLASS_DEFS]
+    const lines: string[] = [FE_TREE_INIT, 'graph TD', CLASS_DEFS]
     lines.push(...feHeaderOpen(headerLabel))
     const treeEmit = emitTreeNodes(subtree, 'HDR_PAGES', chunkPath, { clusterRoot: true })
     lines.push(...treeEmit.lines)

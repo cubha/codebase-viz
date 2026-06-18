@@ -247,14 +247,15 @@ describe('buildDiagrams chunk fallback integration', () => {
     expect(out.rendering).toContain(CHUNK_SEPARATOR)
   })
 
-  it('v1.2.51 C2: 50 flat routes (<100)이라도 top-level 형제>5 → Tab1 chunked grid', async () => {
+  it('FE 표준 v1.2 (R-T1.7): 50 flat domains여도 Tab1은 청킹하지 않고 도메인 요약 grid 단일 다이어그램', async () => {
     const { buildDiagrams } = await import('../mermaid-renderer.js')
     const routes = Array.from({ length: 50 }, (_, i) => makeRoute(`/r${i}`))
     const graph = makeGraphWith(routes)
     const out = buildDiagrams(graph, { nodeThreshold: 80 })
-    // 50 flat routes = 50 top-level groups > GROUPS_PER_ROW(5) → route<100이어도 chunked grid.
-    // (v1.1.53은 route<100이면 single 강제했으나 단일 LR이 50 형제를 한 줄에 깔아 띠 압축 → 반전)
-    expect(out.rendering).toContain(CHUNK_SEPARATOR)
+    // v1.2.53: Tab1 청킹 폐지. 50 도메인 > GROUPS_PER_ROW(5) → inner-row wrapper로 줄넘김(청킹 아님).
+    // (v1.2.51 C2 청킹 게이트는 wrapper·외부분기를 폐기시켜 폐지 — docs/analysis/v1.2.52-fe-tab1-yaxis-findings.md)
+    expect(out.rendering).not.toContain(CHUNK_SEPARATOR)
+    expect(out.rendering).toMatch(/subgraph DOMAINS_R\d/)
   })
 
   it('소형-소도메인: 4 flat routes (≤5 groups, <100) → single diagram 유지 (회귀 보존)', async () => {

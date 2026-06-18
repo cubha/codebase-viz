@@ -57,15 +57,17 @@ Frameworks not in this list (Express, Hono, Rails, Go, etc.) use **LLM primary**
 
 ---
 
-## ✨ What's new in v1.2.52
+## ✨ What's new in v1.2.53
 
-### Improved — Large-project viewer loads faster and scrolls smoother
+### Fixed — Tab1 architecture layers restored on large projects + standardized Tab2 spacing
 
-- **First diagram appears ~4× sooner on large projects.** Projects that split into many chunks (e.g. 1000+ routes → ~22 chunks) used to render every chunk before showing anything — a long blank wait. Chunks now stream in progressively: the first row paints right away and the rest fill in without blocking the UI (measured time-to-first-row on a ~1100-route synthetic: 1459 ms → 333 ms).
-- **Less stutter when scrolling, zooming, or panning.** Off-screen chunks skip repaint (`content-visibility`), so interaction cost no longer scales with the total chunk count.
-- Viewer-only change — no analyzer or diagram-output difference. (The total time to render *all* chunks of a very large project is unchanged; this targets first-paint latency and interaction smoothness.)
+- **Tab1 always shows the full architecture now.** Apps with more than 5 top-level domains used to fall into a chunked path that dropped the infrastructure stack (`Browser → Router → React`) and the backend/data layer — leaving Tab1 as a bare URL tree. Tab1 is now a **domain summary** (one box per domain with a route count, e.g. `📁 partner · 24 routes`); the detailed route/screen tree stays in Tab2. The summary is small, so Tab1 no longer chunks and always keeps its framework + backend layers.
+- **No more over-nested sub-domains in Tab1** (e.g. `matMgmt` inside `partner` as its own layer) — that detail belongs to Tab2.
+- **Tab2 vertical connectors are tighter and uniform** — domain/file trees no longer stretch the lines between layers unevenly.
 
 ### Previous highlights
+
+**v1.2.52** — Large-project viewer loads ~4× sooner (progressive chunk streaming) and scrolls smoother (`content-visibility`); viewer-only
 
 **v1.2.51** — React Router bulk route omission (tsconfig path alias resolution) · Spring Boot large-domain "maximum size" sub-chunking · Tab1 many-domain readability grid
 

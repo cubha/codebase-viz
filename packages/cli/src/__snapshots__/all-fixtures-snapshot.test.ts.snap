@@ -48,23 +48,17 @@ graph LR
   subgraph BROWSER["🌐 Browser · Client-Side App"]
     subgraph ROUTER["🧭 Angular Router · SPA"]
       subgraph ANGULAR["🅰 Angular · CSR Engine"]
-        route_src_app_home_component_ts__["/ · CSR"]:::csr
-        route_src_app_user_detail_user_detail_component_ts__["/ · CSR"]:::csr
-        route_src_app_about_component_ts__about["/about · CSR"]:::csr
-        subgraph USERS_G["📄 /users"]
-          route_src_app_users_component_ts__users["users · CSR"]:::csr
-          subgraph USERS__ID_G["📄 /:id"]
-            route_src_app_app_routes_ts__users__id[":id · CSR"]:::csr
-          end
-        end
-        route_src_app_about_component_ts__about ~~~ USERS_G
+        DOMAIN_root["📁 / · 2 routes"]:::pkg
+        DOMAIN_about["📁 about · 1 route"]:::pkg
+        DOMAIN_users["📁 users · 2 routes"]:::pkg
+        DOMAIN_root ~~~ DOMAIN_about ~~~ DOMAIN_users
       end
     end
   end"
 `;
 
 exports[`Phase XI — fixture baseline snapshots (P1) > mini-angular-app > Tab2 screen-component diagram 1`] = `
-"%%{init:{'theme':'base','themeVariables':{'background':'#060810','primaryColor':'#0c1a30','primaryTextColor':'#7dd3fc','primaryBorderColor':'#0e3a6e','edgeLabelBackground':'#0c1a30','lineColor':'#334155','secondaryColor':'#0f172a','clusterBkg':'#060c18','clusterBorder':'#1e3a5f','fontFamily':'JetBrains Mono','fontSize':'14'}}}%%
+"%%{init:{'theme':'base','themeVariables':{'background':'#060810','primaryColor':'#0c1a30','primaryTextColor':'#7dd3fc','primaryBorderColor':'#0e3a6e','edgeLabelBackground':'#0c1a30','lineColor':'#334155','secondaryColor':'#0f172a','clusterBkg':'#060c18','clusterBorder':'#1e3a5f','fontFamily':'JetBrains Mono','fontSize':'14'},'flowchart':{'nodeSpacing':40,'rankSpacing':24,'padding':8}}}%%
 graph LR
   classDef ssr fill:#0d1a0d,stroke:#16a34a,color:#86efac
   classDef csr fill:#2d1200,stroke:#c2410c,color:#fb923c
@@ -554,14 +548,10 @@ graph LR
     subgraph RUNTIME["⚙ Node.js · Server Runtime"]
       subgraph FRAMEWORK["▲ Next.js · App Router"]
         subgraph REACT["⚛ React · SSR Engine"]
-          route_app__marketing__about_page["/about · SSR"]:::ssr
-          subgraph BLOG_G["📝 /blog"]
-            subgraph BLOG__SLUG_G["📄 /:slug"]
-              route_app_blog__slug__page[":slug · SSR"]:::ssr
-            end
-          end
-          route_app_page["/ · SSR"]:::ssr
-          route_app__marketing__about_page ~~~ BLOG_G
+          DOMAIN_about["📁 about · 1 route"]:::pkg
+          DOMAIN_blog["📁 blog · 1 route"]:::pkg
+          DOMAIN_root["📁 / · 1 route"]:::pkg
+          DOMAIN_about ~~~ DOMAIN_blog ~~~ DOMAIN_root
         end
       end
     end
@@ -576,7 +566,7 @@ graph LR
 `;
 
 exports[`Phase XI — fixture baseline snapshots (P1) > mini-next-app > Tab2 screen-component diagram 1`] = `
-"%%{init:{'theme':'base','themeVariables':{'background':'#060810','primaryColor':'#0c1a30','primaryTextColor':'#7dd3fc','primaryBorderColor':'#0e3a6e','edgeLabelBackground':'#0c1a30','lineColor':'#334155','secondaryColor':'#0f172a','clusterBkg':'#060c18','clusterBorder':'#1e3a5f','fontFamily':'JetBrains Mono','fontSize':'14'}}}%%
+"%%{init:{'theme':'base','themeVariables':{'background':'#060810','primaryColor':'#0c1a30','primaryTextColor':'#7dd3fc','primaryBorderColor':'#0e3a6e','edgeLabelBackground':'#0c1a30','lineColor':'#334155','secondaryColor':'#0f172a','clusterBkg':'#060c18','clusterBorder':'#1e3a5f','fontFamily':'JetBrains Mono','fontSize':'14'},'flowchart':{'nodeSpacing':40,'rankSpacing':24,'padding':8}}}%%
 graph LR
   classDef ssr fill:#0d1a0d,stroke:#16a34a,color:#86efac
   classDef csr fill:#2d1200,stroke:#c2410c,color:#fb923c
@@ -667,19 +657,11 @@ graph LR
     subgraph RUNTIME["⚙ Node.js · Server Runtime"]
       subgraph FRAMEWORK["▲ Next.js · App Router"]
         subgraph REACT["⚛ React · SSR Engine"]
-          subgraph _COMPONENTS_G["📄 /_components"]
-            route_pages__components_UserBadge_tsx_page["UserBadge · SSR"]:::ssr
-            route_pages__components_UserCard_tsx_page["UserCard · SSR"]:::ssr
-          end
-          route_pages__components_UserBadge_tsx_page ~~~ route_pages__components_UserCard_tsx_page
-          route_pages_about_tsx_page["/about · SSR"]:::ssr
-          route_pages_index_tsx_page["/ · SSR"]:::ssr
-          subgraph USERS_G["📄 /users"]
-            subgraph USERS__ID_G["📄 /:id"]
-              route_pages_users__id__tsx_page[":id · SSR"]:::ssr
-            end
-          end
-          _COMPONENTS_G ~~~ route_pages_about_tsx_page ~~~ USERS_G
+          DOMAIN__components["📁 _components · 2 routes"]:::pkg
+          DOMAIN_about["📁 about · 1 route"]:::pkg
+          DOMAIN_root["📁 / · 1 route"]:::pkg
+          DOMAIN_users["📁 users · 1 route"]:::pkg
+          DOMAIN__components ~~~ DOMAIN_about ~~~ DOMAIN_root ~~~ DOMAIN_users
         end
       end
     end
@@ -687,7 +669,7 @@ graph LR
 `;
 
 exports[`Phase XI — fixture baseline snapshots (P1) > mini-nextpages-app > Tab2 screen-component diagram 1`] = `
-"%%{init:{'theme':'base','themeVariables':{'background':'#060810','primaryColor':'#0c1a30','primaryTextColor':'#7dd3fc','primaryBorderColor':'#0e3a6e','edgeLabelBackground':'#0c1a30','lineColor':'#334155','secondaryColor':'#0f172a','clusterBkg':'#060c18','clusterBorder':'#1e3a5f','fontFamily':'JetBrains Mono','fontSize':'14'}}}%%
+"%%{init:{'theme':'base','themeVariables':{'background':'#060810','primaryColor':'#0c1a30','primaryTextColor':'#7dd3fc','primaryBorderColor':'#0e3a6e','edgeLabelBackground':'#0c1a30','lineColor':'#334155','secondaryColor':'#0f172a','clusterBkg':'#060c18','clusterBorder':'#1e3a5f','fontFamily':'JetBrains Mono','fontSize':'14'},'flowchart':{'nodeSpacing':40,'rankSpacing':24,'padding':8}}}%%
 graph LR
   classDef ssr fill:#0d1a0d,stroke:#16a34a,color:#86efac
   classDef csr fill:#2d1200,stroke:#c2410c,color:#fb923c
@@ -762,19 +744,15 @@ graph LR
   classDef pkg fill:#0c1018,stroke:#475569,color:#cbd5e1
   classDef muted fill:#0a0d14,stroke:#374151,color:#64748b,stroke-dasharray: 3 3
   classDef hdr fill:#06080f,stroke:#1e3a5f,color:#7dd3fc
-  route_pages_about_vue["/about · SSR"]:::ssr
-  route_pages_client_only_vue["/client-only · CSR"]:::csr
-  route_pages_index_vue["/ · SSR"]:::ssr
-  subgraph USERS_G["📄 /users"]
-    subgraph USERS__ID_G["📄 /:id"]
-      route_pages_users__id__vue[":id · SSR"]:::ssr
-    end
-  end
-  route_pages_about_vue ~~~ route_pages_client_only_vue ~~~ USERS_G"
+  DOMAIN_about["📁 about · 1 route"]:::pkg
+  DOMAIN_client_only["📁 client-only · 1 route"]:::pkg
+  DOMAIN_root["📁 / · 1 route"]:::pkg
+  DOMAIN_users["📁 users · 1 route"]:::pkg
+  DOMAIN_about ~~~ DOMAIN_client_only ~~~ DOMAIN_root ~~~ DOMAIN_users"
 `;
 
 exports[`Phase XI — fixture baseline snapshots (P1) > mini-nuxt-app > Tab2 screen-component diagram 1`] = `
-"%%{init:{'theme':'base','themeVariables':{'background':'#060810','primaryColor':'#0c1a30','primaryTextColor':'#7dd3fc','primaryBorderColor':'#0e3a6e','edgeLabelBackground':'#0c1a30','lineColor':'#334155','secondaryColor':'#0f172a','clusterBkg':'#060c18','clusterBorder':'#1e3a5f','fontFamily':'JetBrains Mono','fontSize':'14'}}}%%
+"%%{init:{'theme':'base','themeVariables':{'background':'#060810','primaryColor':'#0c1a30','primaryTextColor':'#7dd3fc','primaryBorderColor':'#0e3a6e','edgeLabelBackground':'#0c1a30','lineColor':'#334155','secondaryColor':'#0f172a','clusterBkg':'#060c18','clusterBorder':'#1e3a5f','fontFamily':'JetBrains Mono','fontSize':'14'},'flowchart':{'nodeSpacing':40,'rankSpacing':24,'padding':8}}}%%
 graph LR
   classDef ssr fill:#0d1a0d,stroke:#16a34a,color:#86efac
   classDef csr fill:#2d1200,stroke:#c2410c,color:#fb923c
@@ -867,33 +845,10 @@ graph LR
   subgraph BROWSER["🌐 Browser · Client-Side App"]
     subgraph ROUTER["🧭 React Router · SPA"]
       subgraph REACT["⚛ React · CSR Engine"]
-        subgraph PARTNER_G["📄 /partner"]
-          subgraph PARTNER_ORDPRODPLANMGMT_G["📄 /ordProdPlanMgmt"]
-            route_src_router_tsx__partner_ordProdPlanMgmt_prodOrdSpec["prodOrdSpec · CSR"]:::csr
-          end
-          subgraph PARTNER_MATMGMT_G["📄 /matMgmt"]
-            route_src_router_tsx__partner_matMgmt_decoSheet["decoSheet · CSR"]:::csr
-          end
-          subgraph PARTNER_PERFMGMT_G["📄 /perfMgmt"]
-            route_src_router_tsx__partner_perfMgmt_transStmt["transStmt · CSR"]:::csr
-          end
-        end
-        PARTNER_ORDPRODPLANMGMT_G ~~~ PARTNER_MATMGMT_G ~~~ PARTNER_PERFMGMT_G
-        subgraph AGENCY_G["📄 /agency"]
-          route_src_router_tsx__agency_userMgmt["userMgmt · CSR"]:::csr
-          route_src_router_tsx__agency_contractMgmt["contractMgmt · CSR"]:::csr
-        end
-        route_src_router_tsx__agency_userMgmt ~~~ route_src_router_tsx__agency_contractMgmt
-        subgraph HEADOFFICE_G["📄 /headOffice"]
-          subgraph HEADOFFICE_PARTNERBASEINFO_G["📄 /partnerBaseInfo"]
-            route_src_router_tsx__headOffice_partnerBaseInfo_procCodeMgmt["procCodeMgmt · CSR"]:::csr
-          end
-          subgraph HEADOFFICE_MATERIALMGMT_G["📄 /materialMgmt"]
-            route_src_router_tsx__headOffice_materialMgmt_cuttingPlanInfoMgmt["cuttingPlanInfoMgmt · CSR"]:::csr
-          end
-        end
-        HEADOFFICE_PARTNERBASEINFO_G ~~~ HEADOFFICE_MATERIALMGMT_G
-        PARTNER_G ~~~ AGENCY_G ~~~ HEADOFFICE_G
+        DOMAIN_partner["📁 partner · 3 routes"]:::pkg
+        DOMAIN_agency["📁 agency · 2 routes"]:::pkg
+        DOMAIN_headOffice["📁 headOffice · 2 routes"]:::pkg
+        DOMAIN_partner ~~~ DOMAIN_agency ~~~ DOMAIN_headOffice
       end
     end
   end
@@ -907,7 +862,7 @@ graph LR
 
 exports[`Phase XI — fixture baseline snapshots (P1) > mini-react-partner-mock-app > Tab2 screen-component diagram 1`] = `
 "%% chunk:1/3
-%%{init:{'theme':'base','themeVariables':{'background':'#060810','primaryColor':'#0c1a30','primaryTextColor':'#7dd3fc','primaryBorderColor':'#0e3a6e','edgeLabelBackground':'#0c1a30','lineColor':'#334155','secondaryColor':'#0f172a','clusterBkg':'#060c18','clusterBorder':'#1e3a5f','fontFamily':'JetBrains Mono','fontSize':'14'}}}%%
+%%{init:{'theme':'base','themeVariables':{'background':'#060810','primaryColor':'#0c1a30','primaryTextColor':'#7dd3fc','primaryBorderColor':'#0e3a6e','edgeLabelBackground':'#0c1a30','lineColor':'#334155','secondaryColor':'#0f172a','clusterBkg':'#060c18','clusterBorder':'#1e3a5f','fontFamily':'JetBrains Mono','fontSize':'14'},'flowchart':{'nodeSpacing':40,'rankSpacing':24,'padding':8}}}%%
 graph TD
   classDef ssr fill:#0d1a0d,stroke:#16a34a,color:#86efac
   classDef csr fill:#2d1200,stroke:#c2410c,color:#fb923c
@@ -938,7 +893,7 @@ graph TD
   end
 %%--CHUNK--%%
 %% chunk:2/3
-%%{init:{'theme':'base','themeVariables':{'background':'#060810','primaryColor':'#0c1a30','primaryTextColor':'#7dd3fc','primaryBorderColor':'#0e3a6e','edgeLabelBackground':'#0c1a30','lineColor':'#334155','secondaryColor':'#0f172a','clusterBkg':'#060c18','clusterBorder':'#1e3a5f','fontFamily':'JetBrains Mono','fontSize':'14'}}}%%
+%%{init:{'theme':'base','themeVariables':{'background':'#060810','primaryColor':'#0c1a30','primaryTextColor':'#7dd3fc','primaryBorderColor':'#0e3a6e','edgeLabelBackground':'#0c1a30','lineColor':'#334155','secondaryColor':'#0f172a','clusterBkg':'#060c18','clusterBorder':'#1e3a5f','fontFamily':'JetBrains Mono','fontSize':'14'},'flowchart':{'nodeSpacing':40,'rankSpacing':24,'padding':8}}}%%
 graph TD
   classDef ssr fill:#0d1a0d,stroke:#16a34a,color:#86efac
   classDef csr fill:#2d1200,stroke:#c2410c,color:#fb923c
@@ -960,7 +915,7 @@ graph TD
   end
 %%--CHUNK--%%
 %% chunk:3/3
-%%{init:{'theme':'base','themeVariables':{'background':'#060810','primaryColor':'#0c1a30','primaryTextColor':'#7dd3fc','primaryBorderColor':'#0e3a6e','edgeLabelBackground':'#0c1a30','lineColor':'#334155','secondaryColor':'#0f172a','clusterBkg':'#060c18','clusterBorder':'#1e3a5f','fontFamily':'JetBrains Mono','fontSize':'14'}}}%%
+%%{init:{'theme':'base','themeVariables':{'background':'#060810','primaryColor':'#0c1a30','primaryTextColor':'#7dd3fc','primaryBorderColor':'#0e3a6e','edgeLabelBackground':'#0c1a30','lineColor':'#334155','secondaryColor':'#0f172a','clusterBkg':'#060c18','clusterBorder':'#1e3a5f','fontFamily':'JetBrains Mono','fontSize':'14'},'flowchart':{'nodeSpacing':40,'rankSpacing':24,'padding':8}}}%%
 graph TD
   classDef ssr fill:#0d1a0d,stroke:#16a34a,color:#86efac
   classDef csr fill:#2d1200,stroke:#c2410c,color:#fb923c
@@ -1103,22 +1058,17 @@ graph LR
   subgraph BROWSER["🌐 Browser · Client-Side App"]
     subgraph ROUTER["🧭 React Router · SPA"]
       subgraph REACT["⚛ React · CSR Engine"]
-        route_src_router_tsx__["/ · CSR"]:::csr
-        route_src_router_tsx__about["/about · CSR"]:::csr
-        subgraph USERS_G["📄 /users"]
-          route_src_router_tsx__users["users · CSR"]:::csr
-          subgraph USERS__ID_G["📄 /:id"]
-            route_src_router_tsx__users__id[":id · CSR"]:::csr
-          end
-        end
-        route_src_router_tsx__about ~~~ USERS_G
+        DOMAIN_root["📁 / · 1 route"]:::pkg
+        DOMAIN_about["📁 about · 1 route"]:::pkg
+        DOMAIN_users["📁 users · 2 routes"]:::pkg
+        DOMAIN_root ~~~ DOMAIN_about ~~~ DOMAIN_users
       end
     end
   end"
 `;
 
 exports[`Phase XI — fixture baseline snapshots (P1) > mini-react-router-app > Tab2 screen-component diagram 1`] = `
-"%%{init:{'theme':'base','themeVariables':{'background':'#060810','primaryColor':'#0c1a30','primaryTextColor':'#7dd3fc','primaryBorderColor':'#0e3a6e','edgeLabelBackground':'#0c1a30','lineColor':'#334155','secondaryColor':'#0f172a','clusterBkg':'#060c18','clusterBorder':'#1e3a5f','fontFamily':'JetBrains Mono','fontSize':'14'}}}%%
+"%%{init:{'theme':'base','themeVariables':{'background':'#060810','primaryColor':'#0c1a30','primaryTextColor':'#7dd3fc','primaryBorderColor':'#0e3a6e','edgeLabelBackground':'#0c1a30','lineColor':'#334155','secondaryColor':'#0f172a','clusterBkg':'#060c18','clusterBorder':'#1e3a5f','fontFamily':'JetBrains Mono','fontSize':'14'},'flowchart':{'nodeSpacing':40,'rankSpacing':24,'padding':8}}}%%
 graph LR
   classDef ssr fill:#0d1a0d,stroke:#16a34a,color:#86efac
   classDef csr fill:#2d1200,stroke:#c2410c,color:#fb923c
@@ -1199,22 +1149,12 @@ graph LR
   subgraph BROWSER["🌐 Browser · Client-Side App"]
     subgraph ROUTER["🧭 React Router · SPA"]
       subgraph REACT["⚛ React · CSR Engine"]
-        subgraph ORDER_PLAN_G["📄 /order-plan"]
-          route_src_router_tsx__order_plan_spec["spec · CSR"]:::csr
-        end
-        subgraph MATERIAL_G["📄 /material"]
-          route_src_router_tsx__material_deco["deco · CSR"]:::csr
-        end
-        subgraph AGENCY_G["📄 /agency"]
-          route_src_router_tsx__agency_users["users · CSR"]:::csr
-        end
-        subgraph HEAD_OFFICE_G["📄 /head-office"]
-          route_src_router_tsx__head_office_proc_code["proc-code · CSR"]:::csr
-        end
-        subgraph PERF_G["📄 /perf"]
-          route_src_router_tsx__perf_trans["trans · CSR"]:::csr
-        end
-        ORDER_PLAN_G ~~~ MATERIAL_G ~~~ AGENCY_G ~~~ HEAD_OFFICE_G ~~~ PERF_G
+        DOMAIN_order_plan["📁 order-plan · 1 route"]:::pkg
+        DOMAIN_material["📁 material · 1 route"]:::pkg
+        DOMAIN_agency["📁 agency · 1 route"]:::pkg
+        DOMAIN_head_office["📁 head-office · 1 route"]:::pkg
+        DOMAIN_perf["📁 perf · 1 route"]:::pkg
+        DOMAIN_order_plan ~~~ DOMAIN_material ~~~ DOMAIN_agency ~~~ DOMAIN_head_office ~~~ DOMAIN_perf
       end
     end
   end
@@ -1228,7 +1168,7 @@ graph LR
 
 exports[`Phase XI — fixture baseline snapshots (P1) > mini-react-router-domain-app > Tab2 screen-component diagram 1`] = `
 "%% chunk:1/3
-%%{init:{'theme':'base','themeVariables':{'background':'#060810','primaryColor':'#0c1a30','primaryTextColor':'#7dd3fc','primaryBorderColor':'#0e3a6e','edgeLabelBackground':'#0c1a30','lineColor':'#334155','secondaryColor':'#0f172a','clusterBkg':'#060c18','clusterBorder':'#1e3a5f','fontFamily':'JetBrains Mono','fontSize':'14'}}}%%
+%%{init:{'theme':'base','themeVariables':{'background':'#060810','primaryColor':'#0c1a30','primaryTextColor':'#7dd3fc','primaryBorderColor':'#0e3a6e','edgeLabelBackground':'#0c1a30','lineColor':'#334155','secondaryColor':'#0f172a','clusterBkg':'#060c18','clusterBorder':'#1e3a5f','fontFamily':'JetBrains Mono','fontSize':'14'},'flowchart':{'nodeSpacing':40,'rankSpacing':24,'padding':8}}}%%
 graph TD
   classDef ssr fill:#0d1a0d,stroke:#16a34a,color:#86efac
   classDef csr fill:#2d1200,stroke:#c2410c,color:#fb923c
@@ -1259,7 +1199,7 @@ graph TD
   end
 %%--CHUNK--%%
 %% chunk:2/3
-%%{init:{'theme':'base','themeVariables':{'background':'#060810','primaryColor':'#0c1a30','primaryTextColor':'#7dd3fc','primaryBorderColor':'#0e3a6e','edgeLabelBackground':'#0c1a30','lineColor':'#334155','secondaryColor':'#0f172a','clusterBkg':'#060c18','clusterBorder':'#1e3a5f','fontFamily':'JetBrains Mono','fontSize':'14'}}}%%
+%%{init:{'theme':'base','themeVariables':{'background':'#060810','primaryColor':'#0c1a30','primaryTextColor':'#7dd3fc','primaryBorderColor':'#0e3a6e','edgeLabelBackground':'#0c1a30','lineColor':'#334155','secondaryColor':'#0f172a','clusterBkg':'#060c18','clusterBorder':'#1e3a5f','fontFamily':'JetBrains Mono','fontSize':'14'},'flowchart':{'nodeSpacing':40,'rankSpacing':24,'padding':8}}}%%
 graph TD
   classDef ssr fill:#0d1a0d,stroke:#16a34a,color:#86efac
   classDef csr fill:#2d1200,stroke:#c2410c,color:#fb923c
@@ -1278,7 +1218,7 @@ graph TD
   end
 %%--CHUNK--%%
 %% chunk:3/3
-%%{init:{'theme':'base','themeVariables':{'background':'#060810','primaryColor':'#0c1a30','primaryTextColor':'#7dd3fc','primaryBorderColor':'#0e3a6e','edgeLabelBackground':'#0c1a30','lineColor':'#334155','secondaryColor':'#0f172a','clusterBkg':'#060c18','clusterBorder':'#1e3a5f','fontFamily':'JetBrains Mono','fontSize':'14'}}}%%
+%%{init:{'theme':'base','themeVariables':{'background':'#060810','primaryColor':'#0c1a30','primaryTextColor':'#7dd3fc','primaryBorderColor':'#0e3a6e','edgeLabelBackground':'#0c1a30','lineColor':'#334155','secondaryColor':'#0f172a','clusterBkg':'#060c18','clusterBorder':'#1e3a5f','fontFamily':'JetBrains Mono','fontSize':'14'},'flowchart':{'nodeSpacing':40,'rankSpacing':24,'padding':8}}}%%
 graph TD
   classDef ssr fill:#0d1a0d,stroke:#16a34a,color:#86efac
   classDef csr fill:#2d1200,stroke:#c2410c,color:#fb923c
@@ -1424,8 +1364,7 @@ exports[`Phase XI — fixture baseline snapshots (P1) > mini-react-router-wina-a
 `;
 
 exports[`Phase XI — fixture baseline snapshots (P1) > mini-react-router-wina-app > Tab1 rendering diagram 1`] = `
-"%% chunk:1/3
-%%{init:{'theme':'base','themeVariables':{'background':'#060810','primaryColor':'#0c1a30','primaryTextColor':'#7dd3fc','primaryBorderColor':'#0e3a6e','edgeLabelBackground':'#0c1a30','lineColor':'#334155','secondaryColor':'#0f172a','clusterBkg':'#060c18','clusterBorder':'#1e3a5f','fontFamily':'JetBrains Mono','fontSize':'14'}}}%%
+"%%{init:{'theme':'base','themeVariables':{'background':'#060810','primaryColor':'#0c1a30','primaryTextColor':'#7dd3fc','primaryBorderColor':'#0e3a6e','edgeLabelBackground':'#0c1a30','lineColor':'#334155','secondaryColor':'#0f172a','clusterBkg':'#060c18','clusterBorder':'#1e3a5f','fontFamily':'JetBrains Mono','fontSize':'14'}}}%%
 graph LR
   classDef ssr fill:#0d1a0d,stroke:#16a34a,color:#86efac
   classDef csr fill:#2d1200,stroke:#c2410c,color:#fb923c
@@ -1436,106 +1375,40 @@ graph LR
   classDef pkg fill:#0c1018,stroke:#475569,color:#cbd5e1
   classDef muted fill:#0a0d14,stroke:#374151,color:#64748b,stroke-dasharray: 3 3
   classDef hdr fill:#06080f,stroke:#1e3a5f,color:#7dd3fc
-  route_src_routers_Router_tsx__["/ · CSR"]:::csr
-  route_src_routers_Router_tsx__login["/login · CSR"]:::csr
-  subgraph MOBILE_G["📄 /mobile"]
-    route_src_routers_Router_tsx__mobile["mobile · CSR"]:::csr
-    route_src_routers_Router_tsx__mobile_login["login · CSR"]:::csr
-    route_src_routers_Router_tsx__mobile_home["home · CSR"]:::csr
-    subgraph MOBILE_BOARD_G["📄 /board"]
-      subgraph MOBILE_BOARD_NOTICE_DETAIL__NOTICENO_G["📄 /:noticeNo"]
-        route_src_routers_Router_tsx__mobile_board_notice_detail__noticeNo[":noticeNo · CSR"]:::csr
-      end
-    end
-  end
-  route_src_routers_Router_tsx__mobile_login ~~~ route_src_routers_Router_tsx__mobile_home ~~~ MOBILE_BOARD_G
-  route_src_routers_Router_tsx__home["/home · CSR"]:::csr
-  subgraph SYSTEM_G["📄 /system"]
-    route_src_routers_Router_tsx__system_code["code · CSR"]:::csr
-    route_src_routers_Router_tsx__system_message["message · CSR"]:::csr
-    subgraph SYSTEM_NOTICE_G["📄 /notice"]
-      route_src_routers_Router_tsx__system_notice__noticeTpCd_list[":noticeTpCd/list · CSR"]:::csr
-    end
-  end
-  route_src_routers_Router_tsx__system_code ~~~ route_src_routers_Router_tsx__system_message ~~~ SYSTEM_NOTICE_G
-%%--CHUNK--%%
-%% chunk:2/3
-%%{init:{'theme':'base','themeVariables':{'background':'#060810','primaryColor':'#0c1a30','primaryTextColor':'#7dd3fc','primaryBorderColor':'#0e3a6e','edgeLabelBackground':'#0c1a30','lineColor':'#334155','secondaryColor':'#0f172a','clusterBkg':'#060c18','clusterBorder':'#1e3a5f','fontFamily':'JetBrains Mono','fontSize':'14'}}}%%
-graph LR
-  classDef ssr fill:#0d1a0d,stroke:#16a34a,color:#86efac
-  classDef csr fill:#2d1200,stroke:#c2410c,color:#fb923c
-  classDef ssg fill:#1a0d1a,stroke:#7c3aed,color:#c4b5fd
-  classDef isr fill:#1a1a0d,stroke:#ca8a04,color:#fde047
-  classDef ppr fill:#0d1a2d,stroke:#2563eb,color:#93c5fd
-  classDef unk fill:#1a1a1a,stroke:#6b7280,color:#9ca3af
-  classDef pkg fill:#0c1018,stroke:#475569,color:#cbd5e1
-  classDef muted fill:#0a0d14,stroke:#374151,color:#64748b,stroke-dasharray: 3 3
-  classDef hdr fill:#06080f,stroke:#1e3a5f,color:#7dd3fc
-  subgraph MODEL_G["📄 /model"]
-    subgraph MODEL_BASE_INFO_FNSH_PROD_DETAIL__SAPPRODCD__SN_G["📄 /:sn"]
-      route_src_routers_Router_tsx__model_base_info_fnsh_prod_detail__sapProdCd__sn[":sn · CSR"]:::csr
-    end
-  end
-  subgraph HEADOFFICE_G["📄 /headOffice"]
-    subgraph HEADOFFICE_ALLOC_G["📄 /alloc"]
-      route_src_routers_Router_tsx__headOffice_alloc_regionalRank_regional_rank["regionalRank/regional-rank · CSR"]:::csr
-    end
-    subgraph HEADOFFICE_ORDER_G["📄 /order"]
-      route_src_routers_Router_tsx__headOffice_order_orderChange_order_cancel_change_mgmt["orderChange/order-cancel-change-mgmt · CSR"]:::csr
-    end
-  end
-  HEADOFFICE_ALLOC_G ~~~ HEADOFFICE_ORDER_G
-  subgraph AGENCY_G["📄 /agency"]
-    subgraph AGENCY_AGENCYFACTORY_G["📄 /agencyFactory"]
-      subgraph AGENCY_AGENCYFACTORY_MASTERMGMT_G["📄 /masterMgmt"]
-        route_src_routers_Router_tsx__agency_agencyFactory_masterMgmt_customerMgmt["customerMgmt · CSR"]:::csr
-        route_src_routers_Router_tsx__agency_agencyFactory_masterMgmt_jobsMgmt["jobsMgmt · CSR"]:::csr
-      end
-      route_src_routers_Router_tsx__agency_agencyFactory_masterMgmt_customerMgmt ~~~ route_src_routers_Router_tsx__agency_agencyFactory_masterMgmt_jobsMgmt
-      subgraph AGENCY_AGENCYFACTORY_QUOTATIONWORK_G["📄 /quotationWork"]
-        route_src_routers_Router_tsx__agency_agencyFactory_quotationWork_quotationContract["quotationContract · CSR"]:::csr
-      end
-    end
-    AGENCY_AGENCYFACTORY_MASTERMGMT_G ~~~ AGENCY_AGENCYFACTORY_QUOTATIONWORK_G
-  end
-  subgraph PARTNER_G["📄 /partner"]
-    subgraph PARTNER_ORDPRODPLANMGMT_G["📄 /ordProdPlanMgmt"]
-      subgraph PARTNER_ORDPRODPLANMGMT_ORDRCVMGMT_G["📄 /ordRcvMgmt"]
-        subgraph PARTNER_ORDPRODPLANMGMT_ORDRCVMGMT_ORDRCVSEARCH_DETAIL__ORDNO_G["📄 /:ordNo"]
-          route_src_routers_Router_tsx__partner_ordProdPlanMgmt_ordRcvMgmt_ordRcvSearch_detail__ordNo[":ordNo · CSR"]:::csr
+  subgraph BROWSER["🌐 Browser · Client-Side App"]
+    subgraph ROUTER["🧭 React Router · SPA"]
+      subgraph REACT["⚛ React · CSR Engine"]
+        subgraph DOMAINS_R0 [" "]
+          direction LR
+          DOMAIN_root["📁 / · 1 route"]:::pkg
+          DOMAIN_login["📁 login · 1 route"]:::pkg
+          DOMAIN_mobile["📁 mobile · 4 routes"]:::pkg
+          DOMAIN_home["📁 home · 1 route"]:::pkg
+          DOMAIN_system["📁 system · 3 routes"]:::pkg
         end
+        style DOMAINS_R0 fill:none,stroke:none
+        subgraph DOMAINS_R1 [" "]
+          direction LR
+          DOMAIN_model["📁 model · 1 route"]:::pkg
+          DOMAIN_headOffice["📁 headOffice · 2 routes"]:::pkg
+          DOMAIN_agency["📁 agency · 3 routes"]:::pkg
+          DOMAIN_partner["📁 partner · 4 routes"]:::pkg
+          DOMAIN_not_found["📁 not-found · 1 route"]:::pkg
+        end
+        style DOMAINS_R1 fill:none,stroke:none
+        subgraph DOMAINS_R2 [" "]
+          direction LR
+          DOMAIN__["📁 * · 1 route"]:::pkg
+        end
+        style DOMAINS_R2 fill:none,stroke:none
       end
-      route_src_routers_Router_tsx__partner_ordProdPlanMgmt_prodOrdSpec["prodOrdSpec · CSR"]:::csr
     end
-    PARTNER_ORDPRODPLANMGMT_ORDRCVMGMT_G ~~~ route_src_routers_Router_tsx__partner_ordProdPlanMgmt_prodOrdSpec
-    subgraph PARTNER_MATMGMT_G["📄 /matMgmt"]
-      route_src_routers_Router_tsx__partner_matMgmt_decoSheet["decoSheet · CSR"]:::csr
-    end
-    subgraph PARTNER_MATERIALMGMT_G["📄 /materialMgmt"]
-      route_src_routers_Router_tsx__partner_materialMgmt_cuttingPlan["cuttingPlan · CSR"]:::csr
-    end
-  end
-  PARTNER_ORDPRODPLANMGMT_G ~~~ PARTNER_MATMGMT_G ~~~ PARTNER_MATERIALMGMT_G
-  route_src_routers_Router_tsx__not_found["/not-found · CSR"]:::csr
-%%--CHUNK--%%
-%% chunk:3/3
-%%{init:{'theme':'base','themeVariables':{'background':'#060810','primaryColor':'#0c1a30','primaryTextColor':'#7dd3fc','primaryBorderColor':'#0e3a6e','edgeLabelBackground':'#0c1a30','lineColor':'#334155','secondaryColor':'#0f172a','clusterBkg':'#060c18','clusterBorder':'#1e3a5f','fontFamily':'JetBrains Mono','fontSize':'14'}}}%%
-graph LR
-  classDef ssr fill:#0d1a0d,stroke:#16a34a,color:#86efac
-  classDef csr fill:#2d1200,stroke:#c2410c,color:#fb923c
-  classDef ssg fill:#1a0d1a,stroke:#7c3aed,color:#c4b5fd
-  classDef isr fill:#1a1a0d,stroke:#ca8a04,color:#fde047
-  classDef ppr fill:#0d1a2d,stroke:#2563eb,color:#93c5fd
-  classDef unk fill:#1a1a1a,stroke:#6b7280,color:#9ca3af
-  classDef pkg fill:#0c1018,stroke:#475569,color:#cbd5e1
-  classDef muted fill:#0a0d14,stroke:#374151,color:#64748b,stroke-dasharray: 3 3
-  classDef hdr fill:#06080f,stroke:#1e3a5f,color:#7dd3fc
-  route_src_routers_Router_tsx___["/* · CSR"]:::csr"
+  end"
 `;
 
 exports[`Phase XI — fixture baseline snapshots (P1) > mini-react-router-wina-app > Tab2 screen-component diagram 1`] = `
 "%% chunk:1/8
-%%{init:{'theme':'base','themeVariables':{'background':'#060810','primaryColor':'#0c1a30','primaryTextColor':'#7dd3fc','primaryBorderColor':'#0e3a6e','edgeLabelBackground':'#0c1a30','lineColor':'#334155','secondaryColor':'#0f172a','clusterBkg':'#060c18','clusterBorder':'#1e3a5f','fontFamily':'JetBrains Mono','fontSize':'14'}}}%%
+%%{init:{'theme':'base','themeVariables':{'background':'#060810','primaryColor':'#0c1a30','primaryTextColor':'#7dd3fc','primaryBorderColor':'#0e3a6e','edgeLabelBackground':'#0c1a30','lineColor':'#334155','secondaryColor':'#0f172a','clusterBkg':'#060c18','clusterBorder':'#1e3a5f','fontFamily':'JetBrains Mono','fontSize':'14'},'flowchart':{'nodeSpacing':40,'rankSpacing':24,'padding':8}}}%%
 graph TD
   classDef ssr fill:#0d1a0d,stroke:#16a34a,color:#86efac
   classDef csr fill:#2d1200,stroke:#c2410c,color:#fb923c
@@ -1552,7 +1425,7 @@ graph TD
   end
 %%--CHUNK--%%
 %% chunk:2/8
-%%{init:{'theme':'base','themeVariables':{'background':'#060810','primaryColor':'#0c1a30','primaryTextColor':'#7dd3fc','primaryBorderColor':'#0e3a6e','edgeLabelBackground':'#0c1a30','lineColor':'#334155','secondaryColor':'#0f172a','clusterBkg':'#060c18','clusterBorder':'#1e3a5f','fontFamily':'JetBrains Mono','fontSize':'14'}}}%%
+%%{init:{'theme':'base','themeVariables':{'background':'#060810','primaryColor':'#0c1a30','primaryTextColor':'#7dd3fc','primaryBorderColor':'#0e3a6e','edgeLabelBackground':'#0c1a30','lineColor':'#334155','secondaryColor':'#0f172a','clusterBkg':'#060c18','clusterBorder':'#1e3a5f','fontFamily':'JetBrains Mono','fontSize':'14'},'flowchart':{'nodeSpacing':40,'rankSpacing':24,'padding':8}}}%%
 graph TD
   classDef ssr fill:#0d1a0d,stroke:#16a34a,color:#86efac
   classDef csr fill:#2d1200,stroke:#c2410c,color:#fb923c
@@ -1577,7 +1450,7 @@ graph TD
   end
 %%--CHUNK--%%
 %% chunk:3/8
-%%{init:{'theme':'base','themeVariables':{'background':'#060810','primaryColor':'#0c1a30','primaryTextColor':'#7dd3fc','primaryBorderColor':'#0e3a6e','edgeLabelBackground':'#0c1a30','lineColor':'#334155','secondaryColor':'#0f172a','clusterBkg':'#060c18','clusterBorder':'#1e3a5f','fontFamily':'JetBrains Mono','fontSize':'14'}}}%%
+%%{init:{'theme':'base','themeVariables':{'background':'#060810','primaryColor':'#0c1a30','primaryTextColor':'#7dd3fc','primaryBorderColor':'#0e3a6e','edgeLabelBackground':'#0c1a30','lineColor':'#334155','secondaryColor':'#0f172a','clusterBkg':'#060c18','clusterBorder':'#1e3a5f','fontFamily':'JetBrains Mono','fontSize':'14'},'flowchart':{'nodeSpacing':40,'rankSpacing':24,'padding':8}}}%%
 graph TD
   classDef ssr fill:#0d1a0d,stroke:#16a34a,color:#86efac
   classDef csr fill:#2d1200,stroke:#c2410c,color:#fb923c
@@ -1596,7 +1469,7 @@ graph TD
   end
 %%--CHUNK--%%
 %% chunk:4/8
-%%{init:{'theme':'base','themeVariables':{'background':'#060810','primaryColor':'#0c1a30','primaryTextColor':'#7dd3fc','primaryBorderColor':'#0e3a6e','edgeLabelBackground':'#0c1a30','lineColor':'#334155','secondaryColor':'#0f172a','clusterBkg':'#060c18','clusterBorder':'#1e3a5f','fontFamily':'JetBrains Mono','fontSize':'14'}}}%%
+%%{init:{'theme':'base','themeVariables':{'background':'#060810','primaryColor':'#0c1a30','primaryTextColor':'#7dd3fc','primaryBorderColor':'#0e3a6e','edgeLabelBackground':'#0c1a30','lineColor':'#334155','secondaryColor':'#0f172a','clusterBkg':'#060c18','clusterBorder':'#1e3a5f','fontFamily':'JetBrains Mono','fontSize':'14'},'flowchart':{'nodeSpacing':40,'rankSpacing':24,'padding':8}}}%%
 graph TD
   classDef ssr fill:#0d1a0d,stroke:#16a34a,color:#86efac
   classDef csr fill:#2d1200,stroke:#c2410c,color:#fb923c
@@ -1618,7 +1491,7 @@ graph TD
   end
 %%--CHUNK--%%
 %% chunk:5/8
-%%{init:{'theme':'base','themeVariables':{'background':'#060810','primaryColor':'#0c1a30','primaryTextColor':'#7dd3fc','primaryBorderColor':'#0e3a6e','edgeLabelBackground':'#0c1a30','lineColor':'#334155','secondaryColor':'#0f172a','clusterBkg':'#060c18','clusterBorder':'#1e3a5f','fontFamily':'JetBrains Mono','fontSize':'14'}}}%%
+%%{init:{'theme':'base','themeVariables':{'background':'#060810','primaryColor':'#0c1a30','primaryTextColor':'#7dd3fc','primaryBorderColor':'#0e3a6e','edgeLabelBackground':'#0c1a30','lineColor':'#334155','secondaryColor':'#0f172a','clusterBkg':'#060c18','clusterBorder':'#1e3a5f','fontFamily':'JetBrains Mono','fontSize':'14'},'flowchart':{'nodeSpacing':40,'rankSpacing':24,'padding':8}}}%%
 graph TD
   classDef ssr fill:#0d1a0d,stroke:#16a34a,color:#86efac
   classDef csr fill:#2d1200,stroke:#c2410c,color:#fb923c
@@ -1645,7 +1518,7 @@ graph TD
   end
 %%--CHUNK--%%
 %% chunk:6/8
-%%{init:{'theme':'base','themeVariables':{'background':'#060810','primaryColor':'#0c1a30','primaryTextColor':'#7dd3fc','primaryBorderColor':'#0e3a6e','edgeLabelBackground':'#0c1a30','lineColor':'#334155','secondaryColor':'#0f172a','clusterBkg':'#060c18','clusterBorder':'#1e3a5f','fontFamily':'JetBrains Mono','fontSize':'14'}}}%%
+%%{init:{'theme':'base','themeVariables':{'background':'#060810','primaryColor':'#0c1a30','primaryTextColor':'#7dd3fc','primaryBorderColor':'#0e3a6e','edgeLabelBackground':'#0c1a30','lineColor':'#334155','secondaryColor':'#0f172a','clusterBkg':'#060c18','clusterBorder':'#1e3a5f','fontFamily':'JetBrains Mono','fontSize':'14'},'flowchart':{'nodeSpacing':40,'rankSpacing':24,'padding':8}}}%%
 graph TD
   classDef ssr fill:#0d1a0d,stroke:#16a34a,color:#86efac
   classDef csr fill:#2d1200,stroke:#c2410c,color:#fb923c
@@ -1672,7 +1545,7 @@ graph TD
   end
 %%--CHUNK--%%
 %% chunk:7/8
-%%{init:{'theme':'base','themeVariables':{'background':'#060810','primaryColor':'#0c1a30','primaryTextColor':'#7dd3fc','primaryBorderColor':'#0e3a6e','edgeLabelBackground':'#0c1a30','lineColor':'#334155','secondaryColor':'#0f172a','clusterBkg':'#060c18','clusterBorder':'#1e3a5f','fontFamily':'JetBrains Mono','fontSize':'14'}}}%%
+%%{init:{'theme':'base','themeVariables':{'background':'#060810','primaryColor':'#0c1a30','primaryTextColor':'#7dd3fc','primaryBorderColor':'#0e3a6e','edgeLabelBackground':'#0c1a30','lineColor':'#334155','secondaryColor':'#0f172a','clusterBkg':'#060c18','clusterBorder':'#1e3a5f','fontFamily':'JetBrains Mono','fontSize':'14'},'flowchart':{'nodeSpacing':40,'rankSpacing':24,'padding':8}}}%%
 graph TD
   classDef ssr fill:#0d1a0d,stroke:#16a34a,color:#86efac
   classDef csr fill:#2d1200,stroke:#c2410c,color:#fb923c
@@ -1692,7 +1565,7 @@ graph TD
   end
 %%--CHUNK--%%
 %% chunk:8/8
-%%{init:{'theme':'base','themeVariables':{'background':'#060810','primaryColor':'#0c1a30','primaryTextColor':'#7dd3fc','primaryBorderColor':'#0e3a6e','edgeLabelBackground':'#0c1a30','lineColor':'#334155','secondaryColor':'#0f172a','clusterBkg':'#060c18','clusterBorder':'#1e3a5f','fontFamily':'JetBrains Mono','fontSize':'14'}}}%%
+%%{init:{'theme':'base','themeVariables':{'background':'#060810','primaryColor':'#0c1a30','primaryTextColor':'#7dd3fc','primaryBorderColor':'#0e3a6e','edgeLabelBackground':'#0c1a30','lineColor':'#334155','secondaryColor':'#0f172a','clusterBkg':'#060c18','clusterBorder':'#1e3a5f','fontFamily':'JetBrains Mono','fontSize':'14'},'flowchart':{'nodeSpacing':40,'rankSpacing':24,'padding':8}}}%%
 graph TD
   classDef ssr fill:#0d1a0d,stroke:#16a34a,color:#86efac
   classDef csr fill:#2d1200,stroke:#c2410c,color:#fb923c
@@ -1754,18 +1627,14 @@ graph LR
   classDef pkg fill:#0c1018,stroke:#475569,color:#cbd5e1
   classDef muted fill:#0a0d14,stroke:#374151,color:#64748b,stroke-dasharray: 3 3
   classDef hdr fill:#06080f,stroke:#1e3a5f,color:#7dd3fc
-  route_app_routes__index_tsx_page["/ · SSR"]:::ssr
-  route_app_routes_about_tsx_page["/about · SSR"]:::ssr
-  subgraph USERS_G["📄 /users"]
-    subgraph USERS__ID_G["📄 /:id"]
-      route_app_routes_users__id_tsx_page[":id · SSR"]:::ssr
-    end
-  end
-  route_app_routes_about_tsx_page ~~~ USERS_G"
+  DOMAIN_root["📁 / · 1 route"]:::pkg
+  DOMAIN_about["📁 about · 1 route"]:::pkg
+  DOMAIN_users["📁 users · 1 route"]:::pkg
+  DOMAIN_root ~~~ DOMAIN_about ~~~ DOMAIN_users"
 `;
 
 exports[`Phase XI — fixture baseline snapshots (P1) > mini-remix-app > Tab2 screen-component diagram 1`] = `
-"%%{init:{'theme':'base','themeVariables':{'background':'#060810','primaryColor':'#0c1a30','primaryTextColor':'#7dd3fc','primaryBorderColor':'#0e3a6e','edgeLabelBackground':'#0c1a30','lineColor':'#334155','secondaryColor':'#0f172a','clusterBkg':'#060c18','clusterBorder':'#1e3a5f','fontFamily':'JetBrains Mono','fontSize':'14'}}}%%
+"%%{init:{'theme':'base','themeVariables':{'background':'#060810','primaryColor':'#0c1a30','primaryTextColor':'#7dd3fc','primaryBorderColor':'#0e3a6e','edgeLabelBackground':'#0c1a30','lineColor':'#334155','secondaryColor':'#0f172a','clusterBkg':'#060c18','clusterBorder':'#1e3a5f','fontFamily':'JetBrains Mono','fontSize':'14'},'flowchart':{'nodeSpacing':40,'rankSpacing':24,'padding':8}}}%%
 graph LR
   classDef ssr fill:#0d1a0d,stroke:#16a34a,color:#86efac
   classDef csr fill:#2d1200,stroke:#c2410c,color:#fb923c
@@ -3598,18 +3467,14 @@ graph LR
   classDef pkg fill:#0c1018,stroke:#475569,color:#cbd5e1
   classDef muted fill:#0a0d14,stroke:#374151,color:#64748b,stroke-dasharray: 3 3
   classDef hdr fill:#06080f,stroke:#1e3a5f,color:#7dd3fc
-  route_src_routes_page["/ · SSR"]:::ssr
-  route_src_routes_about_page["/about · SSR"]:::ssr
-  subgraph BLOG_G["📝 /blog"]
-    subgraph BLOG__SLUG_G["📄 /:slug"]
-      route_src_routes_blog__slug__page[":slug · SSR"]:::ssr
-    end
-  end
-  route_src_routes_about_page ~~~ BLOG_G"
+  DOMAIN_root["📁 / · 1 route"]:::pkg
+  DOMAIN_about["📁 about · 1 route"]:::pkg
+  DOMAIN_blog["📁 blog · 1 route"]:::pkg
+  DOMAIN_root ~~~ DOMAIN_about ~~~ DOMAIN_blog"
 `;
 
 exports[`Phase XI — fixture baseline snapshots (P1) > mini-sveltekit-app > Tab2 screen-component diagram 1`] = `
-"%%{init:{'theme':'base','themeVariables':{'background':'#060810','primaryColor':'#0c1a30','primaryTextColor':'#7dd3fc','primaryBorderColor':'#0e3a6e','edgeLabelBackground':'#0c1a30','lineColor':'#334155','secondaryColor':'#0f172a','clusterBkg':'#060c18','clusterBorder':'#1e3a5f','fontFamily':'JetBrains Mono','fontSize':'14'}}}%%
+"%%{init:{'theme':'base','themeVariables':{'background':'#060810','primaryColor':'#0c1a30','primaryTextColor':'#7dd3fc','primaryBorderColor':'#0e3a6e','edgeLabelBackground':'#0c1a30','lineColor':'#334155','secondaryColor':'#0f172a','clusterBkg':'#060c18','clusterBorder':'#1e3a5f','fontFamily':'JetBrains Mono','fontSize':'14'},'flowchart':{'nodeSpacing':40,'rankSpacing':24,'padding':8}}}%%
 graph LR
   classDef ssr fill:#0d1a0d,stroke:#16a34a,color:#86efac
   classDef csr fill:#2d1200,stroke:#c2410c,color:#fb923c
@@ -3685,22 +3550,17 @@ graph LR
   subgraph BROWSER["🌐 Browser · Client-Side App"]
     subgraph ROUTER["🧭 Vue Router · SPA"]
       subgraph VUE["💚 Vue · CSR Engine"]
-        route_src_views_Home_vue__["/ · CSR"]:::csr
-        route_src_views_About_vue__about["/about · CSR"]:::csr
-        subgraph USERS_G["📄 /users"]
-          route_src_views_Users_vue__users["users · CSR"]:::csr
-          subgraph USERS__ID_G["📄 /:id"]
-            route_src_views_UserDetail_vue__users__id[":id · CSR"]:::csr
-          end
-        end
-        route_src_views_About_vue__about ~~~ USERS_G
+        DOMAIN_root["📁 / · 1 route"]:::pkg
+        DOMAIN_about["📁 about · 1 route"]:::pkg
+        DOMAIN_users["📁 users · 2 routes"]:::pkg
+        DOMAIN_root ~~~ DOMAIN_about ~~~ DOMAIN_users
       end
     end
   end"
 `;
 
 exports[`Phase XI — fixture baseline snapshots (P1) > mini-vue-spa-app > Tab2 screen-component diagram 1`] = `
-"%%{init:{'theme':'base','themeVariables':{'background':'#060810','primaryColor':'#0c1a30','primaryTextColor':'#7dd3fc','primaryBorderColor':'#0e3a6e','edgeLabelBackground':'#0c1a30','lineColor':'#334155','secondaryColor':'#0f172a','clusterBkg':'#060c18','clusterBorder':'#1e3a5f','fontFamily':'JetBrains Mono','fontSize':'14'}}}%%
+"%%{init:{'theme':'base','themeVariables':{'background':'#060810','primaryColor':'#0c1a30','primaryTextColor':'#7dd3fc','primaryBorderColor':'#0e3a6e','edgeLabelBackground':'#0c1a30','lineColor':'#334155','secondaryColor':'#0f172a','clusterBkg':'#060c18','clusterBorder':'#1e3a5f','fontFamily':'JetBrains Mono','fontSize':'14'},'flowchart':{'nodeSpacing':40,'rankSpacing':24,'padding':8}}}%%
 graph LR
   classDef ssr fill:#0d1a0d,stroke:#16a34a,color:#86efac
   classDef csr fill:#2d1200,stroke:#c2410c,color:#fb923c

@@ -20,9 +20,10 @@ import {
 } from './_shared/wrap-fallback.js'
 import { RENDERING_INIT, CLASS_DEFS } from './helpers/constants.js'
 import { sanitizeId } from './helpers/ids.js'
-import { findBranchingGroups, chunkGroups, splitGroupsByNodeBound, CHUNK_ROUTE_BUDGET, SINGLE_DIAGRAM_ROUTE_THRESHOLD, GROUPS_PER_ROW } from './helpers/layout.js'
+import { findBranchingGroups, chunkGroups, splitGroupsByNodeBound, CHUNK_ROUTE_BUDGET, SINGLE_DIAGRAM_ROUTE_THRESHOLD } from './helpers/layout.js'
 import { metadataToInfra, isFileTreeTab2Eligible, type InfraInfo } from './fe/infra.js'
-import { emitTopLevelSiblingChain, buildNestedSubgraphLines, buildRouteRowDiagram } from './fe/nested.js'
+import { buildNestedSubgraphLines } from './fe/nested.js'
+import { buildDomainSummaryLines } from './fe/tab1-summary.js'
 import { renderScreenSection } from './fe/tab2.js'
 import { buildFeFileTreeScreenDiagram } from './fe/tab2-file.js'
 import { buildFeDomainLayeredScreenDiagram, isPagesDomainEligible } from './fe/tab2-domain.js'
@@ -113,18 +114,10 @@ function buildRenderingDiagram(graph: IRGraph): string {
   const routeNodes = graph.nodes.filter(isRouteNode).filter(r => r.routeFileKind === 'page')
   if (routeNodes.length === 0) return 'graph TD\n  empty["(no routes found)"]'
 
-  const routeGroups = groupRoutesByUrl(routeNodes)
-  const branchingGroups = findBranchingGroups(routeGroups)
-  // v1.2.49 B-6: routeCount 단독 게이트 — 소수 브랜치에 깊게 중첩된 대형 라우트도 청킹.
-  // v1.2.51 C2: top-level 형제 그룹>GROUPS_PER_ROW면 route 수 무관 청킹. 소형-다도메인이
-  //   단일 graph LR로 강제돼 형제를 한 가로줄에 깔아 20:1 띠로 압축되던 결함 해소.
-  //   viewer row-mode CSS 그리드가 청크를 다중 행/열로 배치 → 전 도메인 readable.
-  //   (v1.1.53 'Y축 단조 나열' 우려는 v1.1.6 T3 grid 도입으로 이미 해소 — 실측 확인).
-  if (routeNodes.length > SINGLE_DIAGRAM_ROUTE_THRESHOLD || branchingGroups.length > GROUPS_PER_ROW) {
-    // v1.2.49 B-7: 청크 입자를 노드 수 바운드(거대 단일 브랜치 freeze 해소) + v1.2.51 형제 수 바운드.
-    const chunks = splitGroupsByNodeBound(branchingGroups, CHUNK_ROUTE_BUDGET, GROUPS_PER_ROW)
-    return joinChunks(chunks.map(gs => buildRouteRowDiagram(gs)))
-  }
+  // FE 표준 v1.2 (R-T1.2/R-T1.7, §9): Tab1은 top-level 도메인 요약만 표시 → 노드 수 O(도메인)라
+  // 청킹 불필요(폐지). 이전 청킹 게이트(routeCount>100 / branchingGroups>GROUPS_PER_ROW=v1.2.51 C2)는
+  // wrapper(R-T1.1)·외부분기(R-T1.5)를 폐기시켜 Tab1을 URL 트리로 전락시키던 결함이었다.
+  const branchingGroups = findBranchingGroups(groupRoutesByUrl(routeNodes))
 
   const tableNodes = graph.nodes.filter(isTableNode)
   const hasDirectDB = infra.hasSupabase || infra.hasDexie || infra.hasPrisma || infra.hasFirebase
@@ -153,16 +146,12 @@ function buildRenderingDiagram(graph: IRGraph): string {
       depth++
     }
     const innerIndent = '  '.repeat(depth + 1)
-    for (const l of buildNestedSubgraphLines(routeGroups, innerIndent)) lines.push(l)
-    const topChain = emitTopLevelSiblingChain(routeGroups, innerIndent)
-    if (topChain !== undefined) lines.push(topChain)
+    for (const l of buildDomainSummaryLines(branchingGroups, innerIndent)) lines.push(l)
     const closeParts: string[] = []
     while (depth > 0) { closeParts.push(`${'  '.repeat(depth)}end`); depth-- }
     lines.push(closeParts.join('\n'))
   } else {
-    for (const l of buildNestedSubgraphLines(routeGroups, '  ')) lines.push(l)
-    const topChainBare = emitTopLevelSiblingChain(routeGroups, '  ')
-    if (topChainBare !== undefined) lines.push(topChainBare)
+    for (const l of buildDomainSummaryLines(branchingGroups, '  ')) lines.push(l)
   }
 
   // ── 2. DATA / BACKEND LAYER (always outside frontend, unconditional) ─────

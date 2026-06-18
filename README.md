@@ -4,7 +4,9 @@
 
 Routes, components, and DB relationships — extracted statically from **13 frameworks**, optionally enriched by LLM, rendered as three live diagram tabs inside VS Code.
 
-> Marketplace: [`cubha.codebase-arch-viz`](https://marketplace.visualstudio.com/items?itemName=cubha.codebase-arch-viz) · Current release: **v1.2.52**
+> Marketplace: [`cubha.codebase-arch-viz`](https://marketplace.visualstudio.com/items?itemName=cubha.codebase-arch-viz) · Current release: **v1.2.53**
+>
+> **v1.2.53 highlights** — **React Tab1 도메인 요약 재정의 + FE Tab2 Y축 연결선 표준화** (사용자 v1.2.52 후속 3현상 · 회귀 0). 코드레벨 분석 → `docs/analysis/v1.2.52-fe-tab1-yaxis-findings.md`. **귀속 정정**: v1.2.52(viewer 단독) 무관, 원인은 v1.2.51 C2 청킹 게이트(`branchingGroups>5`)가 Tab1 인프라 wrapper·외부분기를 폐기시킨 것. **(Phase A·1b/1a)** Tab1을 top-level 도메인 **요약 박스**(`📁 <도메인> · N routes`, `buildDomainSummaryLines`)로 재정의 → 라우트 leaf·하위 세분화는 Tab2 위임, 노드 O(도메인)라 **청킹 폐지**(R-T1.7 v1.2)·wrapper·외부분기 항상 유지·도메인>5는 inner-row 줄넘김. 실측: 7도메인 0 청크·`BROWSER/ROUTER/REACT`+`API LAYER` 유지·matMgmt 별도 레이어 소멸. **(Phase B·2)** 신규 `FE_TREE_INIT`(`rankSpacing:24·nodeSpacing:40`)로 Tab2 도메인/file-tree Y축 연결선 표준화(기본≈50 과대·불균일 해소), webview 실측 겹침 0. Tab1(nested+`~~~`)은 spacing 무시 케이스라 미적용. FE-DIAGRAM-STANDARD v1.2 amendment(§9). verify.sh **PASS · 806 passed/1 skip** · 회귀 0.
 >
 > **v1.2.52 highlights** — **대형 라우트 viewer perf 개선(점진 주입 + content-visibility · 회귀 0)**. 사용자 보고(1112 route viewer 버벅임·로딩 지연) backlog. **viewer.html 단독** — analyzer/IR/diagram 출력 무변경. (레버1) `.row-diagram { content-visibility:auto }` + 실측 `contain-intrinsic-height`(height축만) → off-screen 청크 paint/hit-test 스킵(스크롤/줌/팬 repaint가 청크 수에 비례하지 않음). (레버2) `renderChunked`(누적-후-일괄 innerHTML) → `renderChunkedInto` 점진 주입(청크별 즉시 append + rAF yield) → **첫 행 즉시 노출**. 측정 delta(`scripts/viewer-perf.mjs`, 22청크≈1100route): time-to-first-row **1459ms→333ms(−77%)**. 레버3(IO 가상화)은 baseline상 불필요로 보류. 부수: `playwright` 1.59.1→1.60.0 skew fix. **한계**: 첫 페인트·상호작용 jank 개선이며 초대형 입력의 총 렌더 시간 자체는 불변. Playwright **6/6** · verify.sh PASS · 회귀 0.
 >

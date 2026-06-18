@@ -109,7 +109,7 @@ describe('mermaid-renderer — 소형-다도메인 chunk 게이트 (v1.2.51 C2)'
     ]
   }
 
-  it('28 routes / 7 top-level groups (>5) → Tab1 chunked grid (≥2 chunks, 각 청크 ≤ GROUPS_PER_ROW)', () => {
+  it('28 routes / 7 top-level groups (>5) → Tab1 도메인 요약 단일 다이어그램 (청킹 폐지, R-T1.7 v1.2)', () => {
     const routes = devLogPortfolioRoutes()
     const graph = createIRGraph({
       analyzerVersion: 'codebase-viz@0.1.0',
@@ -118,8 +118,9 @@ describe('mermaid-renderer — 소형-다도메인 chunk 게이트 (v1.2.51 C2)'
       edges: [],
     })
     const { rendering } = buildDiagrams(graph)
-    // 7 top-level 형제 > GROUPS_PER_ROW(5) → chunked grid (이전 v1.1.53: single로 강제 → 띠 압축)
-    expect(chunkCountOf(rendering)).toBeGreaterThan(1)
+    // v1.2.53: Tab1 청킹 폐지. 7 도메인 > GROUPS_PER_ROW(5) → inner-row wrapper 줄넘김(청킹 아님).
+    expect(chunkCountOf(rendering)).toBe(1)
+    expect(rendering).toMatch(/subgraph DOMAINS_R\d/)
   })
 
   it('28 routes / 7 top-level groups → Tab2 single chunk (Tab2 게이트 미변경 — 현 scope)', () => {
@@ -148,8 +149,8 @@ describe('mermaid-renderer — 소형-다도메인 chunk 게이트 (v1.2.51 C2)'
     const { rendering, screenComponent } = buildDiagrams(graph)
     expect(chunkCountOf(rendering)).toBe(1)
     expect(chunkCountOf(screenComponent)).toBe(1)
-    // root path가 single diagram 안에 등장
-    expect(rendering).toContain('"/ · SSR"')
+    // v1.2.53: Tab1 도메인 요약 — root path가 도메인 박스로 single diagram 안에 등장
+    expect(rendering).toMatch(/\/ · 1 route/)
   })
 })
 
@@ -169,15 +170,15 @@ describe('mermaid-renderer stress — NestJS 200 routes (v1.1.6 회귀 fixture)'
   describe('Tab1 rendering', () => {
     const { rendering } = buildDiagrams(graph)
 
-    it('[결함1] chunked 경로에서도 nested subgraph 유지 — module 안에 resource subgraph 중첩', () => {
-      // 기대: API_V1_ADMIN_G 안에 API_V1_ADMIN_USERS_G 중첩 (depth 보존).
-      // chunk 단위가 1 branch = 1 module (V1 wrapper 없음, module 트리부터 시작).
-      expect(rendering).toMatch(/subgraph API_V1_(ADMIN|AUTH|BILLING)_G[\s\S]*?subgraph API_V1_(ADMIN|AUTH|BILLING)_USERS_G/)
+    it('v1.2.53: Tab1 도메인 요약 — 청킹·nested subgraph 없이 단일 다이어그램에 도메인 박스 emit', () => {
+      // FE 표준 v1.2 (R-T1.2/R-T1.7): /api/v1 단일 자식 통과 후 admin/auth/billing 도메인 요약 박스.
+      // 이전: chunked nested(module→resource) — v1.2.53에서 폐지(wrapper·외부분기 보존이 우선).
+      expect(chunkCountOf(rendering)).toBe(1)
+      expect(rendering).toMatch(/DOMAIN_[A-Za-z0-9_]+\["📁 [a-z]+ · \d+ routes?"\]/)
     })
 
     it('[결함2] chunk 수가 top-level branch 수의 2배 이하 (200 routes → ≤ 10 chunks)', () => {
-      // 모두 /api 아래 → top-level branch = 1 → 기대 1 chunk
-      // 현재 버그: GROUPS_PER_ROW=5 기준으로 200 routes → 40+ chunks
+      // v1.2.53: 도메인 요약 → 항상 1 chunk
       expect(chunkCountOf(rendering)).toBeLessThanOrEqual(10)
     })
 
@@ -235,12 +236,14 @@ describe('mermaid-renderer freeze — 단일 대형 브랜치 (v1.2.49 B 회귀 
     expect(dominantBranchRoutes().length).toBe(112)
   })
 
-  it('B-6: 브랜치 수 ≤ 5 여도 routeCount>100이면 청킹 발동 (Tab1)', () => {
+  it('v1.2.53: routeCount>100(112)여도 Tab1은 청킹 안 함 — 도메인 요약 단일 다이어그램 (R-T1.7 v1.2)', () => {
     const { rendering } = buildDiagrams(graph)
-    expect(chunkCountOf(rendering)).toBeGreaterThan(1)
+    // 이전 B-6: routeCount>100이면 청킹 발동. v1.2.53: Tab1 도메인 요약은 O(도메인)이라 청킹 폐지.
+    expect(chunkCountOf(rendering)).toBe(1)
+    expect(rendering).toMatch(/DOMAIN_[A-Za-z0-9_]+\["📁 /)
   })
 
-  it('B-7: 청크당 노드 수가 budget(50) 이하 — 거대 브랜치 재귀 분할 (Tab1)', () => {
+  it('B-7: Tab1 도메인 요약 노드 수 = O(도메인) ≤ 50 (단일 다이어그램)', () => {
     const { rendering } = buildDiagrams(graph)
     expect(maxNodesPerChunk(rendering)).toBeLessThanOrEqual(50)
   })
