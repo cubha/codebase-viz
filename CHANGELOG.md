@@ -1,5 +1,15 @@
 # Changelog
 
+## [1.2.54] — 2026-06-22
+
+### WINA-FE Tab1 LLM 오분석 근본 수정 — deployTarget 뒷문 차단 + 백엔드 환각 corroboration 게이트 (회귀 0)
+
+사용자 보고: 실 레포(react-router 516라우트 웹 SPA)가 LLM=true에서 Tab1 "전체 아키텍처"를 전부 `📱 Mobile · iOS/Android / ⚛ React Native · Expo` + `WINA Backend API · spring-boot` + `🐘 PostgreSQL`로 오분석(LLM=false면 정상 `🌐 Browser · React Router · SPA`). 근본 원인: 정적 어댑터가 결정한 `framework`는 LLM이 덮어쓰지 못하게 가드(`pipeline.ts:97`)가 있으나, **인접 메타 필드(`deployTarget`·`backends`)가 가드 밖으로 무조건 주입**되어 뒷문 우회.
+
+- **Fix1 (플랫폼 오분류)**: `renderer/src/fe/infra.ts`의 `hasExpo` 판정에서 `|| meta.deployTarget === 'mobile'` 절 삭제 → `fw === 'expo'`만. LLM이 발명한 `deployTarget='mobile'`이 react-router framework 가드를 우회해 전체를 Mobile/RN으로 래핑하던 결함 해소. 진짜 Expo는 `stack-detector.ts:79`가 `expo` deps를 `framework='expo'`로 정적 감지하므로 **무손실**. (`deployTarget`은 이후 inert 메타데이터 — 읽는 곳 0.)
+- **Fix2 (백엔드 환각, Evidence-First)**: LLM `backendServices` 주입을 순수 헬퍼 `core/src/backend-corroborate.ts`로 추출 + corroboration 게이트 적용. 상세 백엔드 블록(framework·modules·dbType)은 **수집 fileContents에 실제 서버 코드 증거가 있을 때만** 렌더(package.json server-dep `@nestjs/express/fastify/koa/...` 또는 `.controller.ts` 키). FE-only 레포의 발명 백엔드(`collectFiles`가 `.java`/`.py` 미수집 → Spring/Django는 구조적 항상 환각)는 드롭 → renderer가 증거 기반 generic gateway(External REST API)로 fallback. **설계 결정**: 원 계획의 "BE파일 OR api-call edge" 게이트를 **api-call edge 제외(Design B)**로 정정 — api-call edge는 "백엔드 존재"만 증명하지 "framework=express+모듈"을 증명하지 못하며, 그 신호는 이미 renderer가 별도 generic gateway 분기로 처리(절대원칙 Evidence-First·Less is More 부합). 이에 따라 v1.2.43 ST3의 "LLM backends 무조건 우선" 명세를 "FE-only 환각→드롭+gateway fallback"으로 정정.
+- 검증: verify.sh **PASS**(tsc+vitest) · **817 passed/1 skip/0 fail** · 회귀 0 · 기존 스냅샷 byte-identical. 3 SubTask 전부 TDD(유효 RED→GREEN). 신규 단위 `fe/infra.test.ts`(4) + `core/backend-corroborate.test.ts`(6), 통합 e2e: WINA 완전 재현(`deployTarget=mobile` + express/PostgreSQL 환각을 FE-only react-router fixture에 주입 → React Router·SPA 분류 유지 + BACKEND_0 미렌더 + gateway fallback) + 무-api-call-edge 깨끗한 SPA 출력 봉인.
+
 ## [1.2.53] — 2026-06-18
 
 ### React Tab1 도메인 요약 재정의 + FE Tab2 Y축 연결선 표준화 (사용자 v1.2.52 후속 3현상 · 회귀 0)

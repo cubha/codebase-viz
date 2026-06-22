@@ -66,13 +66,17 @@ describe('analyze CLI', { timeout: 30000 }, () => {
     expect(vi.mocked(analyzeWithLLM)).toHaveBeenCalledOnce()
   })
 
-  // v1.2.43 ST3: LLM enabled에서 backends 우선순위 + 정적 파서 결과(api-call edges) 보존 검증.
-  // mini-react-partner-mock-app은 v1.2.42에서 api-call edges가 정적으로 추출되므로
-  // LLM이 backends를 추가해도 React Tab1 산출물은 BACKEND_0 분기 사용 + External API Gateway 미발동.
-  it('--with-llm 모드 + LLM backends 반환: React Tab1이 LLM backends 분기를 우선 사용한다 (정적 api-call edges는 보존하되 API Gateway 분기 미발동)', async () => {
+  // v1.2.54 WINA 재현 e2e (Fix1 + Fix2 결합): mini-react-partner-mock-app은 FE-only(axios만, 서버 소스 0).
+  // LLM이 deployTarget='mobile' + backendServices(express+PostgreSQL)를 발명한 실 WINA 오분석을 그대로 주입.
+  //  - Fix1(infra.ts): deployTarget='mobile'이 react-router framework 가드를 우회하지 못해 web 분류 유지.
+  //  - Fix2(corroborate, Design B): 수집물에 서버 코드 증거 없으므로 상세 BACKEND_0 블록 드롭.
+  //  - 정적 api-call edges는 보존 → External REST API gateway로 fallback.
+  // (v1.2.43 ST3의 "backends 무조건 우선"은 FE-only 환각을 노출하던 결함 → 본 사이클에서 정정.)
+  it('--with-llm 모드 + FE-only 레포에 deployTarget=mobile·backends 환각 주입(WINA 재현): web 분류 유지 + 상세 backend 드롭 + gateway fallback', async () => {
     const { analyzeWithLLM } = await import('@codebase-viz/llm')
     const mockResult: LLMAnalysisResult = {
       framework: 'react-router',
+      deployTarget: 'mobile',
       routes: [],
       tables: [],
       backendServices: [
@@ -85,11 +89,15 @@ describe('analyze CLI', { timeout: 30000 }, () => {
     await analyze(REACT_FIXTURE, OUTPUT_DIR, { apiKey: 'mock-key' })
 
     const tab1 = await fs.readFile(path.join(OUTPUT_DIR, 'rendering.md'), 'utf8')
-    // LLM backends 분기 = BACKEND_0 노드 + Partner API · express 라벨
-    expect(tab1).toContain('BACKEND_0')
-    expect(tab1).toContain('Partner API · express')
-    // v1.2.43 ST1 신규 외부 API Gateway 분기는 발동 안 함 (backends 우선)
-    expect(tab1).not.toContain('External REST API')
+    // Fix1: deployTarget=mobile 환각에도 React Router(web) 분류 유지, Mobile/RN 래퍼 미발동
+    expect(tab1).toContain('React Router · SPA')
+    expect(tab1).not.toContain('React Native · Expo')
+    expect(tab1).not.toContain('Mobile · iOS')
+    // Fix2: 서버 증거 부재 → 상세 LLM backends 블록 드롭 (환각 차단)
+    expect(tab1).not.toContain('BACKEND_0')
+    expect(tab1).not.toContain('Partner API · express')
+    // 정적 api-call edges 보존 → 증거 기반 generic gateway로 표현
+    expect(tab1).toContain('External REST API')
   })
 
   it('--with-llm 모드 + backends 없음: 정적 api-call edges가 보존되어 React Tab1 External API Gateway 분기 발동', async () => {

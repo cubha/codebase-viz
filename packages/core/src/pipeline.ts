@@ -15,6 +15,7 @@ import {
   type LLMClientOptions,
 } from '@codebase-viz/llm'
 import { createDefaultRegistry } from './adapters/index.js'
+import { corroborateBackends } from './backend-corroborate.js'
 
 export type LLMOptions = LLMClientOptions
 
@@ -91,6 +92,8 @@ export async function buildIRGraph(
   const allLLMNodes = [...llmRoutes, ...llmComponents, ...llmTables]
   const { verified } = await verifyNodes(allLLMNodes, repoRoot)
 
+  const corroboratedBackends = corroborateBackends(llmResult.backendServices ?? [], fileContents)
+
   const llmMeta = {
     // 정적 어댑터가 결정한 framework는 LLM이 덮어쓰지 못한다 (isFileTreeTab2Eligible 화이트리스트
     // 우회로 Tab2 file-tree 표준 손실되는 문제 방지).
@@ -101,9 +104,9 @@ export async function buildIRGraph(
     hasFirebase: llmResult.hasFirebase ?? false,
     ...(adapter !== undefined ? { adapterCategory: adapter.category } : {}),
     ...(llmResult.deployTarget !== undefined ? { deployTarget: llmResult.deployTarget } : {}),
-    ...(llmResult.backendServices !== undefined && llmResult.backendServices.length > 0
-      ? { backends: llmResult.backendServices }
-      : {}),
+    // Evidence-First: LLM backendServices는 수집물에 실제 서버 코드 증거가 있을 때만 상세 렌더.
+    // FE-only 환각(spring-boot/PostgreSQL)은 드롭 → renderer가 generic gateway로 fallback.
+    ...(corroboratedBackends.length > 0 ? { backends: corroboratedBackends } : {}),
   }
   finalGraph = {
     ...mergeGraphs(finalGraph, verified, llmEdges),

@@ -57,15 +57,16 @@ Frameworks not in this list (Express, Hono, Rails, Go, etc.) use **LLM primary**
 
 ---
 
-## ✨ What's new in v1.2.53
+## ✨ What's new in v1.2.54
 
-### Fixed — Tab1 architecture layers restored on large projects + standardized Tab2 spacing
+### Fixed — LLM mode no longer mislabels a web app as mobile or invents a backend
 
-- **Tab1 always shows the full architecture now.** Apps with more than 5 top-level domains used to fall into a chunked path that dropped the infrastructure stack (`Browser → Router → React`) and the backend/data layer — leaving Tab1 as a bare URL tree. Tab1 is now a **domain summary** (one box per domain with a route count, e.g. `📁 partner · 24 routes`); the detailed route/screen tree stays in Tab2. The summary is small, so Tab1 no longer chunks and always keeps its framework + backend layers.
-- **No more over-nested sub-domains in Tab1** (e.g. `matMgmt` inside `partner` as its own layer) — that detail belongs to Tab2.
-- **Tab2 vertical connectors are tighter and uniform** — domain/file trees no longer stretch the lines between layers unevenly.
+- **A React (web) SPA is no longer misclassified as a mobile/React Native app in LLM mode.** When AI analysis is enabled, an invented `deployTarget: mobile` could override the statically-detected framework and wrap the whole architecture as `📱 Mobile · React Native · Expo`. Tab1 now keeps the real web classification (`🌐 Browser · React Router · SPA`); genuine Expo apps are still detected from their dependencies, so nothing is lost.
+- **No more hallucinated backends for frontend-only repos.** LLM mode could invent a detailed backend block (e.g. `spring-boot` + `PostgreSQL` with made-up modules) for a repo that has no backend code at all. Detailed backend blocks now render only when there's actual server-code evidence in the analyzed files. Frontend-only repos that call an API instead show a generic "External REST API" gateway — evidence-based, not invented.
 
 ### Previous highlights
+
+**v1.2.53** — Tab1 architecture layers restored on large projects (domain-summary redefinition) + standardized Tab2 vertical spacing
 
 **v1.2.52** — Large-project viewer loads ~4× sooner (progressive chunk streaming) and scrolls smoother (`content-visibility`); viewer-only
 

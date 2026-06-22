@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.2.54] — 2026-06-22
+
+### Fixed — LLM mode no longer mislabels a web app as mobile or invents a backend
+
+- **A React (web) SPA is no longer misclassified as a mobile/React Native app in LLM mode.** When AI analysis is enabled, an invented `deployTarget: mobile` could override the statically-detected framework and wrap the whole architecture as `📱 Mobile · React Native · Expo`. Tab1 now keeps the real web classification (`🌐 Browser · React Router · SPA`); genuine Expo apps are still detected from their dependencies, so nothing is lost.
+- **No more hallucinated backends for frontend-only repos.** LLM mode could invent a detailed backend block (e.g. `spring-boot` + `PostgreSQL` with made-up modules) for a repo that has no backend code at all. Detailed backend blocks now render only when there's actual server-code evidence in the analyzed files (a server dependency in `package.json`, or NestJS controller files). Frontend-only repos that call an API instead show a generic "External REST API" gateway — evidence-based, not invented.
+- Verification: build + unit tests pass (817 passed) · no regressions · existing snapshots byte-identical.
+
 ## [1.2.53] — 2026-06-18
 
 ### Fixed — Tab1 lost its framework/backend layers on large projects + standardized Tab2 vertical spacing

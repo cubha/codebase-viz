@@ -21,7 +21,7 @@ export function metadataToInfra(meta?: IRGraphMetadata): InfraInfo {
   return {
     hasNextjs: fw === 'nextjs-app-router' || fw === 'nextjs-pages' || fw.startsWith('next'),
     hasVite: fw === 'vite-react',
-    hasExpo: fw === 'expo' || meta.deployTarget === 'mobile',
+    hasExpo: fw === 'expo',
     hasReactRouter: fw === 'react-router',
     hasVueSpa: fw === 'vue-spa',
     hasAngular: fw === 'angular',

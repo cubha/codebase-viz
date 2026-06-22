@@ -2,7 +2,7 @@ import { describe, it, expect, afterEach } from 'vitest'
 import * as path from 'node:path'
 import * as fs from 'node:fs/promises'
 import { fileURLToPath } from 'node:url'
-import { renderMermaid } from './mermaid-renderer.js'
+import { renderMermaid, buildDiagrams } from './mermaid-renderer.js'
 import { createIRGraph, createRouteNode, createComponentNode, createTableNode, createEdge, makeNodeId, makeEdgeId } from '@codebase-viz/types'
 
 const FIXTURES_ROOT = path.resolve(
@@ -676,5 +676,47 @@ describe('BE 렌더러 — Tab1 (BE-C, v1.2.40 표준)', () => {
     // FE 표준 v1.2 (R-T1.2): Tab1 도메인 요약. FE 렌더러가 BE 분기로 빠지지 않았음을 도메인 박스로 확인.
     expect(content).toContain('blog · 1 route')
     expect(content).not.toContain('_BE')
+  })
+})
+
+describe('Tab1 v1.2.54 Fix1 — deployTarget=mobile 뒷문 차단 (렌더러 경계)', () => {
+  const prov = { file: 'src/router.tsx', line: 1, adapter: 'reactrouter', analyzerVersion: '0.1' }
+
+  it('react-router + metadata.deployTarget=mobile이어도 React Router(web) 래퍼 사용, Mobile/RN 미발동', () => {
+    const route = createRouteNode({
+      id: makeNodeId('route', 'src/router.tsx', '/dashboard'),
+      path: '/dashboard',
+      filePath: 'src/router.tsx',
+      routeFileKind: 'page',
+      dynamicSegmentType: 'static',
+      isGroupRoute: false,
+      renderingMode: 'CSR',
+      provenance: prov,
+      confidence: 'verified',
+    })
+    const graph = createIRGraph({
+      analyzerVersion: '0.1',
+      repoRoot: '/tmp/rr',
+      metadata: {
+        framework: 'react-router',
+        deployTarget: 'mobile',
+        hasSupabase: false,
+        hasPrisma: false,
+        hasDexie: false,
+        hasFirebase: false,
+        adapterCategory: 'FE',
+      },
+      nodes: [route],
+      edges: [],
+    })
+    const { rendering } = buildDiagrams(graph)
+    expect(rendering).toContain('React Router · SPA')
+    expect(rendering).not.toContain('React Native · Expo')
+    expect(rendering).not.toContain('Mobile · iOS')
+    // WINA 실제 수정 출력 봉인: 정적 api-call edge 없음(메모리 line 10 실측) + backends 드롭됨 →
+    // 상세 백엔드 블록도, generic gateway도 없는 깨끗한 SPA. (partner-mock e2e는 api-call edge가 있어
+    // gateway로 fallback하므로 이 무-edge 케이스는 별도 봉인이 필요.)
+    expect(rendering).not.toContain('BACKEND_0')
+    expect(rendering).not.toContain('External REST API')
   })
 })
