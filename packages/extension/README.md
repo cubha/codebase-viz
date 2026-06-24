@@ -57,14 +57,17 @@ Frameworks not in this list (Express, Hono, Rails, Go, etc.) use **LLM primary**
 
 ---
 
-## ✨ What's new in v1.2.54
+## ✨ What's new in v1.2.55
 
-### Fixed — LLM mode no longer mislabels a web app as mobile or invents a backend
+### Changed — Tab1 folder overview for large React/SPA projects
 
-- **A React (web) SPA is no longer misclassified as a mobile/React Native app in LLM mode.** When AI analysis is enabled, an invented `deployTarget: mobile` could override the statically-detected framework and wrap the whole architecture as `📱 Mobile · React Native · Expo`. Tab1 now keeps the real web classification (`🌐 Browser · React Router · SPA`); genuine Expo apps are still detected from their dependencies, so nothing is lost.
-- **No more hallucinated backends for frontend-only repos.** LLM mode could invent a detailed backend block (e.g. `spring-boot` + `PostgreSQL` with made-up modules) for a repo that has no backend code at all. Detailed backend blocks now render only when there's actual server-code evidence in the analyzed files. Frontend-only repos that call an API instead show a generic "External REST API" gateway — evidence-based, not invented.
+- **Tab1 shows the full folder directory in a single architecture wrapper.** Large multi-domain projects (500+ routes, 20+ domains) previously repeated the `Browser › Router › React` wrapper per domain and scattered box granularity onto sub-segments, making some top-level domains look missing. Tab1 now renders one wrapper containing the URL directory as a full-depth nested folder tree, each folder header carrying a recursive route-count badge (`📁 /name · N routes`).
+- **Fewer repeated boxes.** All-single-route folders collapse into one count box; in mixed folders, 2+ single-route children fold into one aggregate box (`📄 name1 · name2 · name3 +N (M pages)`). On a WINA-scale sample this cut repeated "· 1 route" boxes from 141 to 17.
+- **Tab2 leaves now show the full route URL** (`🔗 /full/path`) next to the file/component name. Zero missing domains guaranteed.
 
 ### Previous highlights
+
+**v1.2.54** — LLM mode no longer mislabels a web app as mobile or invents a backend (deployTarget back-door + backend-hallucination corroboration gate)
 
 **v1.2.53** — Tab1 architecture layers restored on large projects (domain-summary redefinition) + standardized Tab2 vertical spacing
 

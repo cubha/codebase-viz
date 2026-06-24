@@ -19,7 +19,7 @@
       "exceeded": false
     },
     "mini-nest-app": {
-      "rendering": 1046,
+      "rendering": 1102,
       "screenComponent": 1158,
       "dbScreen": 994,
       "exceeded": false
@@ -37,7 +37,7 @@
       "exceeded": false
     },
     "mini-spring-app": {
-      "rendering": 1127,
+      "rendering": 1197,
       "screenComponent": 2036,
       "dbScreen": 881,
       "exceeded": false

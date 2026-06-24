@@ -1,5 +1,15 @@
 # Changelog
 
+## [1.2.55] — 2026-06-24
+
+### Changed — Tab1 (Rendering Architecture) folder overview for large React/SPA projects
+
+- **Tab1 no longer repeats the framework wrapper per domain, and shows the full folder directory.** On large multi-domain projects (e.g. 500+ routes across 20 domains) Tab1 previously re-drew the `Browser › Router › React` wrapper as a repeated grid and scattered box granularity onto sub-segments, making some top-level domains look missing. Tab1 now renders a **single architecture wrapper** containing the URL directory as a full-depth nested folder tree (root → group → sub-group), each folder header carrying a recursive route-count badge (`📁 /name · N routes`). Individual route URLs remain in Tab2 (tab separation).
+- **Fewer repeated boxes.** Folders whose children are all single-route collapse into one count box; in mixed folders, multi-route children keep their structure while 2+ single-route children fold into a single aggregate box (`📄 name1 · name2 · name3 +N (M pages)`). On the WINA-scale sample this cut repeated "· 1 route" boxes from 141 to 17.
+- **Tab2 (Screen-Component) leaves now show the full route URL** (`🔗 /full/path`) in addition to the file/component name.
+- Zero missing domains is guaranteed by emitting every top-level domain plus recursive counts.
+- Verification: build + unit tests pass · no regressions · snapshots regenerated for the new layout only.
+
 ## [1.2.54] — 2026-06-22
 
 ### Fixed — LLM mode no longer mislabels a web app as mobile or invents a backend

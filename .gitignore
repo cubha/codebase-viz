@@ -31,3 +31,6 @@ fixtures/mini-next-app/.next/
 # Maven 빌드 결과물 (fixture 검증용 소스만 추적)
 fixtures/**/target/
 fixtures/**/.github/
+
+# turtle-gate (gbc) local state
+.gbc/

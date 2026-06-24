@@ -1,5 +1,18 @@
 # Changelog
 
+## [1.2.55] — 2026-06-24
+
+### WINA-FE Tab1/Tab2 재설계 — 516라우트 반복 래퍼·도메인 누락 근본 수정 + 폴더 박스 반복 완화 (회귀 0)
+
+사용자 보고: 실 레포(react-router 516라우트·24테이블 WINA)에서 Tab1이 도메인마다 아키텍처 래퍼(`Browser›Router›React`)를 **반복** 그리드로 그리고("32 rows"), 박스 granularity가 top-level 도메인이 아닌 하위 세그먼트(`role`/`notice`/`bbs`)로 산란 + **도메인 일부 누락 체감**. 요구: 단일 아키텍처 래퍼 안에 root→대→중→소 디렉터리 구조, 누락 0.
+
+- **근본 원인**: `buildDiagrams`(mermaid-renderer.ts)가 v1.2.53에서 이미 단일·소형이 된 `buildRenderingDiagram`을 `rendering` 필드에서 **routeCount(516)>nodeThr(300) 게이트로 `buildWithChunkFallback` 재청킹** → ① 청크마다 wrapper 반복 ② `findBranchingGroups`가 단일 도메인 부분트리를 하강해 sub-segment 산란 ③ top-level 도메인이 박스로 안 보여 누락 체감. 단일 원인이 3증상 전부 유발(v1.2.53 "Tab1 청킹 폐지" 의도가 누수).
+- **ST0 안전픽스**: `rendering`을 `buildWithChunkFallback`에서 **직접 `buildRenderingDiagram(graph)` 호출로 교체** — routeCount>300 재청킹 누수 차단.
+- **ST1 Tab1 재정의**: 도메인 요약 박스(v1.2.53) → **full-depth 폴더 개요**(신규 `fe/tab1-tree.ts` `buildNestedFolderOverviewLines`). 단일 래퍼 안에 URL 디렉터리를 root→대→중→소 중첩 폴더 subgraph로 emit, 폴더 헤더 = `📁 /name · N routes`(하위 route 재귀 합 배지). top-level 형제는 단일 `~~~` chain으로 X축 분포(render-check 실측: chain aspect 1.95 vs row-wrapper 0.05 mermaid v11 무시 재확인). 개별 route URL 열거는 Tab2 위임(탭 차별성).
+- **ST2 Tab2 보강**: leaf에 **전체 라우트 URL**(`🔗 /full/path`) 병기(`labels.ts routeUrlLine` 공유 헬퍼, Tab2 4경로). 마지막 세그먼트 유지(추가). IR/provenance 무변경.
+- **ST6 폴더 박스 반복 완화**(사용자 후속 피드백 "여러 폴더박스 반복이 별로"): collapse 기준을 **하위 재귀 라우트 수**로 재정의(`isCollapsed`). 자식이 전부 단일라우트면 카운트 박스 1개로 collapse. 혼합 폴더는 다중(≥2) 자식만 구조로 펼치고, **단일라우트 자식 2개+는 하나의 `📄 name1·name2·name3 +N (M pages)` 집계 박스**로 묶음(이름 최대 3 노출). WINA Dummy 실측: "·1 route" 박스 **141→17**, subgraph 57→42, 카운트박스 184→117, 집계박스 13 신설. **도메인 누락 0·chain ref 19 불변.**
+- **검증**: 사용자 제공 실 WINA 라우터 paste로 Dummy Repo(`/tmp/wina-dummy`, 283 route·245 component·20 도메인) 직접 분석(vsix 빌드 불가 환경) → Tab1 BROWSER wrapper 1개(반복0)·청크 false·도메인 누락 0·특수패턴(camelCase headOffice·partner dual-prefix matMgmt+materialMgmt·agency import.meta.glob+file 분기) 전부 OK. verify.sh **PASS**(tsc+vitest)·회귀 0·스냅샷 Tab1만 재생성. ST1~ST5 + ST6 TDD(유효 RED→GREEN). 표준 FE-DIAGRAM-STANDARD v1.2.55 re-amendment(§10, R-T1.2/R-T1.7 정정 + §10.4 collapse·집계).
+
 ## [1.2.54] — 2026-06-22
 
 ### WINA-FE Tab1 LLM 오분석 근본 수정 — deployTarget 뒷문 차단 + 백엔드 환각 corroboration 게이트 (회귀 0)
