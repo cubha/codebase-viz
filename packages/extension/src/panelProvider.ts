@@ -1,4 +1,5 @@
 import * as vscode from 'vscode'
+import * as crypto from 'node:crypto'
 import { t, resolveLocale, dictForLocale } from './i18n/dict.js'
 
 function getLocale() {
@@ -50,10 +51,12 @@ export class PanelProvider implements vscode.WebviewViewProvider {
   private _getHtml(): string {
     const locale = getLocale()
     const dict = dictForLocale(locale)
-    return `<!DOCTYPE html>
+    const nonce = crypto.randomBytes(16).toString('base64')
+    const html = `<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'nonce-${nonce}'; style-src 'unsafe-inline';">
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body {
@@ -123,7 +126,7 @@ export class PanelProvider implements vscode.WebviewViewProvider {
 <div id="header">
   <span style="font-weight:600;font-size:11px;">Codebase Visualizer</span>
   <span id="state">Ready</span>
-  <button class="clear-btn" onclick="clearLog()">Clear</button>
+  <button id="clearBtn" class="clear-btn">Clear</button>
 </div>
 <div id="summary">
   <div class="stat"><span class="stat-val" id="sRoutes">0</span><span class="stat-lbl">Routes</span></div>
@@ -160,6 +163,8 @@ export class PanelProvider implements vscode.WebviewViewProvider {
     stateEl.className = '';
   }
 
+  document.getElementById('clearBtn').addEventListener('click', clearLog);
+
   window.addEventListener('message', e => {
     const d = e.data;
     if (d.type === 'log') {
@@ -184,5 +189,6 @@ export class PanelProvider implements vscode.WebviewViewProvider {
 </script>
 </body>
 </html>`
+    return html.replace(/<script>/g, `<script nonce="${nonce}">`)
   }
 }

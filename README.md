@@ -4,9 +4,9 @@
 
 Routes, components, and DB relationships — extracted statically from **13 frameworks**, optionally enriched by LLM, rendered as three live diagram tabs inside VS Code.
 
-> Marketplace: [`cubha.codebase-arch-viz`](https://marketplace.visualstudio.com/items?itemName=cubha.codebase-arch-viz) · Current release: **v1.2.57**
+> Marketplace: [`cubha.codebase-arch-viz`](https://marketplace.visualstudio.com/items?itemName=cubha.codebase-arch-viz) · Current release: **v1.2.58**
 >
-> **v1.2.57 highlights** — **백엔드 Tab1 endpoint collapse** (BE 다이어그램 표준 R-T1.6 amendment). 컨트롤러 endpoint를 별도 `endpoints` subgraph(Y축 적층) 대신 **컨트롤러 노드 안 markdown 목록**(`**METHOD** /suffix` 1행씩)으로 흡수 → endpoint 많은 컨트롤러의 세로 비대 해소(12-endpoint 기준 높이 ~2.7× 단축), 메서드 bold로 항목 구분 명확. 모든 BE 어댑터(Spring·Django·NestJS·FastAPI·Flask) 적용·FE 불변. URL 경로 markdown 메타문자 escape. verify.sh ALL PASS · 회귀 0.
+> **v1.2.58 highlights** — **웹뷰 보안 강화 + graph 캐시 상시 미스 결함 수정**. CSP에서 `unsafe-inline`/`unsafe-eval` 제거(매 렌더 nonce 발급, onclick 32곳 addEventListener 전환), 분석 대상 유래 문자열 웹뷰 삽입 지점 이스케이프, postMessage 화이트리스트 + openExternal https 제한. 분석 graph 캐시가 diagram 캐시와 파일명이 겹쳐 상시 무효화되던 결함 수정(재분석 없이 캐시 정상 히트). codesight 잔재 rename 마무리, 1.6MB 죽은 ELK 번들 제거. verify.sh ALL PASS · Playwright 10/10 · 회귀 0.
 >
 > 이전 버전 이력은 [CHANGELOG](CHANGELOG.md) 참조.
 

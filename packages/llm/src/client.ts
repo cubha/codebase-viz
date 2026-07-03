@@ -4,6 +4,7 @@ import { createOpenAI } from '@ai-sdk/openai'
 import { generateText } from 'ai'
 import { z } from 'zod'
 import type { LLMAnalysisResult } from './schema.js'
+import { isRetryableLlmError } from './retry-classify.js'
 
 const SYSTEM_PROMPT = `You are a code architecture analyzer. Analyze the provided source code and return a JSON object describing the project structure.
 
@@ -85,9 +86,15 @@ const LLMResultSchema = z.object({
   inferenceNotes: z.array(z.string()),
 })
 
+export type LLMProvider = 'anthropic' | 'google' | 'openai'
+
+// ARCH-2: provider 기본값('anthropic')을 client.ts·extension.ts 양쪽에 중복 하드코딩하던 것을
+// 이 단일 상수로 통일한다.
+export const DEFAULT_LLM_PROVIDER: LLMProvider = 'anthropic'
+
 export interface LLMClientOptions {
   apiKey: string
-  provider?: 'anthropic' | 'google' | 'openai'
+  provider?: LLMProvider
   model?: string
   maxTokens?: number
 }
@@ -99,7 +106,7 @@ export interface AnalyzeOptions {
 }
 
 function createModel(opts: LLMClientOptions) {
-  const provider = opts.provider ?? 'anthropic'
+  const provider = opts.provider ?? DEFAULT_LLM_PROVIDER
   // 빈 문자열·공백만 있는 model은 invalid (provider API가 404 반환) → DEFAULT_MODELS fallback.
   const trimmed = opts.model?.trim()
   const modelId = trimmed !== undefined && trimmed.length > 0 ? trimmed : DEFAULT_MODELS[provider]
@@ -142,7 +149,24 @@ ${fileBlock}`
 
   try {
     return await attempt()
-  } catch {
-    return await attempt()
+  } catch (firstError) {
+    // 4xx 등 재시도로 회복 불가능한 에러는 즉시 표면화 — 동일 실패를 반복 호출해 API 비용만
+    // 낭비하지 않는다. 재시도 대상이면 재시도하되, 그마저 실패하면 첫 에러를 보존해 함께 표면화한다.
+    if (!isRetryableLlmError(firstError)) throw firstError
+
+    try {
+      return await attempt()
+    } catch (secondError) {
+      const firstMessage = firstError instanceof Error ? firstError.message : String(firstError)
+      const secondMessage = secondError instanceof Error ? secondError.message : String(secondError)
+      const combined = new Error(
+        `LLM analysis failed after retry. First attempt: ${firstMessage}. Retry: ${secondMessage}`,
+        { cause: firstError },
+      )
+      // pipeline.ts가 err.name으로 원본 에러 타입(APICallError 등)을 진단 메시지에 노출하므로,
+      // 제네릭 Error로 재래핑해도 그 정보가 사라지지 않도록 첫 에러의 name을 물려받는다.
+      if (firstError instanceof Error) combined.name = firstError.name
+      throw combined
+    }
   }
 }

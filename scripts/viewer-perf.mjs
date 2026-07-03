@@ -13,7 +13,6 @@ const ROOT = path.resolve(__dirname, '..')
 const MEDIA = path.join(ROOT, 'packages/extension/media')
 const VIEWER_HTML = path.join(MEDIA, 'viewer.html')
 const MERMAID_LOCAL = path.join(MEDIA, 'mermaid.min.js')
-const ELK_LOCAL = path.join(MEDIA, 'mermaid-layout-elk.bundle.mjs')
 const CHUNK_SEP = '%%--CHUNK--%%'
 
 const [, , chunkCountArg = '22', label = 'baseline'] = process.argv
@@ -58,15 +57,13 @@ const EN_DICT = {
 const HARNESS_DIR = path.join('/tmp', 'viewer-perf-harness')
 fs.mkdirSync(HARNESS_DIR, { recursive: true })
 fs.copyFileSync(MERMAID_LOCAL, path.join(HARNESS_DIR, 'mermaid.min.js'))
-if (fs.existsSync(ELK_LOCAL)) fs.copyFileSync(ELK_LOCAL, path.join(HARNESS_DIR, 'mermaid-layout-elk.bundle.mjs'))
 
 const meta = { projectName: 'perf-' + label, routeCount: CHUNK_COUNT * 50, tableCount: 0 }
 // 페이지 로드 즉시 perf 관측자 설치 — .row-diagram에 svg가 처음 붙는 시점/전부 붙는 시점 기록.
 const perfSeed = `<script>
-  window.__CODESIGHT_META__ = ${JSON.stringify(meta)};
-  window.__CODESIGHT_DIAGRAMS__ = ${JSON.stringify({ rendering: diagram, screenComponent: '', dbScreen: '' })};
-  window.__CODESIGHT_LOCALE__ = 'en';
-  window.__CODESIGHT_I18N__ = ${JSON.stringify(EN_DICT)};
+  window.__CODEBASE_VIZ_META__ = ${JSON.stringify(meta)};
+  window.__CODEBASE_VIZ_DIAGRAMS__ = ${JSON.stringify({ rendering: diagram, screenComponent: '', dbScreen: '' })};
+  window.__CODEBASE_VIZ_I18N__ = ${JSON.stringify(EN_DICT)};
   window.__PERF = { firstRow: null, lastRow: null, count: 0 };
   (function(){
     var mo = new MutationObserver(function(){

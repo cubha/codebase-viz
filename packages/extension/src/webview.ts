@@ -1,9 +1,12 @@
 import * as vscode from 'vscode'
 import * as path from 'node:path'
-import * as fs from 'node:fs'
+import * as fs from 'node:fs/promises'
+import * as crypto from 'node:crypto'
 import type { IRGraph } from '@codebase-viz/types'
 import type { DiagramSet } from '@codebase-viz/renderer'
 import { dictForLocale, resolveLocale } from './i18n/dict.js'
+import { safeJson, escapeHtml } from './webview-escape.js'
+import { isValidExportMessage, sanitizeExportFilename, type ValidExportMessage } from './message-guard.js'
 
 interface ViewerParams {
   projectName: string
@@ -11,13 +14,6 @@ interface ViewerParams {
   tableCount: number
   diagrams: DiagramSet
   cachedAt?: number
-}
-
-interface ExportMessage {
-  type: 'export'
-  format: 'svg' | 'png' | 'md'
-  data: string
-  filename: string
 }
 
 export class CodebaseVizPanel {
@@ -33,10 +29,14 @@ export class CodebaseVizPanel {
     this.panel = panel
     this.panel.onDidDispose(() => this.dispose(), null, this.disposables)
     this.panel.webview.onDidReceiveMessage(
-      (msg: { type: string } & Partial<ExportMessage>) => {
-        if (msg.type === 'export') {
-          void this.handleExport(msg as ExportMessage)
-        } else if (msg.type === 'reanalyze') {
+      (msg: unknown) => {
+        if (isValidExportMessage(msg)) {
+          void this.handleExport(msg)
+        } else if (
+          typeof msg === 'object' &&
+          msg !== null &&
+          (msg as { type?: unknown }).type === 'reanalyze'
+        ) {
           void vscode.commands.executeCommand('codebaseViz.reanalyze')
         }
       },
@@ -86,17 +86,17 @@ export class CodebaseVizPanel {
     this.panel.webview.postMessage({ type: 'triggerExport', format })
   }
 
-  updateGraph(graph: IRGraph, diagrams: DiagramSet): void {
+  async updateGraph(graph: IRGraph, diagrams: DiagramSet): Promise<void> {
     this.lastParams = {
       projectName: graph.projectName ?? path.basename(graph.repoRoot),
       routeCount: graph.nodes.filter(n => n.kind === 'route').length,
       tableCount: graph.nodes.filter(n => n.kind === 'table').length,
       diagrams,
     }
-    this.panel.webview.html = this.buildViewerHtmlImpl(this.lastParams)
+    this.panel.webview.html = await this.buildViewerHtmlImpl(this.lastParams)
   }
 
-  showCached(data: { projectName: string; routeCount: number; tableCount: number; diagrams: DiagramSet; savedAt: number }): void {
+  async showCached(data: { projectName: string; routeCount: number; tableCount: number; diagrams: DiagramSet; savedAt: number }): Promise<void> {
     this.lastParams = {
       projectName: data.projectName,
       routeCount: data.routeCount,
@@ -104,26 +104,27 @@ export class CodebaseVizPanel {
       diagrams: data.diagrams,
       cachedAt: data.savedAt,
     }
-    this.panel.webview.html = this.buildViewerHtmlImpl(this.lastParams)
+    this.panel.webview.html = await this.buildViewerHtmlImpl(this.lastParams)
   }
 
-  refreshLocale(): void {
+  async refreshLocale(): Promise<void> {
     // language 설정 변경 시 캐시된 lastParams로 viewer를 새 locale로 다시 렌더.
     if (this.lastParams !== undefined) {
-      this.panel.webview.html = this.buildViewerHtmlImpl(this.lastParams)
+      this.panel.webview.html = await this.buildViewerHtmlImpl(this.lastParams)
     }
   }
 
-  private async handleExport(msg: ExportMessage): Promise<void> {
+  private async handleExport(msg: ValidExportMessage): Promise<void> {
     const filterMap: Record<string, Record<string, string[]>> = {
       svg: { 'SVG Image': ['svg'] },
       png: { 'PNG Image': ['png'] },
       md: { Markdown: ['md'] },
     }
+    const filename = sanitizeExportFilename(msg.filename)
     const workspaceUri = vscode.workspace.workspaceFolders?.[0]?.uri
     const defaultUri = workspaceUri
-      ? vscode.Uri.joinPath(workspaceUri, msg.filename)
-      : vscode.Uri.file(msg.filename)
+      ? vscode.Uri.joinPath(workspaceUri, filename)
+      : vscode.Uri.file(filename)
 
     const uri = await vscode.window.showSaveDialog({
       defaultUri,
@@ -143,20 +144,16 @@ export class CodebaseVizPanel {
     void vscode.window.showInformationMessage(`Codebase Viz: 저장 완료 — ${path.basename(uri.fsPath)}`)
   }
 
-  private buildViewerHtmlImpl(params: ViewerParams): string {
+  private async buildViewerHtmlImpl(params: ViewerParams): Promise<string> {
     const webview = this.panel.webview
     const mermaidUri = webview.asWebviewUri(
       vscode.Uri.joinPath(this.extensionUri, 'media', 'mermaid.min.js'),
-    )
-    // ELK layout bundle 부재 시 dynamic import 실패 → dagre fallback.
-    const elkUri = webview.asWebviewUri(
-      vscode.Uri.joinPath(this.extensionUri, 'media', 'mermaid-layout-elk.bundle.mjs'),
     )
 
     const viewerPath = path.join(this.extensionUri.fsPath, 'media', 'viewer.html')
     let template: string | undefined
     try {
-      template = fs.readFileSync(viewerPath, 'utf8')
+      template = await fs.readFile(viewerPath, 'utf8')
     } catch {
       template = undefined
     }
@@ -166,15 +163,17 @@ export class CodebaseVizPanel {
     const setting = vscode.workspace.getConfiguration('codebaseViz').get<string>('language', 'auto')
     const locale = resolveLocale(setting, vscode.env.language)
     const dict = dictForLocale(locale)
+    // 매 렌더마다 새 nonce — CSP script-src에서 'unsafe-inline'/'unsafe-eval'을 대체한다.
+    // unsafe-eval 제거는 mermaid.min.js에 eval(/new Function( 사용이 없음을 grep + Playwright
+    // 실측(tests/playwright/csp.spec.mjs)으로 확인한 뒤 적용했다(v1.2.58 ST3).
+    const nonce = crypto.randomBytes(16).toString('base64')
 
     const injection = [
-      `<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline' 'unsafe-eval' ${cspSource}; style-src 'unsafe-inline'; font-src data:; img-src ${cspSource} data: blob:;">`,
-      `<script>`,
-      `window.__CODESIGHT_DIAGRAMS__ = ${JSON.stringify(diagrams)};`,
-      `window.__CODESIGHT_META__ = ${JSON.stringify({ projectName, routeCount, tableCount, cachedAt })};`,
-      `window.__CODESIGHT_LOCALE__ = ${JSON.stringify(locale)};`,
-      `window.__CODESIGHT_I18N__ = ${JSON.stringify(dict)};`,
-      `window.__CODESIGHT_ELK_URL__ = ${JSON.stringify(elkUri.toString())};`,
+      `<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'nonce-${nonce}' ${cspSource}; style-src 'unsafe-inline'; font-src data:; img-src ${cspSource} data: blob:;">`,
+      `<script nonce="${nonce}">`,
+      `window.__CODEBASE_VIZ_DIAGRAMS__ = ${safeJson(diagrams)};`,
+      `window.__CODEBASE_VIZ_META__ = ${safeJson({ projectName, routeCount, tableCount, cachedAt })};`,
+      `window.__CODEBASE_VIZ_I18N__ = ${safeJson(dict)};`,
       `</script>`,
     ].join('\n')
 
@@ -182,9 +181,10 @@ export class CodebaseVizPanel {
       return template
         .replace('<head>', `<head>\n${injection}`)
         .replace(
-          'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js',
-          mermaidUri.toString(),
+          '<script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>',
+          `<script nonce="${nonce}" src="${mermaidUri.toString()}"></script>`,
         )
+        .replace('<script>', `<script nonce="${nonce}">`)
         .replace(/<link[^>]*fonts\.googleapis\.com[^>]*>/g, '')
     }
 
@@ -202,13 +202,15 @@ export class CodebaseVizPanel {
     return `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8">
 <style>body{font-family:monospace;background:#060810;color:#fb923c;padding:2rem;margin:0;font-size:13px;}
 pre{background:#1a0800;padding:1rem;border-radius:4px;overflow:auto;border:1px solid #c2410c;}</style></head>
-<body><div>Analysis failed</div><pre>${message}</pre></body></html>`
+<body><div>Analysis failed</div><pre>${escapeHtml(message)}</pre></body></html>`
   }
 
   private buildFallbackHtml(diagrams: DiagramSet, projectName: string, mermaidSrc: string): string {
-    const diagramsJson = JSON.stringify(diagrams)
+    const diagramsJson = safeJson(diagrams)
+    const nonce = crypto.randomBytes(16).toString('base64')
     return `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8">
-<script src="${mermaidSrc}"></script>
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'nonce-${nonce}'; style-src 'unsafe-inline'; img-src data: blob:;">
+<script nonce="${nonce}" src="${mermaidSrc}"></script>
 <style>
 body{font-family:monospace;background:#060810;color:#e2e8f0;margin:0;padding:0;height:100vh;overflow:hidden;}
 header{padding:0 24px;height:52px;background:rgba(6,8,16,.92);border-bottom:1px solid #162035;display:flex;align-items:center;gap:14px;}
@@ -222,21 +224,21 @@ header{padding:0 24px;height:52px;background:rgba(6,8,16,.92);border-bottom:1px 
 svg{max-width:100%;}
 </style></head>
 <body>
-<header><div class="logo">Code<em>Sight</em></div><span style="font-size:11px;color:#475569">${projectName}</span></header>
+<header><div class="logo">Codebase <em>Visualizer</em></div><span style="font-size:11px;color:#475569">${escapeHtml(projectName)}</span></header>
 <div class="tabs">
-  <div class="tab active" onclick="switchTab(0)">Rendering Architecture</div>
-  <div class="tab" onclick="switchTab(1)">Screen–Component</div>
-  <div class="tab" onclick="switchTab(2)">Data Flow</div>
+  <div class="tab active" data-tab-idx="0">Rendering Architecture</div>
+  <div class="tab" data-tab-idx="1">Screen–Component</div>
+  <div class="tab" data-tab-idx="2">Data Flow</div>
 </div>
 <div class="panels">
   <div class="panel active" id="p0"><div id="d0">Rendering...</div></div>
   <div class="panel" id="p1"><div id="d1">Rendering...</div></div>
   <div class="panel" id="p2"><div id="d2">Rendering...</div></div>
 </div>
-<script>
+<script nonce="${nonce}">
 const D = ${diagramsJson};
 const keys = ['rendering','screenComponent','dbScreen'];
-mermaid.initialize({startOnLoad:false,securityLevel:'loose',theme:'dark',maxTextSize:1000000,maxEdges:2000});
+mermaid.initialize({startOnLoad:false,securityLevel:'loose',theme:'dark',maxTextSize:1000000,maxEdges:2000,flowchart:{htmlLabels:false}});
 async function renderAll(){
   for(let i=0;i<3;i++){
     try{const{svg}=await mermaid.render('m'+i,D[keys[i]]);document.getElementById('d'+i).innerHTML=svg;}
@@ -247,6 +249,9 @@ function switchTab(i){
   document.querySelectorAll('.tab').forEach((t,j)=>t.classList.toggle('active',j===i));
   document.querySelectorAll('.panel').forEach((p,j)=>p.classList.toggle('active',j===i));
 }
+document.querySelectorAll('[data-tab-idx]').forEach(el => {
+  el.addEventListener('click', () => switchTab(parseInt(el.dataset.tabIdx, 10)));
+});
 renderAll();
 </script></body></html>`
   }

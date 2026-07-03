@@ -1,12 +1,12 @@
 import * as vscode from 'vscode'
 import * as path from 'node:path'
-import * as fs from 'node:fs'
 import { CodebaseVizPanel } from './webview.js'
 import { SidebarProvider, type StatusInfo } from './sidebarProvider.js'
 import { PanelProvider } from './panelProvider.js'
 import { runAnalysis } from './analyzer.js'
 import { resolveSelectedFolder } from './folder-utils.js'
-import { detectStack } from '@codebase-viz/llm'
+import { readDiagramCache, writeDiagramCache, type DiagramCache } from './diagram-cache.js'
+import { detectStack, DEFAULT_LLM_PROVIDER, type LLMProvider } from '@codebase-viz/llm'
 import type { IRGraph } from '@codebase-viz/types'
 import { t, resolveLocale } from './i18n/dict.js'
 
@@ -15,12 +15,10 @@ function getLocale() {
   return resolveLocale(setting, vscode.env.language)
 }
 
-type LLMProvider = 'anthropic' | 'google' | 'openai'
-
 function getProvider(): LLMProvider {
-  const val = vscode.workspace.getConfiguration('codebaseViz').get<string>('llm.provider', 'anthropic')
+  const val = vscode.workspace.getConfiguration('codebaseViz').get<string>('llm.provider', DEFAULT_LLM_PROVIDER)
   if (val === 'google' || val === 'openai') return val
-  return 'anthropic'
+  return DEFAULT_LLM_PROVIDER
 }
 
 function apiKeySlot(provider: LLMProvider): string {
@@ -40,14 +38,6 @@ async function getStackStatus(workspaceRoot: string): Promise<Pick<StatusInfo, '
   } catch {
     return {}
   }
-}
-
-interface DiagramCache {
-  savedAt: number
-  projectName: string
-  routeCount: number
-  tableCount: number
-  diagrams: DiagramSet
 }
 
 let sidebarProvider: SidebarProvider | undefined
@@ -104,42 +94,19 @@ async function pickPairFolder(mainFsPath: string): Promise<string | undefined> {
   return picked.fsPath
 }
 
-function cacheFileName(pairRepoRoot?: string): string {
-  if (pairRepoRoot === undefined) return 'cache.json'
-  const suffix = path.basename(pairRepoRoot).replace(/[^a-z0-9]/gi, '_').toLowerCase()
-  return `cache-pair-${suffix}.json`
+async function readCache(repoRoot: string, pairRepoRoot?: string): Promise<DiagramCache | undefined> {
+  return readDiagramCache(repoRoot, pairRepoRoot)
 }
 
-function readCache(repoRoot: string, pairRepoRoot?: string): DiagramCache | undefined {
-  const candidates = [
-    path.join(repoRoot, '.codebase-viz', cacheFileName(pairRepoRoot)),
-  ]
-  for (const file of candidates) {
-    try {
-      if (!fs.existsSync(file)) continue
-      return JSON.parse(fs.readFileSync(file, 'utf8')) as DiagramCache
-    } catch {
-      continue
-    }
+async function writeCache(repoRoot: string, graph: IRGraph, diagrams: DiagramSet, pairRepoRoot?: string): Promise<void> {
+  const data: DiagramCache = {
+    savedAt: Date.now(),
+    projectName: graph.projectName ?? path.basename(repoRoot),
+    routeCount: graph.nodes.filter(n => n.kind === 'route').length,
+    tableCount: graph.nodes.filter(n => n.kind === 'table').length,
+    diagrams,
   }
-  return undefined
-}
-
-function writeCache(repoRoot: string, graph: IRGraph, diagrams: DiagramSet, pairRepoRoot?: string): void {
-  try {
-    const dir = path.join(repoRoot, '.codebase-viz')
-    fs.mkdirSync(dir, { recursive: true })
-    const data: DiagramCache = {
-      savedAt: Date.now(),
-      projectName: graph.projectName ?? path.basename(repoRoot),
-      routeCount: graph.nodes.filter(n => n.kind === 'route').length,
-      tableCount: graph.nodes.filter(n => n.kind === 'table').length,
-      diagrams,
-    }
-    fs.writeFileSync(path.join(dir, cacheFileName(pairRepoRoot)), JSON.stringify(data))
-  } catch {
-    // non-fatal
-  }
+  await writeDiagramCache(repoRoot, data, pairRepoRoot)
 }
 
 async function doAnalyze(
@@ -177,9 +144,9 @@ async function doAnalyze(
   const stackStatus = await getStackStatus(workspaceRoot)
 
   if (!forceRefresh) {
-    const cached = readCache(workspaceRoot, pairRepoRoot)
+    const cached = await readCache(workspaceRoot, pairRepoRoot)
     if (cached !== undefined) {
-      panel.showCached(cached)
+      await panel.showCached(cached)
       sidebarProvider?.updateStatus({
         projectName: cached.projectName,
         cachedAt: cached.savedAt,
@@ -209,8 +176,8 @@ async function doAnalyze(
       grouping,
       ...(pairRepoRoot !== undefined ? { pairRepoRoot } : {}),
     })
-    writeCache(workspaceRoot, graph, diagrams, pairRepoRoot)
-    panel.updateGraph(graph, diagrams)
+    await writeCache(workspaceRoot, graph, diagrams, pairRepoRoot)
+    await panel.updateGraph(graph, diagrams)
 
     const result = {
       projectName: graph.projectName ?? path.basename(workspaceRoot),
@@ -260,7 +227,7 @@ export function activate(context: vscode.ExtensionContext): void {
     const hasApiKey = (await context.secrets.get(apiKeySlot(getProvider())) ?? '') !== ''
     const llmEnabled = vscode.workspace.getConfiguration('codebaseViz').get<boolean>('enableLLM', false)
     const workspaceRoot = getWorkspaceRoot(context)
-    const cached = workspaceRoot !== undefined ? readCache(workspaceRoot) : undefined
+    const cached = workspaceRoot !== undefined ? await readCache(workspaceRoot) : undefined
     const stackStatus = workspaceRoot !== undefined ? await getStackStatus(workspaceRoot) : {}
 
     sidebarProvider?.updateStatus({
@@ -303,7 +270,7 @@ export function activate(context: vscode.ExtensionContext): void {
       // language 변경 시 모든 webview를 새 locale로 즉시 다시 렌더 (reload 불필요).
       if (e.affectsConfiguration('codebaseViz.language')) {
         sidebarProvider?.refreshLocale()
-        CodebaseVizPanel.getInstance()?.refreshLocale()
+        void CodebaseVizPanel.getInstance()?.refreshLocale()
       }
     }),
   )
@@ -335,13 +302,13 @@ export function activate(context: vscode.ExtensionContext): void {
     vscode.commands.registerCommand('codebaseViz.openViewer', async () => {
       const workspaceRoot = getWorkspaceRoot(context)
       if (workspaceRoot === undefined) return
-      const cached = readCache(workspaceRoot)
+      const cached = await readCache(workspaceRoot)
       if (cached === undefined) {
         void vscode.window.showInformationMessage(t('msg.noCacheRunFirst', getLocale()))
         return
       }
       const panel = CodebaseVizPanel.createOrShow(context.extensionUri)
-      panel.showCached(cached)
+      await panel.showCached(cached)
     }),
 
     // 멀티 워크스페이스: 폴더 선택
@@ -355,7 +322,7 @@ export function activate(context: vscode.ExtensionContext): void {
       }
       if (target === undefined) return
       await context.workspaceState.update(STATE_KEY_SELECTED_FOLDER, target.uri.fsPath)
-      const cached = readCache(target.uri.fsPath)
+      const cached = await readCache(target.uri.fsPath)
       const stackStatus = await getStackStatus(target.uri.fsPath)
       sidebarProvider?.updateStatus({
         selectedFolder: target.uri.fsPath,

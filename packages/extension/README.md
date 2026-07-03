@@ -57,12 +57,14 @@ Frameworks not in this list (Express, Hono, Rails, Go, etc.) use **LLM primary**
 
 ---
 
-## ✨ What's new in v1.2.57
+## ✨ What's new in v1.2.58
 
-### Backend Tab1 — endpoints collapsed into the controller node
+### Webview security hardening + a long-standing cache bug fix
 
-- **A controller's endpoints now render as a compact list inside the controller node** (`**GET** /`, `**GET** /:id`, `**POST** /` …) instead of a separate stacked `endpoints` box. Controllers with many endpoints no longer stretch the diagram vertically — on a 12-endpoint controller the diagram height drops ~2.7×, and each endpoint reads on its own line with the HTTP method in **bold**.
-- Applies to every backend adapter (Spring Boot, Django, NestJS, FastAPI, Flask, …). Frontend diagrams are unchanged.
+- **Content-Security-Policy no longer allows `unsafe-inline`/`unsafe-eval`.** Every webview now uses a per-render nonce, and all inline click/change handlers were converted to `addEventListener`. Verified with an automated test that renders all 3 tabs and exercises tab/zoom/DB-view switching under the exact production policy.
+- **The analysis graph cache is fixed.** It was silently colliding with the diagram cache on the same file, so it never actually hit — every re-open of a project was re-running the full analysis. Now split into separate files.
+- Untrusted content from the analyzed codebase (table/column names, error messages) is now escaped before being shown in the sidebar — diagram rendering itself is unchanged.
+- Removed a 1.6MB unused layout bundle that had been shipping in every release for several versions.
 
 > Full version history lives in the [CHANGELOG](CHANGELOG.md).
 

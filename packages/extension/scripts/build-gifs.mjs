@@ -54,10 +54,9 @@ function buildHarness() {
   const cache = loadCache()
   const html = fs.readFileSync(VIEWER_HTML, 'utf8')
   const seed = `<script>
-  window.__CODESIGHT_META__ = ${JSON.stringify({ projectName: cache.projectName, routeCount: cache.routeCount, tableCount: cache.tableCount, cachedAt: cache.savedAt })};
-  window.__CODESIGHT_DIAGRAMS__ = ${JSON.stringify(cache.diagrams)};
-  window.__CODESIGHT_LOCALE__ = 'en';
-  window.__CODESIGHT_I18N__ = ${JSON.stringify(EN_DICT)};
+  window.__CODEBASE_VIZ_META__ = ${JSON.stringify({ projectName: cache.projectName, routeCount: cache.routeCount, tableCount: cache.tableCount, cachedAt: cache.savedAt })};
+  window.__CODEBASE_VIZ_DIAGRAMS__ = ${JSON.stringify(cache.diagrams)};
+  window.__CODEBASE_VIZ_I18N__ = ${JSON.stringify(EN_DICT)};
 </script>`
   // mermaid CDN → 로컬 (chromium은 file://에서 외부 cdn 가능하지만 안정성 위해)
   fs.copyFileSync(MERMAID_LOCAL, path.join(HARNESS_DIR, 'mermaid.min.js'))

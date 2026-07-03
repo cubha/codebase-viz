@@ -1,5 +1,7 @@
 import * as vscode from 'vscode'
+import * as crypto from 'node:crypto'
 import { t, resolveLocale, dictForLocale } from './i18n/dict.js'
+import { isAllowedSidebarMessageType, isHttpsUrl } from './message-guard.js'
 
 function getLocale() {
   const setting = vscode.workspace.getConfiguration('codebaseViz').get<string>('language', 'auto')
@@ -40,6 +42,7 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
     webviewView.webview.html = this._getHtml()
 
     webviewView.webview.onDidReceiveMessage(async (msg: { type: string; value?: unknown }) => {
+      if (!isAllowedSidebarMessageType(msg.type)) return
       switch (msg.type) {
         case 'ready':
           // webview가 완전히 로드된 후 status 전달
@@ -83,7 +86,7 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
             .update('provider', msg.value, vscode.ConfigurationTarget.Global)
           break
         case 'openExternal':
-          if (typeof msg.value === 'string') {
+          if (isHttpsUrl(msg.value)) {
             await vscode.env.openExternal(vscode.Uri.parse(msg.value))
           }
           break
@@ -113,10 +116,12 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
     const locale = getLocale()
     const dict = dictForLocale(locale)
     const langSetting = vscode.workspace.getConfiguration('codebaseViz').get<string>('language', 'auto')
-    return `<!DOCTYPE html>
+    const nonce = crypto.randomBytes(16).toString('base64')
+    const html = `<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'nonce-${nonce}'; style-src 'unsafe-inline';">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -202,7 +207,7 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
 
 <div class="section" id="folderSection" style="display:none">
   <div class="label">${t('sidebar.workspaceFolder', locale)}</div>
-  <select id="folderSelect" onchange="selectFolder(this.value)"
+  <select id="folderSelect"
     style="width:100%;padding:4px 6px;background:var(--vscode-dropdown-background);
     color:var(--vscode-dropdown-foreground);border:1px solid var(--vscode-dropdown-border);
     border-radius:3px;font-size:11px;"></select>
@@ -226,17 +231,17 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
 
 <div class="section">
   <div class="label">${t('sidebar.actions', locale)}</div>
-  <button id="btnAnalyze" onclick="send('analyze')">${t('sidebar.btnAnalyze', locale)}</button>
-  <button id="btnReanalyze" class="secondary" style="display:none" onclick="send('reanalyze')">${t('sidebar.btnReanalyze', locale)}</button>
-  <button id="btnViewer" class="secondary" disabled onclick="send('openViewer')">${t('sidebar.btnViewer', locale)}</button>
+  <button id="btnAnalyze">${t('sidebar.btnAnalyze', locale)}</button>
+  <button id="btnReanalyze" class="secondary" style="display:none">${t('sidebar.btnReanalyze', locale)}</button>
+  <button id="btnViewer" class="secondary" disabled>${t('sidebar.btnViewer', locale)}</button>
 </div>
 
 <div class="section" id="exportSection" style="display:none">
   <div class="label">${t('sidebar.export', locale)}</div>
   <div class="export-grid">
-    <button class="secondary" onclick="send('exportRequest','png')">${t('sidebar.btnPng', locale)}</button>
-    <button class="secondary" onclick="send('exportRequest','svg')">${t('sidebar.btnSvg', locale)}</button>
-    <button class="secondary" onclick="send('exportRequest','md')">${t('sidebar.btnMd', locale)}</button>
+    <button id="btnExportPng" class="secondary">${t('sidebar.btnPng', locale)}</button>
+    <button id="btnExportSvg" class="secondary">${t('sidebar.btnSvg', locale)}</button>
+    <button id="btnExportMd" class="secondary">${t('sidebar.btnMd', locale)}</button>
   </div>
 </div>
 
@@ -245,7 +250,7 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
 <div class="section">
   <div class="label">${t('sidebar.llmAnalysis', locale)}</div>
   <div style="margin-bottom:6px;font-size:11px;color:var(--vscode-descriptionForeground)">${t('sidebar.llmProvider', locale)}</div>
-  <select id="providerSelect" onchange="send('setProvider', this.value); updateApiKeyGuide(this.value)"
+  <select id="providerSelect"
     style="width:100%;padding:4px 6px;margin-bottom:6px;background:var(--vscode-dropdown-background);
     color:var(--vscode-dropdown-foreground);border:1px solid var(--vscode-dropdown-border);
     border-radius:3px;font-size:11px;">
@@ -255,19 +260,18 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
   </select>
   <a id="apiKeyGuide" href="#" style="display:none;margin-bottom:6px;padding:5px 8px;border-radius:3px;
     font-size:10.5px;background:rgba(66,133,244,0.1);color:var(--vscode-charts-blue,#4285f4);
-    border-left:2px solid var(--vscode-charts-blue,#4285f4);cursor:pointer;text-decoration:none;"
-    onclick="openApiKeyGuide();return false;">
+    border-left:2px solid var(--vscode-charts-blue,#4285f4);cursor:pointer;text-decoration:none;">
     ${t('sidebar.googleGuide', locale)}
   </a>
   <div class="api-row">
     <div class="dot off" id="apiDot"></div>
     <span id="apiLabel">${t('sidebar.apiKeyNotSet', locale)}</span>
   </div>
-  <button class="secondary" onclick="send('setApiKey')">${t('sidebar.btnSetApiKey', locale)}</button>
-  <button class="secondary" onclick="send('clearApiKey')">${t('sidebar.btnClearApiKey', locale)}</button>
+  <button id="btnSetApiKey" class="secondary">${t('sidebar.btnSetApiKey', locale)}</button>
+  <button id="btnClearApiKey" class="secondary">${t('sidebar.btnClearApiKey', locale)}</button>
   <div class="toggle-row">
     <span>${t('sidebar.enableLLM', locale)}</span>
-    <div class="toggle" id="llmToggle" onclick="toggleLLM()"></div>
+    <div class="toggle" id="llmToggle"></div>
   </div>
 </div>
 
@@ -275,7 +279,7 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
 
 <div class="section">
   <div class="label">${t('sidebar.language', locale)}</div>
-  <select id="langSelect" onchange="send('setLanguage', this.value)"
+  <select id="langSelect"
     style="width:100%;padding:4px 6px;background:var(--vscode-dropdown-background);
     color:var(--vscode-dropdown-foreground);border:1px solid var(--vscode-dropdown-border);
     border-radius:3px;font-size:11px;">
@@ -306,6 +310,25 @@ function tr(key) { return (window.__SIDEBAR_I18N__[key]) || key; }</script>
     document.getElementById('llmToggle').className = 'toggle' + (llmOn ? ' on' : '');
     send('toggleLLM', llmOn);
   }
+
+  // CSP script-src에서 'unsafe-inline'을 제거하기 위해 inline onclick/onchange 속성 대신
+  // addEventListener를 사용한다(v1.2.58).
+  document.getElementById('folderSelect').addEventListener('change', function () { selectFolder(this.value); });
+  document.getElementById('btnAnalyze').addEventListener('click', () => send('analyze'));
+  document.getElementById('btnReanalyze').addEventListener('click', () => send('reanalyze'));
+  document.getElementById('btnViewer').addEventListener('click', () => send('openViewer'));
+  document.getElementById('btnExportPng').addEventListener('click', () => send('exportRequest', 'png'));
+  document.getElementById('btnExportSvg').addEventListener('click', () => send('exportRequest', 'svg'));
+  document.getElementById('btnExportMd').addEventListener('click', () => send('exportRequest', 'md'));
+  document.getElementById('providerSelect').addEventListener('change', function () {
+    send('setProvider', this.value);
+    updateApiKeyGuide(this.value);
+  });
+  document.getElementById('apiKeyGuide').addEventListener('click', e => { e.preventDefault(); openApiKeyGuide(); });
+  document.getElementById('btnSetApiKey').addEventListener('click', () => send('setApiKey'));
+  document.getElementById('btnClearApiKey').addEventListener('click', () => send('clearApiKey'));
+  document.getElementById('llmToggle').addEventListener('click', toggleLLM);
+  document.getElementById('langSelect').addEventListener('change', function () { send('setLanguage', this.value); });
 
   const API_KEY_URLS = {
     google: 'https://aistudio.google.com/app/apikey',
@@ -448,5 +471,6 @@ function tr(key) { return (window.__SIDEBAR_I18N__[key]) || key; }</script>
 </script>
 </body>
 </html>`
+    return html.replace(/<script>/g, `<script nonce="${nonce}">`)
   }
 }

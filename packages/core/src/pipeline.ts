@@ -12,6 +12,7 @@ import {
   convertToIR,
   verifyNodes,
   mergeGraphs,
+  DEFAULT_LLM_PROVIDER,
   type LLMClientOptions,
 } from '@codebase-viz/llm'
 import { createDefaultRegistry } from './adapters/index.js'
@@ -72,7 +73,7 @@ export async function buildIRGraph(
     })
   } catch (err) {
     // LLM 호출 실패 시 provider/model 컨텍스트와 raw 에러를 한 번에 surface
-    const provider = llmOptions.provider ?? 'anthropic'
+    const provider = llmOptions.provider ?? DEFAULT_LLM_PROVIDER
     const model = llmOptions.model ?? '(default)'
     const errMsg = err instanceof Error ? err.message : String(err)
     const errName = err instanceof Error ? err.name : 'Unknown'

@@ -12,7 +12,6 @@ const ROOT = path.resolve(__dirname, '..')
 const MEDIA = path.join(ROOT, 'packages/extension/media')
 const VIEWER_HTML = path.join(MEDIA, 'viewer.html')
 const MERMAID_LOCAL = path.join(MEDIA, 'mermaid.min.js')
-const ELK_LOCAL = path.join(MEDIA, 'mermaid-layout-elk.bundle.mjs')
 
 const [,, inputDir = '/tmp/partner-out', outPrefix = '/tmp/partner-shot'] = process.argv
 
@@ -48,14 +47,12 @@ const EN_DICT = {
 const HARNESS_DIR = path.join('/tmp', 'render-harness')
 fs.mkdirSync(HARNESS_DIR, { recursive: true })
 fs.copyFileSync(MERMAID_LOCAL, path.join(HARNESS_DIR, 'mermaid.min.js'))
-if (fs.existsSync(ELK_LOCAL)) fs.copyFileSync(ELK_LOCAL, path.join(HARNESS_DIR, 'mermaid-layout-elk.bundle.mjs'))
 
 const meta = { projectName: path.basename(inputDir), routeCount: 21, tableCount: 12, cachedAt: Date.now() }
 const seed = `<script>
-  window.__CODESIGHT_META__ = ${JSON.stringify(meta)};
-  window.__CODESIGHT_DIAGRAMS__ = ${JSON.stringify(diagrams)};
-  window.__CODESIGHT_LOCALE__ = 'en';
-  window.__CODESIGHT_I18N__ = ${JSON.stringify(EN_DICT)};
+  window.__CODEBASE_VIZ_META__ = ${JSON.stringify(meta)};
+  window.__CODEBASE_VIZ_DIAGRAMS__ = ${JSON.stringify(diagrams)};
+  window.__CODEBASE_VIZ_I18N__ = ${JSON.stringify(EN_DICT)};
 </script>`
 const html = fs.readFileSync(VIEWER_HTML, 'utf8')
   .replace('https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js', './mermaid.min.js')

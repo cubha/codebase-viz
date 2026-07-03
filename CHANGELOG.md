@@ -1,5 +1,26 @@
 # Changelog
 
+## [1.2.58] — 2026-07-03
+
+### Security — 웹뷰 보안 강화 (ST0~ST3)
+
+- **ST0**: webview.ts↔viewer.html `window.__X__` 전역 쌍 매칭 vitest 테스트 + package.json contributes ID(commands/views/configuration) 실사용 여부 검사 스크립트를 verify.sh에 편입. 최초 실행에서 죽은 전역 `__CODESIGHT_LOCALE__`(webview.ts + 3개 harness 스크립트) 실제 발견·제거.
+- **ST1**: 분석 대상 코드베이스 유래 문자열(테이블/컬럼명·FK·에러메시지)을 webview DOM에 삽입하기 전 이스케이프(`webview-escape.ts` safeJson/escapeHtml, viewer.html `esc()`). 렌더러가 만드는 다이어그램 소스 문자열(`<br/>`, `**bold**` 등 mermaid 의도적 마크업)은 불변 — Playwright로 3탭 렌더 확인. mermaid fallback 경로에 `htmlLabels:false` 추가(SEC-4).
+- **ST2**: postMessage 핸들러 명시 화이트리스트(`message-guard.ts`) + `openExternal`을 `https://`만 허용(기존엔 임의 스킴 허용).
+- **ST3**: CSP `script-src`에서 `'unsafe-inline'`·`'unsafe-eval'` 제거, 매 렌더 nonce 발급(웹뷰 3종 — 메인 뷰어·사이드바·분석 패널 전부). onclick/onchange 인라인 핸들러 33곳(extension webview 3종 한정)을 addEventListener로 전환. `unsafe-eval` 제거는 mermaid.min.js `eval(`/`new Function(` 0건 확인 + 실제 프로덕션 CSP를 재현한 Playwright 실측(3탭 렌더·탭전환·줌·DB뷰 전환 무위반)으로 검증 후 적용. v1.2.40부터 이미 죽은 코드였던 ELK(`mermaid-layout-elk`) 레이아웃 번들(1.6MB, 매 vsix에 실렸음) 완전 제거.
+
+### Fixed — graph 캐시 상시 미스 (ST6)
+
+- `.codebase-viz/cache.json`을 extension의 diagram 캐시와 analyzer의 graph 캐시가 같은 파일명으로 공유해, 분석 직후 diagram 캐시가 graph 캐시를 덮어써 `analyzerVersion` 필드가 사라지고 매번 전체 재분석되던 결함(ARCH-1). `cache-graph.json`/`cache-diagrams.json`으로 분리 + shape 가드 + 구 파일 마이그레이션.
+
+### Changed — 내부 위생 (ST4/ST5/ST7)
+
+- `codesight` 잔재 전면 정리 완료: 남아있던 `window.__CODESIGHT_*__` 전역 3종(webview + dev harness 스크립트), CLI `CODESIGHT_API_KEY`(신규 `CODEBASE_VIZ_API_KEY`, 구명 fallback 유지), fallback 뷰어의 "CodeSight" 로고 텍스트.
+- extension host의 동기 `fs` 호출(캐시 읽기/쓰기, 뷰어 템플릿 읽기)을 `fs/promises`로 전환(PERF-1).
+- LLM 클라이언트가 에러 종류를 구분하지 않고 무조건 1회 재시도하던 것을 4xx(인증/잘못된 요청)는 즉시 표면화, 429/5xx 등만 재시도하도록 수정. 재시도도 실패하면 첫 에러를 보존해 함께 노출(ERR-1).
+- provider 기본값(`'anthropic'`) 하드코딩이 3곳(llm/client.ts·extension.ts·core/pipeline.ts)에 중복돼있던 것을 단일 상수로 통일(ARCH-2). FE Tab1(Rendering Architecture) 다이어그램 빌더를 `fe/tab1.ts`로 분리(v1.2.47 모듈 분리의 마지막 잔여물 — 출력 byte-identical, 기존 회귀 테스트 전부 GREEN).
+- `.gitignore`에 이미 있었지만 무의미했던 vsix 추적 잔재(구버전 4개 tracked + 로컬 빌드 산출물 57개 237MB) 정리.
+
 ## [1.2.57] — 2026-06-29
 
 ### Changed — 백엔드 Tab1 endpoint collapse (BE-DIAGRAM-STANDARD R-T1.6 amendment)

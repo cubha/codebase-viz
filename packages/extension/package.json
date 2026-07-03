@@ -2,7 +2,7 @@
   "name": "codebase-arch-viz",
   "displayName": "Codebase Architecture Visualizer",
   "description": "Architecture diagrams for 13 frameworks — route hierarchy, component trees, DB schema, and FE↔BE cross-project analysis. Static analysis, no API key needed.",
-  "version": "1.2.57",
+  "version": "1.2.58",
   "publisher": "cubha",
   "license": "MIT",
   "icon": "media/icon.png",
@@ -177,7 +177,6 @@
     "@codebase-viz/types": "workspace:*"
   },
   "devDependencies": {
-    "@mermaid-js/layout-elk": "^0.2.1",
     "@types/vscode": "^1.90.0",
     "@vscode/vsce": "^3.0.0",
     "esbuild": "^0.24.0",

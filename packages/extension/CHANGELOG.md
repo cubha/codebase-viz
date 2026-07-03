@@ -1,5 +1,26 @@
 # Changelog
 
+## [1.2.58] — 2026-07-03
+
+### Security — webview hardening
+
+- **Escaped untrusted content before inserting it into the webview DOM.** Table/column names, FK references, and error messages that originate from the analyzed codebase are now HTML-escaped before being written into the sidebar or shown as render errors (`esc()` in `viewer.html`, `escapeHtml()`/`safeJson()` in `webview.ts`). Diagram source strings produced by the renderer (e.g. `<br/>`, `**bold**` markdown used intentionally in Mermaid labels) are untouched.
+- **`postMessage` handlers now validate the message shape** before acting on it (export requests, sidebar commands), and **`openExternal` only accepts `https://` URLs** — arbitrary schemes (`javascript:`, `file:`, `vscode:`) are rejected.
+- **Content-Security-Policy no longer allows `'unsafe-inline'` or `'unsafe-eval'`.** Every webview (main viewer, sidebar, analysis panel) now uses a per-render nonce; all 33 inline `onclick`/`onchange` handlers across the extension's own webviews were converted to `addEventListener`. `unsafe-eval` removal was verified empirically — `mermaid.min.js` contains no `eval(`/`new Function(` calls, and a Playwright test renders all 3 tabs and exercises tab/zoom/DB-view interactions under the exact production CSP with no violations.
+- Removed a 1.6MB dead ELK (`mermaid-layout-elk`) layout bundle that was still being shipped in every VSIX despite the mrtree layout pragma being abandoned in v1.2.40/41 — no code path emitted it anymore.
+
+### Fixed — the graph cache was silently disabled
+
+- **The analyzer-level graph cache (`.codebase-viz/cache.json`) never actually hit.** The extension's diagram cache and the analyzer's graph cache wrote to the same file with two incompatible shapes — whichever wrote last (always the extension, right after analysis) overwrote the other, so every re-open re-ran the full analysis from scratch. Split into `cache-graph.json` / `cache-diagrams.json` with shape guards; existing `cache.json` is read once as a migration source if its shape matches.
+
+### Changed — hygiene
+
+- Completed the `codesight` → `codebaseViz` naming cleanup: the 3 remaining `window.__CODESIGHT_*__` globals (webview + dev harness scripts), the CLI `CODESIGHT_API_KEY` env var (now `CODEBASE_VIZ_API_KEY`, old name still read as a fallback), and a leftover "CodeSight" logo string in the fallback viewer.
+- Synchronous `fs` calls in the extension host (cache read/write, viewer template read) now use `fs/promises`.
+- The LLM client no longer retries blindly: a 4xx-class error (auth, bad request) surfaces immediately instead of wasting a second API call, while a transient error (429/5xx) is retried once, and if the retry also fails, both errors are shown together instead of silently discarding the first.
+- The duplicated `'anthropic'` provider default is now a single exported constant instead of three separate hardcoded literals. The Tab1 "Rendering Architecture" diagram builder (previously the last unsplit piece of the v1.2.47 module breakup) moved into its own `fe/tab1.ts` file — output is unchanged (all existing renderer tests still pass byte-for-byte).
+- Removed 57 stale local `.vsix` build artifacts and 4 old versions that had been accidentally committed despite `.gitignore` already excluding them.
+
 ## [1.2.57] — 2026-06-29
 
 ### Changed — Backend Tab1 endpoint collapse (BE diagram standard R-T1.6 amendment)

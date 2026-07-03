@@ -3,12 +3,12 @@ set -euo pipefail
 
 cd "$(dirname "$0")"
 
-echo "=== [1/2] TypeScript build ==="
+echo "=== [1/3] TypeScript build ==="
 pnpm run typecheck
 echo "✅ tsc --build PASS"
 
 echo ""
-echo "=== [2/2] 단위 테스트 ==="
+echo "=== [2/3] 단위 테스트 ==="
 UNIT_TEST_FILES=$(find . -type d -name node_modules -prune -o \
     -type f \( -name '*.test.ts' -o -name '*.test.tsx' \
                -o -name '*.test.js' -o -name '*.test.jsx' \
@@ -35,6 +35,10 @@ else
     echo "✅ 단위 테스트 통과 ($UNIT_RUNNER)"
   fi
 fi
+
+echo ""
+echo "=== [3/3] contributes ID 매칭 (package.json ↔ src) ==="
+node scripts/check-contributes-ids.mjs
 
 echo ""
 echo "✅ verify.sh ALL PASS"
