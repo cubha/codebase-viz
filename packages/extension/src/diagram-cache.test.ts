@@ -1,0 +1,89 @@
+import { describe, it, expect, afterEach } from 'vitest'
+import * as fs from 'node:fs/promises'
+import * as path from 'node:path'
+import * as os from 'node:os'
+import { readDiagramCache, writeDiagramCache, type DiagramCache } from './diagram-cache.js'
+
+describe('readDiagramCache / writeDiagramCache — 캐시 파일 분리 (ARCH-1)', () => {
+  const tmpDirs: string[] = []
+
+  async function makeTmpDir(): Promise<string> {
+    const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'codebase-viz-diagram-cache-test-'))
+    tmpDirs.push(dir)
+    return dir
+  }
+
+  afterEach(async () => {
+    for (const dir of tmpDirs.splice(0)) {
+      await fs.rm(dir, { recursive: true, force: true }).catch(() => undefined)
+    }
+  })
+
+  const sample: DiagramCache = {
+    savedAt: 1700000000000,
+    projectName: 'demo',
+    routeCount: 3,
+    tableCount: 2,
+    diagrams: { rendering: 'graph LR', screenComponent: '', dbScreen: '' },
+  }
+
+  it('캐시 파일 없으면 undefined 반환', async () => {
+    const dir = await makeTmpDir()
+    expect(await readDiagramCache(dir)).toBeUndefined()
+  })
+
+  it('writeDiagramCache로 저장한 값을 readDiagramCache로 그대로 읽는다', async () => {
+    const dir = await makeTmpDir()
+    await writeDiagramCache(dir, sample)
+    const loaded = await readDiagramCache(dir)
+    expect(loaded).toEqual(sample)
+  })
+
+  it('cache-diagrams.json 파일명에 저장한다 (analyzer의 cache-graph.json과 분리)', async () => {
+    const dir = await makeTmpDir()
+    await writeDiagramCache(dir, sample)
+    const raw = await fs.readFile(path.join(dir, '.codebase-viz', 'cache-diagrams.json'), 'utf8')
+    expect(JSON.parse(raw)).toEqual(sample)
+  })
+
+  it('pairRepoRoot 지정 시 별도 파일명(cache-diagrams-pair-*)에 저장한다', async () => {
+    const dir = await makeTmpDir()
+    const pairDir = await makeTmpDir()
+    await writeDiagramCache(dir, sample, pairDir)
+    const files = await fs.readdir(path.join(dir, '.codebase-viz'))
+    expect(files.some(f => f.startsWith('cache-diagrams-pair-'))).toBe(true)
+    expect(files).not.toContain('cache-diagrams.json')
+  })
+
+  it('shape 가드: 형태가 다른 JSON(analyzer의 {analyzerVersion,graph} 등)은 무시하고 undefined 반환', async () => {
+    const dir = await makeTmpDir()
+    const cacheDir = path.join(dir, '.codebase-viz')
+    await fs.mkdir(cacheDir, { recursive: true })
+    await fs.writeFile(
+      path.join(cacheDir, 'cache-diagrams.json'),
+      JSON.stringify({ analyzerVersion: 'codebase-viz@1.2.57', graph: {} }),
+      'utf8',
+    )
+    expect(await readDiagramCache(dir)).toBeUndefined()
+  })
+
+  it('구 버전 마이그레이션: cache-diagrams.json 없고 구 cache.json이 diagram-cache 형태면 채택한다', async () => {
+    const dir = await makeTmpDir()
+    const cacheDir = path.join(dir, '.codebase-viz')
+    await fs.mkdir(cacheDir, { recursive: true })
+    await fs.writeFile(path.join(cacheDir, 'cache.json'), JSON.stringify(sample), 'utf8')
+    expect(await readDiagramCache(dir)).toEqual(sample)
+  })
+
+  it('구 버전 cache.json이 analyzer graph 캐시 형태(비-diagram shape)면 마이그레이션하지 않는다', async () => {
+    const dir = await makeTmpDir()
+    const cacheDir = path.join(dir, '.codebase-viz')
+    await fs.mkdir(cacheDir, { recursive: true })
+    await fs.writeFile(
+      path.join(cacheDir, 'cache.json'),
+      JSON.stringify({ analyzerVersion: 'codebase-viz@1.2.57', graph: {} }),
+      'utf8',
+    )
+    expect(await readDiagramCache(dir)).toBeUndefined()
+  })
+})

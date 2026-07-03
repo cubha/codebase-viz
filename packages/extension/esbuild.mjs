@@ -14,9 +14,6 @@ await build({
   minify: false,
 })
 
-// ELK layout 폐기 (graph LR column 분리·노드 비율 부작용). dagre 사용. 번들 제거.
-try { fs.unlinkSync('media/mermaid-layout-elk.js') } catch { /* already gone */ }
-
 // Copy WASM files to dist/wasm/ for tree-sitter adapters.
 const coreWasmDir = path.resolve('..', 'core', 'wasm')
 const outWasmDir = path.resolve('dist', 'wasm')

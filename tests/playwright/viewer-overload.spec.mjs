@@ -71,12 +71,12 @@ test.describe('v1.1.52 결함 검증 — viewer.html Playwright', () => {
     console.log(`  DB 데이터: 6개 모듈, ~408 테이블`)
 
     await page.addInitScript((dbScreen) => {
-      window.__CODESIGHT_DIAGRAMS__ = {
+      window.__CODEBASE_VIZ_DIAGRAMS__ = {
         rendering: '',
         screenComponent: '',
         dbScreen,
       }
-      window.__CODESIGHT_META__ = {
+      window.__CODEBASE_VIZ_META__ = {
         projectName: 'WINA-Test',
         routeCount: 0,
         tableCount: 408,
@@ -130,12 +130,12 @@ test.describe('v1.1.52 결함 검증 — viewer.html Playwright', () => {
     console.log(`  9-chunk 다이어그램 주입`)
 
     await page.addInitScript((rendering) => {
-      window.__CODESIGHT_DIAGRAMS__ = {
+      window.__CODEBASE_VIZ_DIAGRAMS__ = {
         rendering,
         screenComponent: rendering,
         dbScreen: '',
       }
-      window.__CODESIGHT_META__ = {
+      window.__CODEBASE_VIZ_META__ = {
         projectName: 'Overload-Test',
         routeCount: 120,
         tableCount: 0,
@@ -182,12 +182,12 @@ test.describe('v1.1.52 결함 검증 — viewer.html Playwright', () => {
     const multiChunk = buildMultiChunkDiagram(9)
 
     await page.addInitScript((rendering) => {
-      window.__CODESIGHT_DIAGRAMS__ = {
+      window.__CODEBASE_VIZ_DIAGRAMS__ = {
         rendering,
         screenComponent: '',
         dbScreen: '',
       }
-      window.__CODESIGHT_META__ = {
+      window.__CODEBASE_VIZ_META__ = {
         projectName: 'ChunkTest',
         routeCount: 120,
         tableCount: 0,
@@ -217,8 +217,8 @@ test.describe('v1.1.52 결함 검증 — viewer.html Playwright', () => {
   test('결함2: extractModule 단위 검증 (browser context에서 실행)', async ({ page }) => {
     // viewer.html의 extractModule 함수를 직접 호출해서 검증
     await page.addInitScript(() => {
-      window.__CODESIGHT_DIAGRAMS__ = { rendering: '', screenComponent: '', dbScreen: '' }
-      window.__CODESIGHT_META__ = { projectName: 'Test', routeCount: 0, tableCount: 0 }
+      window.__CODEBASE_VIZ_DIAGRAMS__ = { rendering: '', screenComponent: '', dbScreen: '' }
+      window.__CODEBASE_VIZ_META__ = { projectName: 'Test', routeCount: 0, tableCount: 0 }
     })
     await page.goto(VIEWER_URL)
 
@@ -252,8 +252,8 @@ test.describe('v1.1.52 결함 검증 — viewer.html Playwright', () => {
   test('v1.2.52: 다중청크 .row-diagram에 content-visibility:auto + 실측 contain-intrinsic-height', async ({ page }) => {
     const multiChunk = buildMultiChunkDiagram(9)
     await page.addInitScript((rendering) => {
-      window.__CODESIGHT_DIAGRAMS__ = { rendering, screenComponent: '', dbScreen: '' }
-      window.__CODESIGHT_META__ = { projectName: 'PerfTest', routeCount: 120, tableCount: 0 }
+      window.__CODEBASE_VIZ_DIAGRAMS__ = { rendering, screenComponent: '', dbScreen: '' }
+      window.__CODEBASE_VIZ_META__ = { projectName: 'PerfTest', routeCount: 120, tableCount: 0 }
     }, multiChunk)
 
     await page.goto(VIEWER_URL)
@@ -278,8 +278,8 @@ test.describe('v1.1.52 결함 검증 — viewer.html Playwright', () => {
   test('v1.2.52: 스크롤로 content-visibility 활성화된 청크도 wheel-zoom·drag·rz 동작', async ({ page }) => {
     const multiChunk = buildMultiChunkDiagram(12)
     await page.addInitScript((rendering) => {
-      window.__CODESIGHT_DIAGRAMS__ = { rendering, screenComponent: '', dbScreen: '' }
-      window.__CODESIGHT_META__ = { projectName: 'InteractTest', routeCount: 160, tableCount: 0 }
+      window.__CODEBASE_VIZ_DIAGRAMS__ = { rendering, screenComponent: '', dbScreen: '' }
+      window.__CODEBASE_VIZ_META__ = { projectName: 'InteractTest', routeCount: 160, tableCount: 0 }
     }, multiChunk)
 
     await page.goto(VIEWER_URL)

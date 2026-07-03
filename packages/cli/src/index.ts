@@ -34,7 +34,8 @@ async function main(): Promise<void> {
   const withLLM = args.includes('--with-llm')
   const apiKeyFlagIndex = args.indexOf('--api-key')
   const apiKeyArg = apiKeyFlagIndex !== -1 ? args[apiKeyFlagIndex + 1] : undefined
-  const apiKey = apiKeyArg ?? process.env['CODESIGHT_API_KEY']
+  // CODESIGHT_API_KEY: v1.2.58 이전 브랜드명 잔재, 기존 사용자 스크립트 하위호환 위해 유지.
+  const apiKey = apiKeyArg ?? process.env['CODEBASE_VIZ_API_KEY'] ?? process.env['CODESIGHT_API_KEY']
 
   const modelFlagIndex = args.indexOf('--model')
   const model = modelFlagIndex !== -1 ? args[modelFlagIndex + 1] : undefined
@@ -46,7 +47,7 @@ async function main(): Promise<void> {
       : path.join(repoRoot, '.codebase-viz')
 
   if (withLLM && (apiKey === undefined || apiKey === '')) {
-    console.error('Error: --with-llm requires --api-key <key> or CODESIGHT_API_KEY env var')
+    console.error('Error: --with-llm requires --api-key <key> or CODEBASE_VIZ_API_KEY env var')
     process.exit(1)
   }
 

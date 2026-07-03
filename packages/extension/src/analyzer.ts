@@ -132,16 +132,27 @@ interface CacheEntry {
   graph: IRGraph
 }
 
+// v1.2.57 이전: extension.ts가 같은 파일명(cache.json)에 diagram cache({savedAt,diagrams,...})를
+// 덮어써 graph 캐시가 analyzerVersion 필드 부재로 상시 무효화되던 결함(ARCH-1). cache-graph.json
+// 으로 분리하고, shape 가드로 다른 캐시 형태를 오인하지 않게 한다.
+const LEGACY_CACHE_FILE = 'cache.json'
+
+function isCacheEntry(value: unknown): value is CacheEntry {
+  if (typeof value !== 'object' || value === null) return false
+  const v = value as Record<string, unknown>
+  return typeof v.analyzerVersion === 'string' && typeof v.graph === 'object' && v.graph !== null
+}
+
 export async function loadCachedGraph(repoRoot: string): Promise<IRGraph | null> {
-  const candidates = [
-    path.join(repoRoot, '.codebase-viz', 'cache.json'),
-  ]
+  const dir = path.join(repoRoot, '.codebase-viz')
+  const candidates = [path.join(dir, 'cache-graph.json'), path.join(dir, LEGACY_CACHE_FILE)]
   for (const file of candidates) {
     try {
       const raw = await fs.readFile(file, 'utf8')
-      const entry = JSON.parse(raw) as CacheEntry
-      if (entry.analyzerVersion !== ANALYZER_VERSION) continue
-      return entry.graph
+      const parsed: unknown = JSON.parse(raw)
+      if (!isCacheEntry(parsed)) continue
+      if (parsed.analyzerVersion !== ANALYZER_VERSION) continue
+      return parsed.graph
     } catch {
       continue
     }
@@ -154,7 +165,7 @@ export async function saveCachedGraph(repoRoot: string, graph: IRGraph): Promise
     const dir = path.join(repoRoot, '.codebase-viz')
     await fs.mkdir(dir, { recursive: true })
     const entry: CacheEntry = { analyzerVersion: ANALYZER_VERSION, graph }
-    await fs.writeFile(path.join(dir, 'cache.json'), JSON.stringify(entry), 'utf8')
+    await fs.writeFile(path.join(dir, 'cache-graph.json'), JSON.stringify(entry), 'utf8')
   } catch {
     // best-effort
   }

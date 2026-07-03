@@ -178,9 +178,9 @@
 </header>
 
 <div class="tabs">
-  <div class="tab active" data-t="r" onclick="switchTab('r')"><span class="tab-pip"></span><span data-i18n="tab.rendering">Rendering Architecture</span></div>
-  <div class="tab" data-t="s" onclick="switchTab('s')"><span class="tab-pip"></span><span data-i18n="tab.screenComponent">Screen–Component</span></div>
-  <div class="tab" data-t="d" onclick="switchTab('d')"><span class="tab-pip"></span><span data-i18n="tab.dbScreen">DB–Screen</span></div>
+  <div class="tab active" data-t="r" data-action="switchTab" data-arg="r"><span class="tab-pip"></span><span data-i18n="tab.rendering">Rendering Architecture</span></div>
+  <div class="tab" data-t="s" data-action="switchTab" data-arg="s"><span class="tab-pip"></span><span data-i18n="tab.screenComponent">Screen–Component</span></div>
+  <div class="tab" data-t="d" data-action="switchTab" data-arg="d"><span class="tab-pip"></span><span data-i18n="tab.dbScreen">DB–Screen</span></div>
 </div>
 
 <div class="panels">
@@ -196,9 +196,9 @@
     <div class="canvas-wrap" id="w-r"><div class="canvas-inner" id="i-r"><div class="loading-msg" data-i18n="status.rendering">렌더링 중...</div></div></div>
     <div id="cnav-r" class="chunk-nav" style="display:none"><span class="cn-label"></span></div>
     <div class="zoom-ctrl">
-      <button class="z-btn" onclick="zm('r',1.2)">+</button>
-      <button class="z-btn" onclick="zm('r',.833)">−</button>
-      <button class="z-btn" onclick="rz('r')" style="font-size:11px">⌂</button>
+      <button class="z-btn" data-action="zm" data-arg-t="r" data-arg-f="1.2">+</button>
+      <button class="z-btn" data-action="zm" data-arg-t="r" data-arg-f="0.833">−</button>
+      <button class="z-btn" data-action="rz" data-arg="r" style="font-size:11px">⌂</button>
     </div>
   </div>
   <div id="p-s" class="panel">
@@ -212,9 +212,9 @@
     <div class="canvas-wrap" id="w-s"><div class="canvas-inner" id="i-s"><div class="loading-msg" data-i18n="status.rendering">렌더링 중...</div></div></div>
     <div id="cnav-s" class="chunk-nav" style="display:none"><span class="cn-label"></span></div>
     <div class="zoom-ctrl">
-      <button class="z-btn" onclick="zm('s',1.2)">+</button>
-      <button class="z-btn" onclick="zm('s',.833)">−</button>
-      <button class="z-btn" onclick="rz('s')" style="font-size:11px">⌂</button>
+      <button class="z-btn" data-action="zm" data-arg-t="s" data-arg-f="1.2">+</button>
+      <button class="z-btn" data-action="zm" data-arg-t="s" data-arg-f="0.833">−</button>
+      <button class="z-btn" data-action="rz" data-arg="s" style="font-size:11px">⌂</button>
     </div>
   </div>
   <div id="p-d" class="panel">
@@ -222,17 +222,17 @@
       <div class="db-canvas-area">
         <div class="db-toggle-bar">
           <span class="db-toggle-label" data-i18n="db.view.label">View</span>
-          <button class="tb-btn active" data-v="all" onclick="setDbView('all')">
+          <button class="tb-btn active" data-v="all" data-action="setDbView">
             <span class="tb-pip" style="background:linear-gradient(135deg,#38bdf8 33%,#4ade80 66%,#f59e0b 100%)"></span><span data-i18n="db.view.all">전체</span>
           </button>
           <div class="tb-sep"></div>
-          <button class="tb-btn" data-v="fk" onclick="setDbView('fk')">
+          <button class="tb-btn" data-v="fk" data-action="setDbView">
             <span class="tb-pip" style="background:#38bdf8"></span><span data-i18n="db.view.fk">FK 관계</span>
           </button>
-          <button class="tb-btn" data-v="routes" onclick="setDbView('routes')">
+          <button class="tb-btn" data-v="routes" data-action="setDbView">
             <span class="tb-pip" style="background:#4ade80"></span><span data-i18n="db.view.routes">페이지 쿼리</span>
           </button>
-          <button class="tb-btn" data-v="actions" onclick="setDbView('actions')">
+          <button class="tb-btn" data-v="actions" data-action="setDbView">
             <span class="tb-pip" style="background:#f59e0b"></span><span data-i18n="db.view.actions">서버 액션</span>
           </button>
         </div>
@@ -240,9 +240,9 @@
           <div class="canvas-wrap" id="w-d"><div class="canvas-inner" id="i-d"><div class="loading-msg" data-i18n="status.rendering">렌더링 중...</div></div></div>
           <div id="cnav-d" class="chunk-nav" style="display:none"><span class="cn-label"></span></div>
           <div class="zoom-ctrl">
-            <button class="z-btn" onclick="zm('d',1.2)">+</button>
-            <button class="z-btn" onclick="zm('d',.833)">−</button>
-            <button class="z-btn" onclick="rz('d')" style="font-size:11px">⌂</button>
+            <button class="z-btn" data-action="zm" data-arg-t="d" data-arg-f="1.2">+</button>
+            <button class="z-btn" data-action="zm" data-arg-t="d" data-arg-f="0.833">−</button>
+            <button class="z-btn" data-action="rz" data-arg="d" style="font-size:11px">⌂</button>
           </div>
         </div>
       </div>
@@ -256,13 +256,20 @@
 
 <script>
 // ── Data injection from extension ────────────────────────────────────────────
-const meta = window.__CODESIGHT_META__ || {};
-const injected = window.__CODESIGHT_DIAGRAMS__ || {};
-const I18N = window.__CODESIGHT_I18N__ || {};
+const meta = window.__CODEBASE_VIZ_META__ || {};
+const injected = window.__CODEBASE_VIZ_DIAGRAMS__ || {};
+const I18N = window.__CODEBASE_VIZ_I18N__ || {};
 function tr(key, params) {
   let s = I18N[key] || key;
   if (params) for (const k in params) s = s.replace(new RegExp('\\{' + k + '\\}', 'g'), String(params[k]));
   return s;
+}
+// 분석 대상 코드베이스에서 파생된 문자열(테이블/컬럼명·에러 메시지 등)을 innerHTML에 삽입하기
+// 전 이스케이프한다. .textContent 삽입 지점은 브라우저가 자동 이스케이프하므로 대상 아님.
+const ESC_MAP = {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'};
+function esc(s) {
+  if (s === null || s === undefined) return '';
+  return String(s).replace(/[&<>"']/g, c => ESC_MAP[c]);
 }
 // data-i18n attribute로 마크된 모든 element textContent 일괄 치환 (페이지 로드 시 1회)
 document.querySelectorAll('[data-i18n]').forEach(function(el) { el.textContent = tr(el.dataset.i18n); });
@@ -286,31 +293,12 @@ const DIAGRAMS = {
 // ── Runtime ──────────────────────────────────────────────────────────────────
 mermaid.initialize({
   startOnLoad: false, securityLevel: 'loose', maxTextSize: 1000000, maxEdges: 2000,
-  // 기본: dagre + htmlLabels=false (SVG vector text → zoom 시 픽셀화 방지).
-  // ELK mrtree는 v1.2.40부터 per-diagram opt-in (BE Tab1/Tab2 diagram text에 config 헤더로 활성화).
+  // htmlLabels=false: SVG vector text → zoom 시 픽셀화 방지.
+  // v1.2.58: ELK mrtree 동적 로드 제거 — v1.2.40/41부터 모든 pragma 발신처가 이미 폐기되어
+  // 실제 소비자가 없던 죽은 코드였다(비대한 unsafe-eval 필요 dynamic import + 1.6MB 미사용 번들).
   flowchart: { useMaxWidth: false, htmlLabels: false, nodeSpacing: 30, rankSpacing: 50, padding: 8 },
   er: { useMaxWidth: false }
 });
-
-// v1.2.40 ELK mrtree 동적 로드 — BE Tab1/Tab2 트리 레이아웃에 사용.
-// 실패 시 silent skip → 기본 dagre로 자동 폴백 (mrtree pragma는 무시됨).
-const ELK_BUNDLE_URL = (typeof window.__CODESIGHT_ELK_URL__ === 'string' && window.__CODESIGHT_ELK_URL__)
-  ? window.__CODESIGHT_ELK_URL__
-  : './mermaid-layout-elk.bundle.mjs';
-const elkReady = (async () => {
-  try {
-    const mod = await import(ELK_BUNDLE_URL);
-    if (typeof window.mermaid.registerLayoutLoaders === 'function') {
-      window.mermaid.registerLayoutLoaders(mod.default);
-      return true;
-    }
-    console.warn('[Codebase Viz] mermaid.registerLayoutLoaders 미가용 — dagre fallback');
-    return false;
-  } catch (e) {
-    console.warn('[Codebase Viz] ELK layout 로드 실패 — dagre fallback:', e && e.message);
-    return false;
-  }
-})();
 
 // Chunk fallback: renderer/_shared/wrap-fallback.ts emits %%--CHUNK--%% separator
 // between sub-diagrams when output exceeds chunkThreshold (default 1M).
@@ -338,9 +326,6 @@ function applyErdColors(svgEl) {
 // 첫 행이 바로 보이고, 나머지는 프레임마다 끊어 비차단으로 스트리밍된다.
 // 단일 청크는 기존과 동일하게 1회 주입 후 중앙 fit.
 async function renderChunkedInto(t, inner, idPrefix, diagram, onSvg) {
-  // ELK 등록 대기 — pragma가 있는 BE diagram이 mrtree로 layout되도록 보장.
-  // 실패 시 elkReady가 false로 resolve → dagre fallback (pragma 자체는 mermaid가 unknown layout으로 무시).
-  await elkReady;
   const chunks = splitChunks(diagram);
   if (chunks.length <= 1) {
     const {svg} = await mermaid.render(idPrefix+'_'+Date.now(), diagram);
@@ -365,7 +350,7 @@ async function renderChunkedInto(t, inner, idPrefix, diagram, onSvg) {
       const {svg} = await mermaid.render(idPrefix+'_c'+i+'_'+Date.now(), chunks[i]);
       row.innerHTML = svg;
     } catch(e) {
-      row.innerHTML = '<pre style="color:#fb923c;font-size:11px;padding:8px">Row '+(i+1)+' error: '+e.message+'</pre>';
+      row.innerHTML = '<pre style="color:#fb923c;font-size:11px;padding:8px">Row '+(i+1)+' error: '+esc(e.message)+'</pre>';
     }
     inner.appendChild(row);
     const svgEl = row.querySelector('svg');
@@ -450,6 +435,18 @@ var dbCurrentView = 'all';
 var dbGraphs = null;
 var activeTab = 'r';
 
+// CSP script-src에서 'unsafe-inline'을 제거하기 위해 inline onclick 속성 대신
+// data-action 위임 리스너를 사용한다(v1.2.58).
+document.addEventListener('click', e => {
+  const el = e.target.closest('[data-action]');
+  if (!el) return;
+  const action = el.dataset.action;
+  if (action === 'switchTab') switchTab(el.dataset.arg);
+  else if (action === 'rz') rz(el.dataset.arg);
+  else if (action === 'zm') zm(el.dataset.argT, parseFloat(el.dataset.argF));
+  else if (action === 'setDbView') setDbView(el.dataset.v);
+});
+
 function switchTab(t) {
   activeTab = t;
   document.querySelectorAll('.tab').forEach(el => el.classList.remove('active'));
@@ -467,7 +464,7 @@ async function renderTab(t) {
   try {
     await renderChunkedInto(t, inner, 'msvg_'+t, DIAGRAMS[t]);
   } catch(e) {
-    inner.innerHTML = '<pre style="color:#fb923c;padding:20px;font-size:11px">' + tr('alert.renderError') + ': '+e.message+'</pre>';
+    inner.innerHTML = '<pre style="color:#fb923c;padding:20px;font-size:11px">' + tr('alert.renderError') + ': '+esc(e.message)+'</pre>';
   }
 }
 
@@ -682,7 +679,7 @@ async function renderDbView(view) {
     // onSvg=applyErdColors: erDiagram이면 row-rect 색상 후처리, graph LR이면 no-op(g.row-rect 부재).
     await renderChunkedInto('d', inner, 'dbsvg_'+view, diag, applyErdColors);
   } catch(e) {
-    inner.innerHTML = '<pre style="color:#fb923c;padding:20px;font-size:11px">'+e.message+'</pre>';
+    inner.innerHTML = '<pre style="color:#fb923c;padding:20px;font-size:11px">'+esc(e.message)+'</pre>';
   }
 }
 
@@ -867,19 +864,19 @@ function buildSidebar(erDiagram) {
     const t = tables[name];
     const cols = t.columns.map(c => {
       const b = c.pk ? '<span class="col-pk">PK</span>' : c.fk ? '<span class="col-fk">FK</span>' : '<span></span>';
-      return '<div class="col-row"><span class="col-name">'+c.name+'</span>'+b+'<span class="col-type">'+c.type+'</span></div>';
+      return '<div class="col-row"><span class="col-name">'+esc(c.name)+'</span>'+b+'<span class="col-type">'+esc(c.type)+'</span></div>';
     }).join('');
     const fkHtml = t.fkOut.length
       ? '<div class="table-refs" style="background:rgba(245,158,11,.04);border-top:1px solid var(--border-sub)"><div class="refs-label" style="color:#b45309">' + tr('card.fk') + '</div>'+
-        t.fkOut.map(f=>'<div class="ref-row"><span class="ref-action" style="font-size:9px">'+f.col+'</span><span class="fk-arrow"> → </span><span class="ref-route" style="font-size:9px">'+f.toTable+'</span></div>').join('')+'</div>' : '';
+        t.fkOut.map(f=>'<div class="ref-row"><span class="ref-action" style="font-size:9px">'+esc(f.col)+'</span><span class="fk-arrow"> → </span><span class="ref-route" style="font-size:9px">'+esc(f.toTable)+'</span></div>').join('')+'</div>' : '';
     const usedHtml = t.usedBy.length
       ? '<div class="table-refs"><div class="refs-label">' + tr('card.usedBy') + '</div>'+
         t.usedBy.map(u => {
           const cls = u.kind==='route'?'ref-route':u.kind==='action'?'ref-action':'ref-comp';
           const pre = u.kind==='route'?'⬡ ':u.kind==='action'?'⚡ ':'';
-          return '<div class="ref-row"><span class="'+cls+'">'+pre+u.name+'</span></div>';
+          return '<div class="ref-row"><span class="'+cls+'">'+pre+esc(u.name)+'</span></div>';
         }).join('')+'</div>' : '';
-    return '<div class="table-card"><div class="table-head"><span class="table-head-icon">◈</span>'+name+'</div>'+cols+fkHtml+usedHtml+'</div>';
+    return '<div class="table-card"><div class="table-head"><span class="table-head-icon">◈</span>'+esc(name)+'</div>'+cols+fkHtml+usedHtml+'</div>';
   }).join('');
 }
 

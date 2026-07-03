@@ -1,5 +1,5 @@
-export { analyzeWithLLM } from './client.js'
-export type { LLMClientOptions, AnalyzeOptions } from './client.js'
+export { analyzeWithLLM, DEFAULT_LLM_PROVIDER } from './client.js'
+export type { LLMClientOptions, AnalyzeOptions, LLMProvider } from './client.js'
 export type { LLMAnalysisResult, LLMRouteEntry, LLMTableEntry, FrameworkKind } from './schema.js'
 export { convertToIR } from './converter.js'
 export { detectStack } from './stack-detector.js'
