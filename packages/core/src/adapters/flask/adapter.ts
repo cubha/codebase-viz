@@ -2,7 +2,6 @@ import {
   type IAdapter,
   type AdapterContext,
   type AdapterResult,
-  EMPTY_ADAPTER_RESULT,
 } from '@codebase-viz/types'
 import { parseFlaskRoutes } from './parsers/route-parser.js'
 import { parseFlaskSqlAlchemyModels } from './parsers/orm-parser.js'

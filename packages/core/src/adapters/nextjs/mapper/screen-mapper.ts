@@ -11,7 +11,6 @@ import {
   isTableNode,
   type IRGraph,
   type IREdge,
-  type IRNode,
   type TableNode,
   type ComponentNode,
   type Provenance,

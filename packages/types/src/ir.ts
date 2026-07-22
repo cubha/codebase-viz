@@ -124,11 +124,14 @@ export type IRNode = RouteNode | ComponentNode | TableNode
 //   'calls'      — Spring DI: Controller→Service→Repository chain
 //   'fe-be-call' — FE fetch/axios call → BE RouteNode (cross-project URL match)
 //   'api-call'   — FE Component → FE-local API endpoint (axios/fetch/react-query). v1.2.42.
+//   'handles'    — BE RouteNode → Controller ComponentNode fan-in (같은 파일=같은 컨트롤러가
+//                  처리). v1.3.x Task7 C2. 'renders'(FE page/layout SSR)와 의미가 달라 재사용하지
+//                  않음 — Fullstack pair-analysis에서 두 관계가 섞이는 것을 방지(K3와 동일 취지).
 //
 // `importDepth` is meaningful only for 'imports' edges (1 = direct import).
 // `crossProject` is meaningful only for 'fe-be-call' edges.
 // `apiCall` is meaningful only for 'api-call' edges.
-export type EdgeKind = 'renders' | 'calls' | 'queries' | 'imports' | 'fe-be-call' | 'api-call'
+export type EdgeKind = 'renders' | 'calls' | 'queries' | 'imports' | 'fe-be-call' | 'api-call' | 'handles'
 
 export type ApiCallLibrary = 'axios' | 'fetch' | 'react-query'
 

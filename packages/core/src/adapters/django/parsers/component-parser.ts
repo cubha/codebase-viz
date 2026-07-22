@@ -4,7 +4,6 @@ import {
   createComponentNode,
   makeNodeId,
   type ComponentNode,
-  type Provenance,
 } from '@codebase-viz/types'
 import { createPythonParser } from '../../_shared/tree-sitter-loader.js'
 import { PY_EXCLUDE_DIRS, findFiles } from '../../_shared/file-finder.js'

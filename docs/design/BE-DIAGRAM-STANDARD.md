@@ -1,8 +1,9 @@
-# BE Diagram Standard (v1.1)
+# BE Diagram Standard (v1.2)
 
 작성: 2026-05-19 · 사용자 합의: v1.2.40 작업 진입 전
 v1.1 개정: 2026-06-12 (v1.2.50) — Tab2 DI 체인을 고정 2-hop에서 **N-ary 재귀 체인**으로 확장 (§3.2 R-T2.2·2.5·2.7)
 v1.2.57 amendment: 2026-06-29 — R-T1.6 endpoint 표현을 `endpoints_<Ctrl>` subgraph(Y축 노드 적층)에서 **leaf 노드 안 markdown multiline collapse**로 전환 (§2.1·§2.2 R-T1.6). endpoint가 많은 컨트롤러의 Y축 비대 해소.
+v1.2 개정: 2026-07-22 (Task7, [[project_v13x_be_phase2_candidates]] C1·C2·C3·C4) — K3(색충돌 해소, R-T1.7/R-T2.6) · C2(Route→Controller `handles` 엣지, R-T2.8) · C1(MyBatis statement 노드, R-T2.9) · C4(테이블 클러스터 뱃지, R-T1.10) · C3(외부 시스템 노드, R-T2.10 — `@FeignClient`만 우선 구현, RestTemplate/WebClient/SAP RFC/`@JmsListener`는 defer). K1은 C1 반영으로 자연 해소(R-T2.2 체인이 XML에서 Statement로 한 홉 더 연장, 구조 확장 아님).
 
 ## 0. 배경
 
@@ -54,9 +55,15 @@ v1.2.2/v1.2.3 BE 어댑터 표준화에서 도입된 Tab1/Tab2 BE 전용 렌더�
 | **R-T1.4 트리 노드** | 각 패키지 segment = 사각형 노드(`pkg["wina"]`). 부모-자식은 명시적 edge(`-->`). |
 | **R-T1.5 leaf 노드** | Controller 파일 = `📄 ControllerName [/api/prefix]` 노드. URL prefix는 path-segment LCP로 자동 추출. |
 | **R-T1.6 endpoints** (v1.2.57 amendment) | Controller leaf **노드 안에 markdown multiline**으로 collapse. 헤더(`📄 **ControllerName** [prefix]`) + 구분선 + endpoint 1행씩(`**METHOD** /suffix`, suffix만·prefix 중복 제거). 구 `endpoints_<Ctrl>` subgraph(endpoint를 개별 노드로 Y축 적층)는 **폐기** — endpoint 많은 컨트롤러의 Y축 비대 + nested subgraph spacing/LR 통제 불가 문제 해소. URL 경로의 markdown 메타문자(`_*\``)는 백슬래시 escape. viewer `htmlLabels:false`(SVG 텍스트)에서 markdown bold 정상 렌더. |
-| **R-T1.7 클래스** | leaf Controller = `:::ssr`(녹색, 서버 렌더), 패키지 노드 = `:::pkg`(중립 회색, 신규 클래스 추가). |
+| **R-T1.7 클래스** (v1.2 amendment) | leaf Controller = `:::ctrl`(청록, K3 색충돌 해소 — FE `ssr`과 분리), 패키지 노드 = `:::pkg`(중립 회색). |
 
-### 2.3 X축 폭발 방지
+### 2.3 테이블 클러스터 (v1.2, K4)
+
+| 규칙 | 정의 |
+|---|---|
+| **R-T1.10 leaf 테이블 뱃지** | Controller의 DI 체인(`calls`, 깊이 가드 6)을 재귀 추적해 도달 가능한 컴포넌트의 `queries` 엣지 대상 테이블을 모아 leaf 노드 안 markdown 마지막 행에 `🗄 table1, table2` 로 collapse(endpoint 목록과 동일 기법, R-T1.6 연장). 신규 IR·신규 subgraph 없음 — Tab3 ER은 별도 view로 변경 없음(K4 결정). 테이블 0개면 뱃지 라인 자체를 생략(Less is More). |
+
+### 2.4 X축 폭발 방지
 
 | 규칙 | 정의 |
 |---|---|
@@ -96,8 +103,11 @@ Tab1과 동일한 패키지 트리 위에, leaf를 단순 Controller 노드가 �
 | **R-T2.3 leaf 정렬** | DI 체인은 Controller(상)→XML(하) 수직. edge 방향은 호출/구현/매핑 방향과 일치. |
 | **R-T2.4 cross-package DI** | 한 도메인의 컴포넌트가 다른 도메인 컴포넌트를 주입받으면 외부 노드 ID 직접 참조 금지(ghost-node 회피) → `(external Service/Repository)` placeholder(`:::muted`) + `cross-pkg` 라벨. XML 매퍼(resources, java 패키지 밖)는 cross-pkg 판정에서 제외하고 항상 terminal 실노드로 표시. |
 | **R-T2.5 Less is More** | 실제 존재하는 엣지만 표시. Service/Repository가 없으면 그 단계를 그리지 않으며 `(none)` 추정 placeholder를 만들지 않는다. (v1.0의 고정 슬롯 placeholder 폐기) |
-| **R-T2.6 클래스** | Controller=`:::ssr`, Service/ServiceImpl=`:::unk`(회색), Repository=`:::ssg`(보라), XML=`:::pkg`(슬레이트). |
+| **R-T2.6 클래스** (v1.2 amendment) | Controller=`:::ctrl`(청록), Service/ServiceImpl=`:::unk`(회색), Repository=`:::ssg`(보라), XML/Statement=`:::pkg`(슬레이트). |
 | **R-T2.7 IR 계약** | Service(interface)→ServiceImpl은 di-parser의 `implements` 추적 `calls` 엣지. Repository→XML은 mapper-xml-parser의 namespace(FQN) 정확 매칭 `calls` 엣지 + XML ComponentNode(`*.xml`). IR EdgeKind 확장 없음. |
+| **R-T2.8 Route↔Controller** (v1.2, C2) | RouteNode와 그 파일의 Controller ComponentNode를 `handles` 엣지(신규 EdgeKind)로 연결 — filePath 정확 일치, verified. `renders`(FE page/layout SSR)와 의미가 달라 재사용하지 않음(K3와 동일 취지). Tab1/2 렌더링에는 영향 없음(기존 filePath 그룹핑 그대로) — 그래프 질의 가능성만 추가. |
+| **R-T2.9 XML→Statement** (v1.2, C1) | mapper XML의 `<select/insert/update/delete id="...">`를 ComponentNode(`id [SQL_TYPE]` 네이밍, ST7-2 Option A — 신규 NodeKind 없음)로 노출, XML→Statement `calls` 엣지 추가(DI 체인 5번째 홉). Repository.method ↔ statement-id 매핑(인터페이스 메서드 파싱)은 범위 밖 — 결정론적으로 확인 가능한 XML 구조만 다룸. Tab2 cross-pkg 게이트는 XML과 동일하게 Statement도 판정 예외(resources 하위라 package 없음). |
+| **R-T2.10 외부 시스템** (v1.2, C3) | `@FeignClient` 인터페이스를 ComponentNode로 등록(이름은 원본 클래스명 그대로 — 접미사를 붙이면 di-parser `@Autowired` 필드-타입명 매칭이 깨짐). 대신 `provenance.adapter === 'external-call-extractor@0.1'`을 렌더러 판별 마커로 사용, `:::ext`(호박색) 클래스 부여. Tab2 cross-pkg 게이트에서도 XML/Statement와 동일하게 판정 예외(패키지 소속이 없는 게 정상). RestTemplate/WebClient(호출 URL이 표현식이라 정적 추출 신뢰도 낮음)·SAP RFC(범용 Java 문법으로 판별 불가)·`@JmsListener`(외부→컴포넌트로 엣지 방향이 반대)는 defer. |
 
 ## 4. Tab3 — DB–Screen (BE)
 

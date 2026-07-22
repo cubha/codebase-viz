@@ -57,14 +57,15 @@ Frameworks not in this list (Express, Hono, Rails, Go, etc.) use **LLM primary**
 
 ---
 
-## ✨ What's new in v1.2.58
+## ✨ What's new in v1.2.59
 
-### Webview security hardening + a long-standing cache bug fix
+### Deeper Spring Boot diagrams + toolchain refresh
 
-- **Content-Security-Policy no longer allows `unsafe-inline`/`unsafe-eval`.** Every webview now uses a per-render nonce, and all inline click/change handlers were converted to `addEventListener`. Verified with an automated test that renders all 3 tabs and exercises tab/zoom/DB-view switching under the exact production policy.
-- **The analysis graph cache is fixed.** It was silently colliding with the diagram cache on the same file, so it never actually hit — every re-open of a project was re-running the full analysis. Now split into separate files.
-- Untrusted content from the analyzed codebase (table/column names, error messages) is now escaped before being shown in the sidebar — diagram rendering itself is unchanged.
-- Removed a 1.6MB unused layout bundle that had been shipping in every release for several versions.
+- **MyBatis SQL statements are now visible.** The Screen–Component tab extends the DI chain one level further: Controller → Service → Repository → Mapper XML → individual `<select>/<insert>/<update>/<delete>` statements, each labeled with its SQL type (e.g. `selectAgencyPopup [SELECT]`).
+- **`@FeignClient` interfaces appear as external-system nodes** (amber) at the end of the DI chain, so cross-service calls are visible at a glance.
+- **Controllers got their own color.** BE controllers were reusing the green of FE SSR routes, which was ambiguous in fullstack pair analysis — they are now teal across all BE adapters.
+- **Controller leaves show which DB tables they reach** (`🗄 table, table` badge) by walking the DI chain to `queries` edges — no new analysis pass, zero cost when no tables are reachable.
+- Under the hood: mermaid bundle updated to 11.16.0, Node 22 / vitest 4 / ts-morph 28 upgrades, a new oxlint correctness gate in CI, and ~50 new extension-host tests on a new `vscode` mock harness.
 
 > Full version history lives in the [CHANGELOG](CHANGELOG.md).
 

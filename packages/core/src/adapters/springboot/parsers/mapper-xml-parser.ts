@@ -8,6 +8,7 @@ import {
   type ComponentNode,
   type IREdge,
   type Provenance,
+  type NodeId,
 } from '@codebase-viz/types'
 
 const EXCLUDE_DIRS = new Set(['.git', 'node_modules', 'target', 'build', '.gradle'])
@@ -49,6 +50,71 @@ function componentFqn(filePath: string): string | undefined {
 export interface MapperXmlResult {
   xmlNodes: ComponentNode[]
   xmlEdges: IREdge[]
+}
+
+const STATEMENT_TAGS = ['select', 'insert', 'update', 'delete'] as const
+
+function lineOfIndex(text: string, index: number): number {
+  let line = 1
+  for (let i = 0; i < index; i++) if (text.charCodeAt(i) === 10) line++
+  return line
+}
+
+// C1(BE-DIAGRAM-STANDARD v1.2): mapper XML statement(<select id="..."/> 등)를 statement 단위
+// 노드로 노출한다. ST7-2 Option A(승인됨) — 신규 NodeKind 도입 없이 ComponentNode + 네이밍
+// 컨벤션(`id [SQL_TYPE]`)으로 표현. Repository.method ↔ statement-id 매핑(메서드명 파싱)은
+// 범위 밖 — interface 메서드 파싱이 별도로 없어 XML 파일 자체를 부모로 두는 XML→Statement
+// 계층까지만 다룬다(Less is More, 결정론적으로 확인 가능한 부분만 노드화).
+function extractStatementNodes(
+  xml: string,
+  xmlId: NodeId,
+  relPath: string,
+  analyzerVersion: string,
+): { nodes: ComponentNode[]; edges: IREdge[] } {
+  const nodes: ComponentNode[] = []
+  const edges: IREdge[] = []
+  const seenIds = new Set<string>()
+
+  for (const tag of STATEMENT_TAGS) {
+    const re = new RegExp(`<${tag}\\b[^>]*\\bid\\s*=\\s*"([^"]+)"[^>]*>`, 'g')
+    let match: RegExpExecArray | null
+    while ((match = re.exec(xml)) !== null) {
+      const statementId = match[1]!
+      const symbol = `stmt:${statementId}`
+      const stmtId = makeNodeId('component', relPath, symbol)
+      if (seenIds.has(stmtId)) continue
+      seenIds.add(stmtId)
+
+      const provenance: Provenance = {
+        file: relPath,
+        line: lineOfIndex(xml, match.index),
+        adapter: 'mybatis-xml-parser@0.1',
+        analyzerVersion,
+      }
+      nodes.push(
+        createComponentNode({
+          id: stmtId,
+          name: `${statementId} [${tag.toUpperCase()}]`,
+          filePath: relPath,
+          runtime: 'server',
+          provenance,
+          confidence: 'verified',
+        }),
+      )
+      edges.push(
+        createEdge({
+          id: makeEdgeId('calls', xmlId, stmtId),
+          from: xmlId,
+          to: stmtId,
+          kind: 'calls',
+          provenance,
+          confidence: 'verified',
+        }),
+      )
+    }
+  }
+
+  return { nodes, edges }
 }
 
 // A-ST3: MyBatis Mapper XML `<mapper namespace="FQN">` ↔ Repository interface 컴포넌트 매칭.
@@ -119,6 +185,11 @@ export async function parseMapperXmlEdges(
         }),
       )
     }
+
+    // C1: XML 노드 아래 statement 단위 자식 노드(신규 NodeKind 없이 ComponentNode 재사용, ST7-2 Option A).
+    const { nodes: stmtNodes, edges: stmtEdges } = extractStatementNodes(xml, xmlId, relPath, analyzerVersion)
+    for (const n of stmtNodes) if (!seenXmlIds.has(n.id)) { seenXmlIds.add(n.id); xmlNodes.push(n) }
+    for (const e of stmtEdges) if (!seenEdgeIds.has(e.id)) { seenEdgeIds.add(e.id); xmlEdges.push(e) }
   }
 
   return { xmlNodes, xmlEdges }

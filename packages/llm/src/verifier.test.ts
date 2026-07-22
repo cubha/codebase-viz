@@ -3,7 +3,6 @@ import * as path from 'node:path'
 import { verifyNodes } from './verifier.js'
 import { createRouteNode, createComponentNode, createTableNode, makeNodeId } from '@codebase-viz/types'
 
-const REPO_ROOT = path.resolve('../../../fixtures/mini-next-app')
 const PROV = { file: 'app/page.tsx', line: 1, adapter: 'test', analyzerVersion: '0.1' }
 
 describe('verifyNodes', () => {

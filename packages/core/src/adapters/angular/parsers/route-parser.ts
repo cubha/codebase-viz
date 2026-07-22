@@ -228,7 +228,6 @@ export async function parseAngularRoutes(
   for (const sourceFile of project.getSourceFiles()) {
     const filePath = sourceFile.getFilePath()
     const relPath = path.relative(repoRoot, filePath).replace(/\\/g, '/')
-    const fileDir = path.dirname(filePath)
 
     for (const callExpr of sourceFile.getDescendantsOfKind(SyntaxKind.CallExpression)) {
       const exprText = callExpr.getExpression().getText()

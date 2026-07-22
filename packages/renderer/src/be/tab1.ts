@@ -1,5 +1,5 @@
-import type { IRGraph, RouteNode } from '@codebase-viz/types'
-import { isRouteNode } from '@codebase-viz/types'
+import type { IRGraph, RouteNode, NodeId } from '@codebase-viz/types'
+import { isRouteNode, isComponentNode } from '@codebase-viz/types'
 import { BE_RENDERING_INIT, CLASS_DEFS } from '../helpers/constants.js'
 import { joinChunks } from '../_shared/wrap-fallback.js'
 import {
@@ -17,10 +17,17 @@ import {
   type BudgetChunk,
 } from './pkg-tree.js'
 import { emitControllerFileLeaf } from './leaf.js'
+import { collectReachableTables } from './table-cluster.js'
 
 export function buildBeRenderingDiagram(graph: IRGraph): string {
   const routeNodes = graph.nodes.filter(isRouteNode)
   if (routeNodes.length === 0) return 'graph TD\n  empty["(no endpoints found)"]'
+
+  // C4(K4): leaf 옆 테이블 뱃지용 — 파일당 첫 컴포넌트(보통 Controller 자신)를 DI 체인 시드로.
+  const componentIdByFilePath = new Map<string, NodeId>()
+  for (const n of graph.nodes) {
+    if (isComponentNode(n) && !componentIdByFilePath.has(n.filePath)) componentIdByFilePath.set(n.filePath, n.id)
+  }
 
   const byFile = new Map<string, RouteNode[]>()
   for (const r of routeNodes) {
@@ -67,7 +74,11 @@ export function buildBeRenderingDiagram(graph: IRGraph): string {
         walkFiles(child, pkgId, segs, depth + 1)
       }
       for (const f of node.files) {
-        const { leafId, lines: leafLines } = emitControllerFileLeaf('  ', f.filePath, f.routes)
+        const seedIds = f.routes.map(r => r.id)
+        const compId = componentIdByFilePath.get(f.filePath)
+        if (compId !== undefined) seedIds.push(compId)
+        const tableNames = collectReachableTables(graph, seedIds).map(t => t.name)
+        const { leafId, lines: leafLines } = emitControllerFileLeaf('  ', f.filePath, f.routes, tableNames)
         lines.push(...leafLines)
         if (!(isCluster && depth === 0)) {
           lines.push(`  ${parentId} --> ${leafId}`)

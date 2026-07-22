@@ -102,7 +102,7 @@ function tryBarrelReExport(
   importedAbsBase: string,
   ctx: ResolveContext,
   depth: number,
-  visited: Set<string>,
+  _visited: Set<string>,
 ): ComponentResolveResult | undefined {
   if (depth >= MAX_DEPTH) return undefined
   let barrelSf: SourceFile | undefined

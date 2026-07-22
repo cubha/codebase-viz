@@ -55,8 +55,8 @@ async function readJson(filePath: string): Promise<Record<string, unknown> | nul
 
 function getDeps(pkg: Record<string, unknown>): Record<string, string> {
   return {
-    ...(pkg['dependencies'] as Record<string, string> ?? {}),
-    ...(pkg['devDependencies'] as Record<string, string> ?? {}),
+    ...(pkg['dependencies'] as Record<string, string> | undefined),
+    ...(pkg['devDependencies'] as Record<string, string> | undefined),
   }
 }
 

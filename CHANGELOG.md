@@ -1,6 +1,28 @@
 # Changelog
 
-## [1.2.58] — 2026-07-03
+## [1.2.59] — 2026-07-22
+
+### Added — BE Adapter Phase 2 (Task7, BE-DIAGRAM-STANDARD v1.1→v1.2)
+
+- **C1 — MyBatis statement 노드**: Mapper XML의 `<select>/<insert>/<update>/<delete>`를 `statementId [SQL_TYPE]` ComponentNode로 추출(ST7-2 옵션A — 신규 NodeKind 없이 naming convention, IR 확장 0). Tab2 DI 체인이 Controller→Service→Impl→Repository→XML→Statement 6단까지 실명 노드로 렌더. cross-pkg ghost-node 게이트는 `isPackagelessNode` 단일 판정으로 통합(렌더링+cost추정 recurse 양쪽).
+- **C2 — Route→Controller `handles` 엣지**: 신규 EdgeKind `handles` (springboot 전용, 파일경로+Controller 접미 매칭). endpoint와 처리 컨트롤러의 관계를 IR에 명시.
+- **C3 — `@FeignClient` 외부시스템 노드**: Feign 인터페이스를 ComponentNode로 등록(`provenance.adapter` 마커) → 기존 di-parser 타입명 매칭이 무변경으로 DI 엣지 생성. Tab2에서 `:::ext`(주황) 렌더. 동명 일반 컴포넌트 존재 시 Feign 쪽 조용히 제외(거짓 DI 엣지 방지, 테스트 2건). RestTemplate/WebClient/SAP RFC/`@JmsListener`는 정적추출 신뢰도 문제로 defer.
+- **C4 — 테이블 cluster 뱃지**: Tab1 컨트롤러 leaf에 DI 체인(`calls`, depth≤6) 도달 `queries` 엣지의 테이블 목록을 `🗄` 1줄로 표시. IR 변경 0. (알려진 갭: MyBatis는 파일명↔테이블명 토큰 매칭 불가로 queries 엣지가 없어 뱃지 미표시 — stmt→table queries 엣지가 후속 후보)
+- **K3 — Controller 색 분리**: BE Controller가 FE SSR `ssr`(녹색)을 재사용하던 충돌 해소 — 신규 `ctrl`(teal) 클래스, 모든 BE 어댑터 적용. Fullstack pair-analysis 모호성 제거.
+
+### Security — Tab2 라벨 이스케이프 (ship 전 보안검토 반영)
+
+- BE Tab2 DI 체인의 plain quoted 라벨(`["${name}"]`)에 신뢰 불가 이름(MyBatis XML statement id 등 분석 대상 리포 통제 값)이 그대로 삽입되던 것을 `escapePlainLabel`(개행 제거·`"`→`'`)로 차단 — 라벨 조기 종료 후 mermaid 구문 주입 여지 제거. leaf.ts 사설 `escapeMd`를 `helpers/label-escape.ts`로 공용화. 주입 차단 테스트 추가(RED→GREEN), 기존 fixture 스냅샷 byte-identical(정상 이름엔 no-op).
+
+### Changed — 툴체인 (Task1~4, 6)
+
+- mermaid 번들 11.14.0→**11.16.0**(upstream per-subgraph direction Dagre fix 포함) + nested-LR 재실측(동작 불변 — 표준 유지, `tests/playwright/subgraph-direction.spec.mjs` 신설).
+- Node engines 20→**22** · vitest 2→**4** · ts-morph 23→**28**.
+- **oxlint correctness 게이트** verify.sh [2/4] 편입(`.oxlintrc.json`, deny 위반 시 실패). 전 패키지 correctness 위반 정리(기계적 수정만, 동작 변화 0).
+- extension 레이어 테스트 커버리지 확충: `vscode` mock 하니스(`test-support/vscode-mock.ts` + vitest alias) 신설, sidebar/panel/webview/extension(analyze·cache·LLM 흐름) ~50 테스트 추가.
+- ast-grep 하이브리드 PoC(Task5)는 parity 검증 후 **NO-GO** 종결(fine-grained 추출에서 ts-morph 대비 이점 없음) — 스파이크 코드 미반입.
+
+
 
 ### Security — 웹뷰 보안 강화 (ST0~ST3)
 

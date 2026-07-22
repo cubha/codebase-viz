@@ -74,7 +74,7 @@ export async function parseTypeOrmEntities(
   const entityFiles: string[] = []
   for (const f of allFiles) {
     const content = await fs.readFile(f, 'utf-8').catch(() => '')
-    if (/@Entity\s*[\(\(]/.test(content)) entityFiles.push(f)
+    if (/@Entity\s*\(/.test(content)) entityFiles.push(f)
   }
   if (entityFiles.length === 0) return []
 

@@ -1,5 +1,4 @@
 import * as path from 'node:path'
-import * as fs from 'node:fs/promises'
 import { Project, SyntaxKind, type ClassDeclaration, type Decorator, type MethodDeclaration } from 'ts-morph'
 import {
   createRouteNode,
@@ -57,7 +56,7 @@ function findHttpMethodDecorator(method: MethodDeclaration): Decorator | undefin
   return method.getDecorators().find(d => HTTP_METHOD_DECORATORS.has(d.getName()))
 }
 
-function makeProject(repoRoot: string): Project {
+function makeProject(): Project {
   return new Project({
     compilerOptions: {
       target: 99,
@@ -76,7 +75,7 @@ export async function parseControllers(
 ): Promise<{ routes: RouteNode[]; controllers: ComponentNode[] }> {
   const normalizedRoot = path.resolve(repoRoot)
   const tsFiles = await collectTsFiles(normalizedRoot)
-  const project = makeProject(normalizedRoot)
+  const project = makeProject()
   for (const f of tsFiles) project.addSourceFileAtPath(f)
 
   const routes: RouteNode[] = []
@@ -175,7 +174,7 @@ export async function parseModulesAndProviders(
 ): Promise<{ modules: ComponentNode[]; services: ComponentNode[]; edges: IREdge[] }> {
   const normalizedRoot = path.resolve(repoRoot)
   const tsFiles = await collectTsFiles(normalizedRoot)
-  const project = makeProject(normalizedRoot)
+  const project = makeProject()
   for (const f of tsFiles) project.addSourceFileAtPath(f)
 
   const modules: ComponentNode[] = []

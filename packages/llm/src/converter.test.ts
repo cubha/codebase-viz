@@ -3,7 +3,6 @@ import { convertToIR } from './converter.js'
 import type { LLMAnalysisResult } from './schema.js'
 
 const ANALYZER_VERSION = 'codebase-viz@0.1.0'
-const REPO_ROOT = '/tmp/test-repo'
 
 describe('convertToIR', () => {
   it('LLM 라우트를 RouteNode로 변환한다', () => {

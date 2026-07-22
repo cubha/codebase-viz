@@ -18,12 +18,18 @@ export const FE_TREE_INIT = `%%{init:{'theme':'base','themeVariables':{'backgrou
 
 export const CLASS_DEFS = [
   `  classDef ssr fill:#0d1a0d,stroke:#16a34a,color:#86efac`,
+  // K3(BE-DIAGRAM-STANDARD v1.2): BE Controller는 FE ssr(초록, SSR 라우트)과 색 재사용 시
+  // Fullstack pair-analysis 결합 다이어그램에서 두 의미가 뒤섞일 위험이 있어 전용 색으로 분리.
+  `  classDef ctrl fill:#042f2e,stroke:#0d9488,color:#5eead4`,
   `  classDef csr fill:#2d1200,stroke:#c2410c,color:#fb923c`,
   `  classDef ssg fill:#1a0d1a,stroke:#7c3aed,color:#c4b5fd`,
   `  classDef isr fill:#1a1a0d,stroke:#ca8a04,color:#fde047`,
   `  classDef ppr fill:#0d1a2d,stroke:#2563eb,color:#93c5fd`,
   `  classDef unk fill:#1a1a1a,stroke:#6b7280,color:#9ca3af`,
   `  classDef pkg fill:#0c1018,stroke:#475569,color:#cbd5e1`,
+  // C3(BE-DIAGRAM-STANDARD v1.2): 외부 시스템(@FeignClient 등) — cross-pkg muted(점선)와 달리
+  // 실제 존재가 확인된 노드라 실선으로 구분.
+  `  classDef ext fill:#2d1a06,stroke:#d97706,color:#fcd34d`,
   `  classDef muted fill:#0a0d14,stroke:#374151,color:#64748b,stroke-dasharray: 3 3`,
   `  classDef hdr fill:#06080f,stroke:#1e3a5f,color:#7dd3fc`,
 ].join('\n')

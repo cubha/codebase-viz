@@ -36,7 +36,7 @@ describe('emitControllerFileLeaf — endpoint collapse (개선 C: 메서드 bold
 
     // 신규: 단일 leaf 노드 + mermaid markdown 문자열(htmlLabels:false 호환)
     expect(out).toContain(`${leafId}["\``)
-    expect(out.trimEnd()).toMatch(/`"\]:::ssr$/)
+    expect(out.trimEnd()).toMatch(/`"\]:::ctrl$/)
 
     // 메서드 bold + suffix (prefix /api/deco strip 후 /, /list)
     expect(out).toContain('**GET** /')
@@ -63,5 +63,36 @@ describe('emitControllerFileLeaf — endpoint collapse (개선 C: 메서드 bold
     expect(out).not.toContain('**')
     expect(lines.length).toBeGreaterThan(0)
     expect(leafId).toBe('leaf_DecoSheetController')
+  })
+})
+
+describe('emitControllerFileLeaf — 테이블 뱃지 (C4/K4)', () => {
+  it('테이블 목록이 있으면 route와 함께 🗄 뱃지 1행을 추가한다', () => {
+    const routes = [makeRoute(FILE, '/api/deco', 'GET')]
+    const { lines } = emitControllerFileLeaf('  ', FILE, routes, ['deco_sheet', 'deco_item'])
+    const out = lines.join('\n')
+    expect(out).toContain('🗄 deco\\_sheet, deco\\_item')
+    expect(out).toContain('**GET** /')
+  })
+
+  it('테이블 목록이 없으면 뱃지 라인을 추가하지 않는다', () => {
+    const routes = [makeRoute(FILE, '/api/deco', 'GET')]
+    const { lines } = emitControllerFileLeaf('  ', FILE, routes, [])
+    const out = lines.join('\n')
+    expect(out).not.toContain('🗄')
+  })
+
+  it('route 0개 + 테이블 있음 — multiline으로 전환해 뱃지를 표시한다', () => {
+    const { lines } = emitControllerFileLeaf('  ', FILE, [], ['deco_sheet'])
+    const out = lines.join('\n')
+    expect(out).toContain('🗄 deco\\_sheet')
+    expect(out).toContain('📄 **DecoSheetController**')
+  })
+
+  it('테이블명의 markdown 메타문자도 이스케이프한다', () => {
+    const routes = [makeRoute(FILE, '/api/deco', 'GET')]
+    const { lines } = emitControllerFileLeaf('  ', FILE, routes, ['user_profile'])
+    const out = lines.join('\n')
+    expect(out).toContain('user\\_profile')
   })
 })
