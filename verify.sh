@@ -3,12 +3,21 @@ set -euo pipefail
 
 cd "$(dirname "$0")"
 
-echo "=== [1/3] TypeScript build ==="
+echo "=== [1/4] TypeScript build ==="
 pnpm run typecheck
 echo "✅ tsc --build PASS"
 
 echo ""
-echo "=== [2/3] 단위 테스트 ==="
+echo "=== [2/4] oxlint (correctness) ==="
+if command -v pnpm >/dev/null 2>&1 && pnpm exec oxlint --version >/dev/null 2>&1; then
+  pnpm exec oxlint --config .oxlintrc.json
+  echo "✅ oxlint PASS (correctness=deny — 위반 시 exit 1로 게이트 실패, set -e가 스크립트 중단)"
+else
+  echo "ℹ️  oxlint 미설치 — 건너뜀"
+fi
+
+echo ""
+echo "=== [3/4] 단위 테스트 ==="
 UNIT_TEST_FILES=$(find . -type d -name node_modules -prune -o \
     -type f \( -name '*.test.ts' -o -name '*.test.tsx' \
                -o -name '*.test.js' -o -name '*.test.jsx' \
@@ -37,7 +46,7 @@ else
 fi
 
 echo ""
-echo "=== [3/3] contributes ID 매칭 (package.json ↔ src) ==="
+echo "=== [4/4] contributes ID 매칭 (package.json ↔ src) ==="
 node scripts/check-contributes-ids.mjs
 
 echo ""

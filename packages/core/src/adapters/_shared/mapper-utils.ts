@@ -27,7 +27,7 @@ export function buildMapperEdges(
   routes: RouteNode[],
   components: ComponentNode[],
   tables: TableNode[],
-  analyzerVersion: string,
+  _analyzerVersion: string,
 ): IREdge[] {
   if (tables.length === 0) return []
   if (routes.length === 0 && components.length === 0) return []

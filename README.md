@@ -4,9 +4,9 @@
 
 Routes, components, and DB relationships — extracted statically from **13 frameworks**, optionally enriched by LLM, rendered as three live diagram tabs inside VS Code.
 
-> Marketplace: [`cubha.codebase-arch-viz`](https://marketplace.visualstudio.com/items?itemName=cubha.codebase-arch-viz) · Current release: **v1.2.58**
+> Marketplace: [`cubha.codebase-arch-viz`](https://marketplace.visualstudio.com/items?itemName=cubha.codebase-arch-viz) · Current release: **v1.2.59**
 >
-> **v1.2.58 highlights** — **웹뷰 보안 강화 + graph 캐시 상시 미스 결함 수정**. CSP에서 `unsafe-inline`/`unsafe-eval` 제거(매 렌더 nonce 발급, onclick 32곳 addEventListener 전환), 분석 대상 유래 문자열 웹뷰 삽입 지점 이스케이프, postMessage 화이트리스트 + openExternal https 제한. 분석 graph 캐시가 diagram 캐시와 파일명이 겹쳐 상시 무효화되던 결함 수정(재분석 없이 캐시 정상 히트). codesight 잔재 rename 마무리, 1.6MB 죽은 ELK 번들 제거. verify.sh ALL PASS · Playwright 10/10 · 회귀 0.
+> **v1.2.59 highlights** — **Spring Boot BE 다이어그램 심화 + 툴체인 리프레시**. MyBatis XML statement 노드(Controller→…→XML→Statement 6단 체인, `[SELECT]` 등 SQL 타입 라벨), `@FeignClient` 외부시스템 노드(주황), Route→Controller `handles` 엣지, 컨트롤러 leaf 테이블 뱃지(`🗄`), BE Controller 색 분리(FE SSR 녹색→teal). BE-DIAGRAM-STANDARD v1.2. 툴체인: mermaid 11.16.0 · Node 22 · vitest 4 · ts-morph 28 · oxlint 게이트 · extension 테스트 ~50건 신설. verify.sh ALL PASS · Playwright 실 렌더 검증 · 회귀 0.
 >
 > 이전 버전 이력은 [CHANGELOG](CHANGELOG.md) 참조.
 

@@ -5,7 +5,6 @@ import {
   makeNodeId,
   type RouteNode,
   type RouteFileKind,
-  type DynamicSegmentType,
   type RenderingMode,
   type Provenance,
 } from '@codebase-viz/types'

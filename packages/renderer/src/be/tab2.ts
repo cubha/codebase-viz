@@ -1,6 +1,7 @@
 import type { IRGraph, IREdge, ComponentNode } from '@codebase-viz/types'
 import { isComponentNode } from '@codebase-viz/types'
 import { sanitizeId, edgeArrow } from '../helpers/ids.js'
+import { escapePlainLabel } from '../helpers/label-escape.js'
 import { BE_RENDERING_INIT, CLASS_DEFS } from '../helpers/constants.js'
 import { joinChunks } from '../_shared/wrap-fallback.js'
 import {
@@ -90,9 +91,20 @@ export function buildBeArchitectureDiagram(graph: IRGraph): string {
 
   // 역할 분류 — XML 매퍼는 java 패키지 밖(resources)이라 cross-pkg 판정에서 제외(항상 terminal 실노드).
   const isXmlNode = (c: ComponentNode): boolean => c.name.endsWith('.xml')
+  // C1: mapper-xml-parser의 statement 노드 네이밍 컨벤션(`id [SELECT|INSERT|UPDATE|DELETE]`).
+  const isStatementNode = (c: ComponentNode): boolean => /\[(?:SELECT|INSERT|UPDATE|DELETE)\]$/.test(c.name)
+  // C3: external-call-extractor가 등록한 노드(@FeignClient 등) 마커. 이름에 접미사를 붙이면
+  // di-parser의 @Autowired 필드-타입명 매칭이 깨지므로 provenance.adapter로 판별한다.
+  const isExternalSystemNode = (c: ComponentNode): boolean => c.provenance.adapter === 'external-call-extractor@0.1'
+  // XML/Statement/외부시스템은 전부 java 패키지 트리 소속이 아니라는 동일한 사유로 cross-pkg
+  // 판정에서 예외 처리된다(scope-critic 지적 — 노드 종류마다 조건을 개별 추가하면 신규 종류가
+  // 생길 때마다 두 recurse(렌더링·cost 추정) 모두에 누락 위험이 생긴다. 단일 판정으로 통합).
+  const isPackagelessNode = (c: ComponentNode): boolean =>
+    isXmlNode(c) || isStatementNode(c) || isExternalSystemNode(c)
   const roleClass = (c: ComponentNode): string => {
-    if (isXmlNode(c)) return 'pkg'
-    if (isBeController(c.name)) return 'ssr'
+    if (isExternalSystemNode(c)) return 'ext'
+    if (isXmlNode(c) || isStatementNode(c)) return 'pkg'
+    if (isBeController(c.name)) return 'ctrl'
     if (isBeRepository(c.name)) return 'ssg'
     return 'unk' // Service / ServiceImpl / 기타
   }
@@ -110,7 +122,7 @@ export function buildBeArchitectureDiagram(graph: IRGraph): string {
     const out: string[] = []
     if (!controllerHasDi(ctrl)) {
       // R-T2.5: pure non-DI controller — leaf만 표시. (none) 추정 안 함.
-      out.push(`${indent}${sanitizeId(ctrl.id)}["📄 ${ctrl.name}"]:::ssr`)
+      out.push(`${indent}${sanitizeId(ctrl.id)}["📄 ${escapePlainLabel(ctrl.name)}"]:::ctrl`)
       return out
     }
     const diSgId = `di_${sanitizeId(ctrl.id)}`
@@ -124,10 +136,10 @@ export function buildBeArchitectureDiagram(graph: IRGraph): string {
     const emitNode = (c: ComponentNode, nid: string): void => {
       if (emittedNodes.has(nid)) return
       emittedNodes.add(nid)
-      out.push(`${indent}  ${nid}["${c.name}"]:::${roleClass(c)}`)
+      out.push(`${indent}  ${nid}["${escapePlainLabel(c.name)}"]:::${roleClass(c)}`)
     }
     emitNode(ctrl, localId(ctrl))
-    // 깊이 가드(6) — 순환/이상 그래프 폭주 방지. 정상 체인은 Controller→Svc→Impl→Repo→XML = 4.
+    // 깊이 가드(6) — 순환/이상 그래프 폭주 방지. 정상 체인은 Controller→Svc→Impl→Repo→XML→Statement = 5(C1).
     const recurse = (node: ComponentNode, depth: number): void => {
       if (depth > 6 || visited.has(node.id)) return
       visited.add(node.id)
@@ -137,7 +149,9 @@ export function buildBeArchitectureDiagram(graph: IRGraph): string {
         if (target === undefined) continue
         const arrow = edgeArrow(edge)
         // R-T2.4: cross-package 주입은 외부 노드 ID 직접 참조 금지(ghost-node 회피) → placeholder.
-        if (!isXmlNode(target) && !samePkg(node, target)) {
+        // C3: 외부 시스템 노드는 애초에 java 패키지 트리 소속이 아니고(XML과 동일 사유), 이미 실존이
+        // 확인된 named 노드라 muted placeholder로 가리면 C3의 목적(식별 가능한 외부 시스템 표시) 자체가 무너진다.
+        if (!isPackagelessNode(target) && !samePkg(node, target)) {
           const extId = `${diSgId}__ext${extCounter++}`
           out.push(`${indent}  ${extId}["${externalRoleLabel(target)}"]:::muted`)
           out.push(`${indent}  ${fromId} ${arrow}|"cross-pkg"| ${extId}`)
@@ -207,7 +221,7 @@ export function buildBeArchitectureDiagram(graph: IRGraph): string {
         const target = compById.get(edge.to)
         if (target === undefined) continue
         count += 2 // target(또는 cross-pkg ext) 노드 + edge
-        if (isXmlNode(target) || samePkg(node, target)) recurse(target, depth + 1)
+        if (isPackagelessNode(target) || samePkg(node, target)) recurse(target, depth + 1)
       }
     }
     recurse(ctrl, 0)

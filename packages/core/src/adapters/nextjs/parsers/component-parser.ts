@@ -1,5 +1,4 @@
 import * as path from 'node:path'
-import * as fs from 'node:fs/promises'
 import { Project, SyntaxKind } from 'ts-morph'
 import {
   createComponentNode,

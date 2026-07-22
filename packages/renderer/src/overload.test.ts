@@ -45,32 +45,6 @@ function countChunks(diagram: string): number {
   return diagram.split('\n' + CHUNK_SEP + '\n').length
 }
 
-/**
- * B2B WINA 실환경 시뮬레이션:
- * - 938 routes all under /api (1 root) with 4 sub-prefixes → branchingGroups ≤ 5
- * - buildRenderingDiagram은 청킹 안 함 (≤ GROUPS_PER_ROW)
- * - shouldChunk(938 > 300) = true → chunkByGroups 호출
- * - 결함1 이전: collectLeafRouteArrays → 698 leaf chunks
- * - 결함1 이후: collectGroupRoutes + chunkArray(30) → ~32 chunks
- */
-function buildWinaStyleGraph(routeCount: number) {
-  const subPrefixes = ['/api/payment', '/api/order', '/api/user', '/api/product']
-  const routes = []
-  let idx = 0
-  const perPrefix = Math.ceil(routeCount / subPrefixes.length)
-  for (const prefix of subPrefixes) {
-    for (let i = 0; i < perPrefix && idx < routeCount; i++, idx++) {
-      routes.push(makeRoute(`${prefix}/resource${i}`, idx))
-    }
-  }
-  return createIRGraph({
-    analyzerVersion: 'test@0.1',
-    repoRoot: '/test',
-    nodes: routes,
-    edges: [],
-  })
-}
-
 describe('결함1: overload route → chunk count 검증', () => {
   it('[multi-prefix] 120 routes → Tab1 chunk 수 ≤ 15', () => {
     const graph = buildOverloadGraph(120)

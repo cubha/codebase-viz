@@ -1,6 +1,30 @@
 # Changelog
 
-## [1.2.58] — 2026-07-03
+## [1.2.59] — 2026-07-22
+
+### Added — Spring Boot BE Adapter Phase 2 (BE-DIAGRAM-STANDARD v1.2)
+
+- **MyBatis statement-level nodes (C1).** Mapper XML files now expand into their individual `<select>/<insert>/<update>/<delete>` statements on the Screen–Component tab, each labeled `statementId [SQL_TYPE]`. The full chain Controller → Service → Impl → Repository → Mapper XML → Statement renders as named nodes (no ghost placeholders across package chunks).
+- **Route → Controller `handles` edges (C2).** API endpoints and the controller that handles them are now explicitly connected in the IR (new `handles` edge kind), instead of being related only implicitly by file path.
+- **`@FeignClient` external-system nodes (C3).** Feign client interfaces are registered as components and picked up by the existing DI matching, rendering as amber external-system nodes at the end of the DI chain. Name collisions with regular components are detected and the Feign node is dropped to avoid false DI edges. RestTemplate/WebClient/JMS detection is deferred (static extraction confidence too low).
+- **DB table badges on controller leaves (C4).** Rendering-tab controller leaves show a `🗄 table, table` line listing tables reachable from that controller's DI chain via `queries` edges. No IR change — reuses existing edges.
+- **Controller color separated from FE SSR (K3).** BE controllers no longer reuse the FE `ssr` green — new teal `ctrl` class across all BE adapters, removing ambiguity in fullstack pair analysis.
+
+### Security
+
+- Component names flowing into Screen–Component tab node labels (including MyBatis statement ids, which the analyzed repository controls) are now escaped against label breakout (newline removal, quote substitution) — closing a mermaid-syntax injection vector introduced with the new statement nodes. The existing `escapeMd` helper was promoted to a shared module; normal names render identically.
+
+### Changed — toolchain
+
+- mermaid bundle 11.14.0 → **11.16.0** (includes the upstream per-subgraph direction Dagre fix; re-measured — nested-LR behavior unchanged for our diagrams, standard stays as-is).
+- Node engines 20 → **22**, vitest 2 → **4**, ts-morph 23 → **28**.
+- New **oxlint correctness gate** in `verify.sh` (deny-level rules; skipped gracefully where oxlint is not installed).
+
+### Added — extension-host test coverage
+
+- New `vscode` mock harness (`test-support/vscode-mock.ts`, vitest alias) and ~50 tests covering the sidebar/panel providers, webview HTML generation, command registration, and the analyze/cache/LLM flow in `extension.ts`.
+
+
 
 ### Security — webview hardening
 

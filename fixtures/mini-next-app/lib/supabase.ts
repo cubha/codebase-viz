@@ -1,7 +1,7 @@
 export function createClient() {
   return {
-    from: (table: string) => ({
-      select: (columns?: string) => Promise.resolve({ data: [], error: null }),
+    from: (_table: string) => ({
+      select: (_columns?: string) => Promise.resolve({ data: [], error: null }),
     }),
   }
 }

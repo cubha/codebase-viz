@@ -3,14 +3,7 @@ import type { RouteNode } from '@codebase-viz/types'
 import { sanitizeId } from '../helpers/ids.js'
 import { pathSegmentLcp } from './pkg-tree.js'
 
-// mermaid markdown-string 라벨(`["`...`"]`) 안 동적 텍스트의 메타문자 이스케이프.
-// viewer는 htmlLabels:false(SVG 텍스트)라 markdown 문자열로 bold가 렌더되며, URL 경로의
-// `_`/`*`/`` ` ``가 italic/bold/code로 오해석되지 않도록 백슬래시 escape.
-// 추가 방어: 줄바꿈은 공백으로(라벨 행 오염 차단), `"`는 `'`로 치환(라벨 닫힘 토큰 `"]` 조기
-// 종료 차단) — Java/URL 경로엔 거의 없으나 파이프라인 상류 오염 대비.
-function escapeMd(s: string): string {
-  return s.replace(/[\r\n]+/g, ' ').replace(/"/g, "'").replace(/([\\`*_])/g, '\\$1')
-}
+import { escapeMd } from '../helpers/label-escape.js'
 
 // BE Tab1 = 패키지 트리(node+edge) + leaf = 📄 Controller [/api/prefix] + endpoint multiline.
 // 표준: docs/design/BE-DIAGRAM-STANDARD.md §2 (R-T1.1~9).
@@ -21,19 +14,28 @@ function escapeMd(s: string): string {
 // - endpoints: leaf 노드 안 markdown multiline으로 collapse, **METHOD** /suffix 1행씩 (R-T1.6 v1.2.57 amendment).
 //   구 endpoints_<Ctrl> subgraph(Y축 적층)는 폐기 — 적층이 깊은 컨트롤러 열의 Y축 비대를 유발.
 // - chunk: chunkByTopLevelPackage (R-T1.8)
+// - tables: DI 체인으로 도달 가능한 테이블을 🗄 뱃지 1행으로 collapse (C1.6 amendment §2.2, K4).
+//   Tab3 ER은 변경 없음 — R-T1.6과 동일 "leaf 안 markdown 텍스트" 기법 재사용, 신규 IR 없음.
 export function emitControllerFileLeaf(
   indent: string,
   filePath: string,
   routes: RouteNode[],
+  tableNames: string[] = [],
 ): { leafId: string; lines: string[] } {
   const controllerName = path.basename(filePath, path.extname(filePath))
   const safeName = sanitizeId(controllerName)
   const prefix = pathSegmentLcp(routes.map(r => r.path))
   const leafId = `leaf_${safeName}`
+  const tableLine = tableNames.length > 0 ? `🗄 ${tableNames.map(escapeMd).join(', ')}` : undefined
 
   if (routes.length === 0) {
     const titleSuffix = prefix !== '' ? ` [${prefix}]` : ''
-    return { leafId, lines: [`${indent}${leafId}["📄 ${controllerName}${titleSuffix}"]:::ssr`] }
+    if (tableLine === undefined) {
+      return { leafId, lines: [`${indent}${leafId}["📄 ${controllerName}${titleSuffix}"]:::ctrl`] }
+    }
+    const title = `📄 **${escapeMd(controllerName)}**${titleSuffix}`
+    const body = [title, tableLine].join('\n')
+    return { leafId, lines: [`${indent}${leafId}["\`${body}\`"]:::ctrl`] }
   }
 
   const titleSuffix = prefix !== '' ? ` [${escapeMd(prefix)}]` : ''
@@ -46,8 +48,10 @@ export function emitControllerFileLeaf(
     return `${method}${escapeMd(suffix)}`
   })
   const sep = '─────────────'
-  const body = [title, sep, ...endpointLines].join('\n')
-  return { leafId, lines: [`${indent}${leafId}["\`${body}\`"]:::ssr`] }
+  const bodyLines = [title, sep, ...endpointLines]
+  if (tableLine !== undefined) bodyLines.push(sep, tableLine)
+  const body = bodyLines.join('\n')
+  return { leafId, lines: [`${indent}${leafId}["\`${body}\`"]:::ctrl`] }
 }
 
 export function isBeController(name: string): boolean { return name.endsWith('Controller') }

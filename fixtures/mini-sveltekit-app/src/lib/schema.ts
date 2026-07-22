@@ -1,4 +1,4 @@
-import { pgTable, integer, text, boolean } from 'drizzle-orm/pg-core'
+import { pgTable, integer, text } from 'drizzle-orm/pg-core'
 
 export const usersTable = pgTable('users', {
   id: integer('id').primaryKey(),

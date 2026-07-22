@@ -38,7 +38,7 @@ export async function runAnalysis(
 ): Promise<AnalysisResult> {
   const opts = options ?? {}
   const llmOptions = opts.llm
-  const grouping: GroupingOptions = { ...DEFAULT_GROUPING, ...(opts.grouping ?? {}) }
+  const grouping: GroupingOptions = { ...DEFAULT_GROUPING, ...opts.grouping }
 
   if (llmOptions === undefined && opts.pairRepoRoot === undefined) {
     const cached = await loadCachedGraph(repoRoot)
@@ -74,7 +74,9 @@ export async function runAnalysis(
 async function buildPairResult(
   feGraph: IRGraph,
   pairRepoRoot: string,
-  grouping: Required<GroupingOptions>,
+  // FE↔BE 결합 다이어그램 렌더링(buildCombinedDiagram)이 extension.ts에서 아직 호출되지
+  // 않아 grouping이 여기선 미사용 — 결함 기록: project_v1259_residual_roadmap.md
+  _grouping: Required<GroupingOptions>,
 ): Promise<{ graph: IRGraph; crossEdges: IREdge[] }> {
   const pairStack = await detectStack(pairRepoRoot)
   const registry = createDefaultRegistry()

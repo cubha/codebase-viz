@@ -159,7 +159,6 @@ export async function parseAnnotations(
         let isController = false
         let classPrefixes: string[] = ['']
         let prefixRow = 0
-        let prefixCol = 0
 
         for (let i = 0; i < node.childCount; i++) {
           const child = node.child(i)
@@ -170,7 +169,6 @@ export async function parseAnnotations(
             if (ann.name === 'RequestMapping' && ann.pathArgs.length > 0) {
               classPrefixes = ann.pathArgs
               prefixRow = ann.row
-              prefixCol = ann.col
             }
           }
         }

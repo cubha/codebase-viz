@@ -306,7 +306,6 @@ function makeBeComponent(
 
 describe('BE 렌더러 — Tab3 (BE-E)', () => {
   it('adapterCategory=BE 시 queries 엣지 없는 Repository도 Tab3에 표시', async () => {
-    const prov = { file: 'repository/UserRepository.java', line: 1, adapter: 'test', analyzerVersion: '0.1' }
     const repo = makeBeComponent('UserRepository', 'repository/UserRepository.java')
     const table = createTableNode({
       id: makeNodeId('table', 'schema.sql', 'users'),
@@ -365,7 +364,6 @@ describe('BE 렌더러 — Tab3 (BE-E)', () => {
   })
 
   it('FE 프로젝트는 기존 Tab3 동작 유지 (Repository 추가 없음)', async () => {
-    const prov = { file: 'app/page.tsx', line: 1, adapter: 'test', analyzerVersion: '0.1' }
     const table = createTableNode({
       id: makeNodeId('table', 'schema.prisma', 'posts'),
       name: 'posts',
@@ -452,6 +450,62 @@ describe('BE 렌더러 — Tab2 (BE-D, v1.2.40 표준)', () => {
     expect(content).not.toContain('(no Service)')
   })
 
+  it('C3: 외부 시스템 노드(@FeignClient)는 :::ext 클래스로 구분 렌더된다', async () => {
+    const base = 'src/main/java/com/example/order'
+    const ctrl = makeBeComponent('OrderController', `${base}/controller/OrderController.java`)
+    const svc = makeBeComponent('OrderService', `${base}/service/OrderService.java`)
+    const feignRaw = makeBeComponent('UserServiceClient', `${base}/client/UserServiceClient.java`)
+    // external-call-extractor 마커(provenance.adapter)를 재현 — 실제 parseFeignClients 산출과 동일 형태.
+    const feign = { ...feignRaw, provenance: { ...feignRaw.provenance, adapter: 'external-call-extractor@0.1' } }
+    const prov = { file: ctrl.filePath, line: 1, adapter: 'test', analyzerVersion: '0.1' }
+    const ce = (from: typeof ctrl, to: typeof ctrl) => createEdge({
+      id: makeEdgeId('calls', from.id, to.id), from: from.id, to: to.id, kind: 'calls', provenance: prov, confidence: 'verified',
+    })
+    const graph = createIRGraph({
+      analyzerVersion: '0.1',
+      repoRoot: '/tmp/be',
+      metadata: { framework: 'springboot', hasSupabase: false, hasPrisma: false, hasDexie: false, hasFirebase: false, adapterCategory: 'BE' },
+      nodes: [ctrl, svc, feign],
+      edges: [ce(ctrl, svc), ce(svc, feign)],
+    })
+    await renderMermaid(graph, OUTPUT_DIR)
+    const content = await fs.readFile(path.join(OUTPUT_DIR, 'screen-component.md'), 'utf8')
+    expect(content).toContain('UserServiceClient')
+    expect(content).not.toContain('cross-pkg') // 동일 파일 트리 내 — cross-pkg 아님
+    const feignLine = content.split('\n').find(l => l.includes('UserServiceClient['))
+    expect(feignLine).toMatch(/:::ext$/)
+  })
+
+  it('C4: Tab1 leaf가 DI 체인으로 도달 가능한 테이블을 🗄 뱃지로 보여준다 (K4)', async () => {
+    const base = 'src/main/java/com/example/order'
+    const ctrl = makeBeComponent('OrderController', `${base}/controller/OrderController.java`)
+    const repo = makeBeComponent('OrderRepository', `${base}/repository/OrderRepository.java`)
+    const route = makeBeRoute(`${base}/controller/OrderController.java`, '/api/orders', 'GetMapping')
+    const table = createTableNode({
+      id: makeNodeId('table', 'db', 'orders'),
+      name: 'orders',
+      columns: [],
+      provenance: { file: 'db', line: 1, adapter: 'test', analyzerVersion: '0.1' },
+      confidence: 'verified',
+    })
+    const prov = { file: ctrl.filePath, line: 1, adapter: 'test', analyzerVersion: '0.1' }
+    const graph = createIRGraph({
+      analyzerVersion: '0.1',
+      repoRoot: '/tmp/be',
+      metadata: { framework: 'springboot', hasSupabase: false, hasPrisma: false, hasDexie: false, hasFirebase: false, adapterCategory: 'BE' },
+      nodes: [ctrl, repo, route, table],
+      edges: [
+        createEdge({ id: makeEdgeId('calls', ctrl.id, repo.id), from: ctrl.id, to: repo.id, kind: 'calls', provenance: prov, confidence: 'verified' }),
+        createEdge({ id: makeEdgeId('queries', repo.id, table.id), from: repo.id, to: table.id, kind: 'queries', provenance: prov, confidence: 'inferred', inferenceChain: ['filename match'] }),
+      ],
+    })
+
+    await renderMermaid(graph, OUTPUT_DIR)
+    const rendering = await fs.readFile(path.join(OUTPUT_DIR, 'rendering.md'), 'utf8')
+    expect(rendering).toContain('🗄 orders')
+    expect(rendering).toContain('OrderController')
+  })
+
   it('N-ary DI 체인: 다중 Service 인라인 + ServiceImpl→다중 Repository fan-out + Repository→XML (v1.2.50, A-ST4)', async () => {
     const base = 'src/main/java/com/wina/partner/common/commonPop'
     const ctrl = makeBeComponent('CommonPopController', `${base}/controller/CommonPopController.java`)
@@ -494,6 +548,62 @@ describe('BE 렌더러 — Tab2 (BE-D, v1.2.40 표준)', () => {
     // Repository → XML
     expect(content).toContain('CommonPopMapper.xml')
     expect(content).not.toContain('cross-pkg') // 단일 도메인
+  })
+
+  it('C1: XML → Statement 홉이 cross-pkg placeholder 아닌 실 terminal 노드로 렌더된다', async () => {
+    const base = 'src/main/java/com/wina/partner/common/commonPop'
+    const ctrl = makeBeComponent('CommonPopController', `${base}/controller/CommonPopController.java`)
+    const repo = makeBeComponent('CommonPopRepository', `${base}/repository/CommonPopRepository.java`)
+    const xmlPath = 'src/main/resources/mapper/CommonPopMapper.xml'
+    const xml = makeBeComponent('CommonPopMapper.xml', xmlPath)
+    const stmt = makeBeComponent('findAll [SELECT]', xmlPath)
+    const prov = { file: ctrl.filePath, line: 1, adapter: 'test', analyzerVersion: '0.1' }
+    const ce = (from: typeof ctrl, to: typeof ctrl) => createEdge({
+      id: makeEdgeId('calls', from.id, to.id), from: from.id, to: to.id, kind: 'calls', provenance: prov, confidence: 'verified',
+    })
+    const graph = createIRGraph({
+      analyzerVersion: '0.1',
+      repoRoot: '/tmp/be',
+      metadata: { framework: 'springboot', hasSupabase: false, hasPrisma: false, hasDexie: false, hasFirebase: false, adapterCategory: 'BE' },
+      nodes: [ctrl, repo, xml, stmt],
+      edges: [ce(ctrl, repo), ce(repo, xml), ce(xml, stmt)],
+    })
+    await renderMermaid(graph, OUTPUT_DIR)
+    const content = await fs.readFile(path.join(OUTPUT_DIR, 'screen-component.md'), 'utf8')
+    expect(content).toContain('findAll [SELECT]')
+    expect(content).not.toContain('(external')
+    expect(content).not.toContain('cross-pkg')
+    // statement는 XML과 동일한 :::pkg 스타일 (R-T2.6 v1.2 amendment)
+    const stmtLine = content.split('\n').find(l => l.includes('findAll [SELECT]'))
+    expect(stmtLine).toMatch(/:::pkg/)
+  })
+
+  it('신뢰 불가 이름(XML statement id)의 따옴표·개행이 Tab2 plain 라벨을 탈출하지 못한다', async () => {
+    const base = 'src/main/java/com/wina/partner/common/commonPop'
+    const ctrl = makeBeComponent('CommonPopController', `${base}/controller/CommonPopController.java`)
+    const xmlPath = 'src/main/resources/mapper/CommonPopMapper.xml'
+    const xml = makeBeComponent('CommonPopMapper.xml', xmlPath)
+    // MyBatis XML의 id 속성은 분석 대상 리포가 통제 — 라벨 탈출(`"]`) + 개행 후 mermaid 구문 주입 시도
+    const evil = makeBeComponent('evil"]:::x\n  click nid "https://evil [SELECT]', xmlPath)
+    const prov = { file: ctrl.filePath, line: 1, adapter: 'test', analyzerVersion: '0.1' }
+    const ce = (from: typeof ctrl, to: typeof ctrl) => createEdge({
+      id: makeEdgeId('calls', from.id, to.id), from: from.id, to: to.id, kind: 'calls', provenance: prov, confidence: 'verified',
+    })
+    const graph = createIRGraph({
+      analyzerVersion: '0.1',
+      repoRoot: '/tmp/be',
+      metadata: { framework: 'springboot', hasSupabase: false, hasPrisma: false, hasDexie: false, hasFirebase: false, adapterCategory: 'BE' },
+      nodes: [ctrl, xml, evil],
+      edges: [ce(ctrl, xml), ce(xml, evil)],
+    })
+    await renderMermaid(graph, OUTPUT_DIR)
+    const content = await fs.readFile(path.join(OUTPUT_DIR, 'screen-component.md'), 'utf8')
+    // 개행이 살아남아 별도 mermaid 문장이 되면 실패
+    expect(content).not.toMatch(/^\s*click /m)
+    // 라벨 안 원본 `"`는 `'`로 치환 — evil 라인의 `"`는 라벨 구분자 2개뿐이어야 한다
+    const evilLine = content.split('\n').find(l => l.includes('evil'))
+    expect(evilLine).toBeDefined()
+    expect((evilLine as string).match(/"/g)).toHaveLength(2)
   })
 
   it('DI edge 없는 Controller는 leaf만 표시 — (none) 추정 안 함 (R-T2.5)', async () => {

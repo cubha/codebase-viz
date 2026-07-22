@@ -8,7 +8,6 @@
 import { test, expect } from '@playwright/test'
 import path from 'path'
 import { fileURLToPath } from 'url'
-import fs from 'fs'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const VIEWER_PATH = path.resolve(__dirname, '../../packages/extension/media/viewer.html')
@@ -67,7 +66,6 @@ test.describe('v1.1.52 결함 검증 — viewer.html Playwright', () => {
 
   test('결함2: extractModule이 bin/ 경로를 모듈별로 세분화한다', async ({ page }) => {
     const dbData = buildBinPathDbData()
-    const totalTables = (dbData.match(/erDiagram|\bvid\b/g) || []).length
     console.log(`  DB 데이터: 6개 모듈, ~408 테이블`)
 
     await page.addInitScript((dbScreen) => {
@@ -91,7 +89,6 @@ test.describe('v1.1.52 결함 검증 — viewer.html Playwright', () => {
 
     // SVG 렌더링 확인
     const inner = page.locator('#i-d')
-    const svgOrDiagram = await inner.innerHTML()
 
     // 결함2 핵심: 'bin' 단일 subgraph가 없어야 함
     // viewer.html의 extractModule이 올바르게 작동했다면
