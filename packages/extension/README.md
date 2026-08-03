@@ -57,9 +57,16 @@ Frameworks not in this list (Express, Hono, Rails, Go, etc.) use **LLM primary**
 
 ---
 
-## ✨ What's new in v1.2.59
+## ✨ What's new in v1.2.60
 
-### Deeper Spring Boot diagrams + toolchain refresh
+### FE↔BE combined view is now actually wired up + MyBatis ERD fix
+
+- **Paired (FE↔BE) analysis now renders the real combined diagram.** Previously the combined Rendering Architecture view was computed but never used — pair mode silently showed FE-only content. It now replaces that tab, showing only the routes that actually participate in a match, with the DB–Screen tab merging tables from both projects.
+- **MyBatis-based repositories now show their table relationships in the ERD.** The DB–Screen tab was silently missing all relationship lines for MyBatis repos — tables appeared as disconnected entities. Fixed by tracing table references from the mapper XML SQL bodies back to the owning Repository.
+- No more silent fallbacks: if the paired folder isn't a recognized backend, or nothing actually matched, you get a clear inline notice instead of an empty or misleading diagram.
+- GitHub star badge added to the marketplace listing.
+
+### v1.2.59 — Deeper Spring Boot diagrams + toolchain refresh
 
 - **MyBatis SQL statements are now visible.** The Screen–Component tab extends the DI chain one level further: Controller → Service → Repository → Mapper XML → individual `<select>/<insert>/<update>/<delete>` statements, each labeled with its SQL type (e.g. `selectAgencyPopup [SELECT]`).
 - **`@FeignClient` interfaces appear as external-system nodes** (amber) at the end of the DI chain, so cross-service calls are visible at a glance.

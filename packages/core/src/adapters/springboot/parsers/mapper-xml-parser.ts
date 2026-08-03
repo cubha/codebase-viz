@@ -10,6 +10,7 @@ import {
   type Provenance,
   type NodeId,
 } from '@codebase-viz/types'
+import { extractTablesFromSql } from './mybatis-parser.js'
 
 const EXCLUDE_DIRS = new Set(['.git', 'node_modules', 'target', 'build', '.gradle'])
 
@@ -47,9 +48,20 @@ function componentFqn(filePath: string): string | undefined {
   return tail.join('.')
 }
 
+// B2(BE-DIAGRAM-STANDARD v1.2 R-T2.9 amendment): Repository 단위(statement 단위 아님)로 접근
+// 테이블명을 노출한다. statement→table 2-pass 브리지는 Tab3 ERD에 신규 프록시 엔티티를 만들어
+// "Tab3 변경 없음"(§4)을 위반하고 depth 예산도 부족해 기각됨 — Repository는 이미 Tab3
+// sourcesMap에 있는 노드라(db-diagram.ts) 엣지만 붙는다.
+export interface RepoTableRef {
+  repoComponentId: NodeId
+  tableNames: string[]
+  provenance: Provenance
+}
+
 export interface MapperXmlResult {
   xmlNodes: ComponentNode[]
   xmlEdges: IREdge[]
+  repoTableRefs: RepoTableRef[]
 }
 
 const STATEMENT_TAGS = ['select', 'insert', 'update', 'delete'] as const
@@ -125,7 +137,7 @@ export async function parseMapperXmlEdges(
   componentNodes: ComponentNode[],
   analyzerVersion: string,
 ): Promise<MapperXmlResult> {
-  if (componentNodes.length === 0) return { xmlNodes: [], xmlEdges: [] }
+  if (componentNodes.length === 0) return { xmlNodes: [], xmlEdges: [], repoTableRefs: [] }
 
   const fqnToComponent = new Map<string, ComponentNode>()
   for (const c of componentNodes) {
@@ -136,6 +148,7 @@ export async function parseMapperXmlEdges(
   const xmlFiles = await findXmlFiles(repoRoot)
   const xmlNodes: ComponentNode[] = []
   const xmlEdges: IREdge[] = []
+  const repoTableRefs: RepoTableRef[] = []
   const seenXmlIds = new Set<string>()
   const seenEdgeIds = new Set<string>()
 
@@ -190,7 +203,12 @@ export async function parseMapperXmlEdges(
     const { nodes: stmtNodes, edges: stmtEdges } = extractStatementNodes(xml, xmlId, relPath, analyzerVersion)
     for (const n of stmtNodes) if (!seenXmlIds.has(n.id)) { seenXmlIds.add(n.id); xmlNodes.push(n) }
     for (const e of stmtEdges) if (!seenEdgeIds.has(e.id)) { seenEdgeIds.add(e.id); xmlEdges.push(e) }
+
+    // B2: Repository 단위(statement 단위 아님)로 접근 테이블명 1-pass 추출.
+    // 이름→최종 TableNode 해석(tablesByName·mergeFlywayTables dedup 후)은 adapter가 담당(B3).
+    const tableNames = extractTablesFromSql(xml)
+    if (tableNames.length > 0) repoTableRefs.push({ repoComponentId: repo.id, tableNames, provenance })
   }
 
-  return { xmlNodes, xmlEdges }
+  return { xmlNodes, xmlEdges, repoTableRefs }
 }

@@ -2083,10 +2083,15 @@ exports[`Phase XI — fixture baseline snapshots (P1) > mini-spring-lombok-mybat
     "handles:route:src/main/java/com/wina/partner/common/commonPop/controller/CommonPopController.java:/api/v1/partner/agency-popup:GetMapping:component:src/main/java/com/wina/partner/common/commonPop/controller/CommonPopController.java:CommonPopController",
     "handles:route:src/main/java/com/wina/partner/common/commonPop/controller/CommonPopController.java:/api/v1/partner/label-yn:PostMapping:component:src/main/java/com/wina/partner/common/commonPop/controller/CommonPopController.java:CommonPopController",
     "handles:route:src/main/java/com/wina/partner/common/commonPop/controller/CommonPopController.java:/api/v1/partner/perf:GetMapping:component:src/main/java/com/wina/partner/common/commonPop/controller/CommonPopController.java:CommonPopController",
+    "queries:component:src/main/java/com/wina/partner/common/commonPop/repository/CommonPopRepository.java:CommonPopRepository:table:src/main/resources/mapper/CommonPopMapper.xml:TB_AGENCY",
+    "queries:component:src/main/java/com/wina/partner/common/commonPop/repository/CommonPopRepository.java:CommonPopRepository:table:src/main/resources/mapper/CommonPopMapper.xml:TB_PRDO_WRY",
+    "queries:component:src/main/java/com/wina/partner/common/commonPop/repository/OrderRepository.java:OrderRepository:table:src/main/resources/mapper/OrderMapper.xml:TB_ORDER",
+    "queries:component:src/main/java/com/wina/partner/common/commonPop/repository/PerfStatusRepository.java:PerfStatusRepository:table:src/main/resources/mapper/PerfStatusMapper.xml:TB_PERF_STATUS",
   ],
   "edgesByKind": {
     "calls": 14,
     "handles": 3,
+    "queries": 4,
   },
   "nodeIds": [
     "component:src/main/java/com/wina/partner/common/commonPop/controller/CommonPopController.java:CommonPopController",
@@ -2140,7 +2145,9 @@ graph TD
 ─────────────
 **GET** /agency-popup
 **POST** /label-yn
-**GET** /perf\`"]:::ctrl
+**GET** /perf
+─────────────
+🗄 TB\\_AGENCY, TB\\_ORDER, TB\\_PERF\\_STATUS, TB\\_PRDO\\_WRY\`"]:::ctrl
   end"
 `;
 
@@ -2220,7 +2227,11 @@ erDiagram
   }
   PerfStatusRepository {
     string name
-  }"
+  }
+  CommonPopRepository }|--|| TB_AGENCY : "queries"
+  CommonPopRepository }|--|| TB_PRDO_WRY : "queries"
+  OrderRepository }|--|| TB_ORDER : "queries"
+  PerfStatusRepository }|--|| TB_PERF_STATUS : "queries""
 `;
 
 exports[`Phase XI — fixture baseline snapshots (P1) > mini-spring-partner-mock-app > IRGraph summary 1`] = `
@@ -2295,10 +2306,23 @@ exports[`Phase XI — fixture baseline snapshots (P1) > mini-spring-partner-mock
     "handles:route:src/main/java/com/wina/partner/perfMgmt/transStmt/controller/TransStmtController.java:/v1/partner/perfMgmt/transStmt/detail:GetMapping:component:src/main/java/com/wina/partner/perfMgmt/transStmt/controller/TransStmtController.java:TransStmtController",
     "handles:route:src/main/java/com/wina/partner/perfMgmt/transStmt/controller/TransStmtController.java:/v1/partner/perfMgmt/transStmt/excel:PostMapping:component:src/main/java/com/wina/partner/perfMgmt/transStmt/controller/TransStmtController.java:TransStmtController",
     "handles:route:src/main/java/com/wina/partner/perfMgmt/transStmt/controller/TransStmtController.java:/v1/partner/perfMgmt/transStmt/list:GetMapping:component:src/main/java/com/wina/partner/perfMgmt/transStmt/controller/TransStmtController.java:TransStmtController",
+    "queries:component:src/main/java/com/wina/agency/contractMgmt/repository/ContractMgmtRepository.java:ContractMgmtRepository:table:src/main/java/com/wina/agency/contractMgmt/domain/Contract.java:TWA_CONTRACT_MST",
+    "queries:component:src/main/java/com/wina/agency/userMgmt/repository/UserMgmtRepository.java:UserMgmtRepository:table:src/main/java/com/wina/agency/userMgmt/domain/User.java:TWA_USER_MST",
+    "queries:component:src/main/java/com/wina/headoffice/materialMgmt/cuttingPlanInfoMgmt/repository/CuttingPlanMgmtRepository.java:CuttingPlanMgmtRepository:table:src/main/java/com/wina/headoffice/materialMgmt/cuttingPlanInfoMgmt/domain/CuttingPlan.java:TWO_MOLD_CUTING_NRM",
+    "queries:component:src/main/java/com/wina/headoffice/partnerBaseInfo/procCodeMgmt/repository/ProcCodeMgmtRepository.java:ProcCodeMgmtRepository:table:src/main/java/com/wina/headoffice/partnerBaseInfo/procCodeMgmt/domain/ProcCode.java:TWO_POWCD",
+    "queries:component:src/main/java/com/wina/partner/matMgmt/decoSheet/repository/DecoSheetRepository.java:DecoSheetRepository:table:src/main/java/com/wina/partner/matMgmt/decoSheet/domain/DecoSheet.java:TB_HODS401",
+    "queries:component:src/main/java/com/wina/partner/matMgmt/decoSheet/repository/DecoSheetRepository.java:DecoSheetRepository:table:src/main/resources/mapper/decoSheet.xml:TB_HODS408",
+    "queries:component:src/main/java/com/wina/partner/ordProdPlanMgmt/prodOrdSpec/repository/ProdOrdSpecRepository.java:ProdOrdSpecRepository:table:src/main/java/com/wina/partner/ordProdPlanMgmt/prodOrdSpec/domain/ProdOrdSpec.java:TWE_ORD_H",
+    "queries:component:src/main/java/com/wina/partner/ordProdPlanMgmt/prodOrdSpec/repository/ProdOrdSpecRepository.java:ProdOrdSpecRepository:table:src/main/resources/mapper/prodOrdSpec.xml:TWE_ORD_I",
+    "queries:component:src/main/java/com/wina/partner/ordProdPlanMgmt/prodOrdSpec/repository/ProdOrdSpecRepository.java:ProdOrdSpecRepository:table:src/main/resources/mapper/prodOrdSpec.xml:TWE_WRY_SN",
+    "queries:component:src/main/java/com/wina/partner/perfMgmt/transStmt/repository/TransStmtRepository.java:TransStmtRepository:table:src/main/java/com/wina/partner/perfMgmt/transStmt/domain/TransStmt.java:TWO_WINS_COM_WHOT_DTL",
+    "queries:component:src/main/java/com/wina/partner/perfMgmt/transStmt/repository/TransStmtRepository.java:TransStmtRepository:table:src/main/resources/mapper/transStmt.xml:TWE_ORD_I_HOSEH",
+    "queries:component:src/main/java/com/wina/partner/perfMgmt/transStmt/repository/TransStmtRepository.java:TransStmtRepository:table:src/main/resources/mapper/transStmt.xml:TWO_SPSL_PRO_DOC",
   ],
   "edgesByKind": {
     "calls": 48,
     "handles": 21,
+    "queries": 12,
   },
   "nodeIds": [
     "component:src/main/java/com/wina/agency/contractMgmt/controller/ContractMgmtController.java:ContractMgmtController",
@@ -2421,13 +2445,17 @@ graph TD
 ─────────────
 **GET** /list
 **GET** /:contractNo
-**POST** /save\`"]:::ctrl
+**POST** /save
+─────────────
+🗄 TWA\\_CONTRACT\\_MST\`"]:::ctrl
   pkg_contractMgmt --> leaf_ContractMgmtController
   leaf_UserMgmtController["\`📄 **UserMgmtController** [/v1/agency/userMgmt]
 ─────────────
 **GET** /list
 **POST** /save
-**DELETE** /:id\`"]:::ctrl
+**DELETE** /:id
+─────────────
+🗄 TWA\\_USER\\_MST\`"]:::ctrl
   pkg_userMgmt --> leaf_UserMgmtController
   end
 %%--CHUNK--%%
@@ -2457,12 +2485,16 @@ graph TD
 ─────────────
 **GET** /moldList
 **GET** /moldNrmList
-**POST** /save\`"]:::ctrl
+**POST** /save
+─────────────
+🗄 TWO\\_MOLD\\_CUTING\\_NRM\`"]:::ctrl
   pkg_materialMgmt__cuttingPlanInfoMgmt --> leaf_CuttingPlanMgmtController
   leaf_ProcCodeMgmtController["\`📄 **ProcCodeMgmtController** [/v1/headOffice/partner/partnerBaseInfo/procCodeMgmt]
 ─────────────
 **GET** /list
-**POST** /save\`"]:::ctrl
+**POST** /save
+─────────────
+🗄 TWO\\_POWCD\`"]:::ctrl
   pkg_partnerBaseInfo__procCodeMgmt --> leaf_ProcCodeMgmtController
   end
 %%--CHUNK--%%
@@ -2496,19 +2528,25 @@ graph TD
 **GET** /list
 **POST** /excel
 **POST** /a/create
-**POST** /b/create\`"]:::ctrl
+**POST** /b/create
+─────────────
+🗄 TB\\_HODS401, TB\\_HODS408\`"]:::ctrl
   pkg_matMgmt__decoSheet --> leaf_DecoSheetController
   leaf_ProdOrdSpecController["\`📄 **ProdOrdSpecController** [/v1/partner/ordProdPlanMgmt/prodOrdSpec]
 ─────────────
 **GET** /list
 **GET** /production-instruction
-**GET** /handle-info\`"]:::ctrl
+**GET** /handle-info
+─────────────
+🗄 TWE\\_ORD\\_H, TWE\\_ORD\\_I, TWE\\_WRY\\_SN\`"]:::ctrl
   pkg_ordProdPlanMgmt__prodOrdSpec --> leaf_ProdOrdSpecController
   leaf_TransStmtController["\`📄 **TransStmtController** [/v1/partner/perfMgmt/transStmt]
 ─────────────
 **GET** /list
 **GET** /detail
-**POST** /excel\`"]:::ctrl
+**POST** /excel
+─────────────
+🗄 TWE\\_ORD\\_I\\_HOSEH, TWO\\_SPSL\\_PRO\\_DOC, TWO\\_WINS\\_COM\\_WHOT\\_DTL\`"]:::ctrl
   pkg_perfMgmt__transStmt --> leaf_TransStmtController
   end"
 `;
@@ -2766,16 +2804,13 @@ erDiagram
   ContractMgmtRepository {
     string name
   }
-  UserMgmtRepository {
-    string name
-  }
   CuttingPlanMgmtRepository {
     string name
   }
-  ProcCodeMgmtRepository {
+  DecoSheetRepository {
     string name
   }
-  DecoSheetRepository {
+  ProcCodeMgmtRepository {
     string name
   }
   ProdOrdSpecRepository {
@@ -2783,7 +2818,22 @@ erDiagram
   }
   TransStmtRepository {
     string name
-  }"
+  }
+  UserMgmtRepository {
+    string name
+  }
+  ContractMgmtRepository }|--|| TWA_CONTRACT_MST : "queries"
+  CuttingPlanMgmtRepository }|--|| TWO_MOLD_CUTING_NRM : "queries"
+  DecoSheetRepository }|--|| TB_HODS401 : "queries"
+  DecoSheetRepository }|--|| TB_HODS408 : "queries"
+  ProcCodeMgmtRepository }|--|| TWO_POWCD : "queries"
+  ProdOrdSpecRepository }|--|| TWE_ORD_H : "queries"
+  ProdOrdSpecRepository }|--|| TWE_ORD_I : "queries"
+  ProdOrdSpecRepository }|--|| TWE_WRY_SN : "queries"
+  TransStmtRepository }|--|| TWO_WINS_COM_WHOT_DTL : "queries"
+  TransStmtRepository }|--|| TWE_ORD_I_HOSEH : "queries"
+  TransStmtRepository }|--|| TWO_SPSL_PRO_DOC : "queries"
+  UserMgmtRepository }|--|| TWA_USER_MST : "queries""
 `;
 
 exports[`Phase XI — fixture baseline snapshots (P1) > mini-spring-wide-pkg-app > IRGraph summary 1`] = `

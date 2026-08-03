@@ -1,5 +1,20 @@
 # Changelog
 
+## [1.2.60] — 2026-08-03
+
+### Fixed
+
+- **MyBatis Repository→table relationships now render.** The DB–Screen (ERD) tab was silently missing all relationship lines for MyBatis-based repositories — tables showed up as isolated entities. Table references are now extracted from the mapper XML SQL bodies and linked to their owning Repository (exact-name match only, silent on failure — no phantom entities added).
+- **FE↔BE combined diagram is now actually wired up.** Paired-project analysis previously computed the combined cross-project diagram but never used it — the Rendering Architecture tab silently showed FE-only content. Pair mode now replaces that tab with the real combined view.
+- Combined view only renders routes that participate in an actual FE↔BE match (unmatched routes remain visible in their own project's standalone tab), preventing node-count blowups on large paired codebases.
+- The DB–Screen tab in paired mode now shows tables from **both** FE and BE, not just BE.
+- If the paired folder isn't recognized as a backend project, or no routes actually matched, you now get an inline notice instead of an empty/confusing diagram.
+- Reopening the viewer or switching the main workspace folder now correctly restores the last-used pair folder per workspace (previously could silently drop back to single-project mode, or leak a stale pair from another workspace).
+
+### Added
+
+- GitHub star badge in the marketplace listing.
+
 ## [1.2.59] — 2026-07-22
 
 ### Added — Spring Boot BE Adapter Phase 2 (BE-DIAGRAM-STANDARD v1.2)

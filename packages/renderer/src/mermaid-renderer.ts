@@ -20,6 +20,7 @@ import {
 } from './_shared/wrap-fallback.js'
 import { RENDERING_INIT, CLASS_DEFS } from './helpers/constants.js'
 import { sanitizeId } from './helpers/ids.js'
+import { escapePlainLabel } from './helpers/label-escape.js'
 import { findBranchingGroups, chunkGroups, splitGroupsByNodeBound, CHUNK_ROUTE_BUDGET, SINGLE_DIAGRAM_ROUTE_THRESHOLD } from './helpers/layout.js'
 import { isFileTreeTab2Eligible } from './fe/infra.js'
 import { buildNestedSubgraphLines } from './fe/nested.js'
@@ -185,10 +186,35 @@ function buildWithChunkFallback(
   return joinChunks(parts)
 }
 
-const COMBINED_FALLBACK = '⚠ 결합 다이어그램 1M 초과 — chunk 분할로 fallback'
+const BE_NOT_FOUND_NOTICE = '  BE_NOT_FOUND["⚠ 페어 폴더에서 백엔드를 인식하지 못했습니다 — FE 단독 뷰로 표시"]:::muted'
 
 function findParentRouteId(componentId: string, feGraph: IRGraph): string | undefined {
   return feGraph.edges.find(e => e.kind === 'renders' && e.to === componentId)?.from
+}
+
+// A2: crossEdges 중 실제 매칭(dangling 아님)만 — cross-graph-matcher가 exact match를
+// 'verified', dynamic-segment match를 'inferred'+'dynamic-segment-match'로 표시하고,
+// 매칭 실패(dangling)는 'inferred'+'no-route-match'로 구분한다(cli/cross-project-integration.test.ts
+// 와 동일 판정 기준 — 두 곳이 갈리면 회귀 가드가 무력화되므로 반드시 동일하게 유지).
+function isMatchedCrossEdge(edge: IREdge): boolean {
+  return edge.kind === 'fe-be-call' &&
+    (edge.confidence === 'verified' ||
+      (edge.confidence === 'inferred' && edge.inferenceChain?.includes('dynamic-segment-match') === true))
+}
+
+// A2: FE·BE 테이블을 합쳐 Tab3 ERD를 그리기 위한 합성 그래프. BE 쪽 metadata(adapterCategory 등)를
+// 유지해 Repository/Dao/Mapper 포함 로직(db-diagram.ts BE 분기)이 그대로 동작하게 하고, FE 쪽은
+// 테이블 노드 + FE 자체 queries 엣지의 source 노드만 얹는다(FE 컴포넌트 전량을 섞어 sourcesMap을
+// 오염시키지 않기 위함).
+function buildCombinedTableGraph(feGraph: IRGraph, beGraph: IRGraph): IRGraph {
+  const feQueriesEdges = feGraph.edges.filter(e => e.kind === 'queries')
+  const feQuerySourceIds = new Set(feQueriesEdges.map(e => e.from))
+  const feRelevantNodes = feGraph.nodes.filter(n => isTableNode(n) || feQuerySourceIds.has(n.id))
+  return {
+    ...beGraph,
+    nodes: [...feRelevantNodes, ...beGraph.nodes],
+    edges: [...feQueriesEdges, ...beGraph.edges],
+  }
 }
 
 export function buildCombinedDiagram(
@@ -197,50 +223,95 @@ export function buildCombinedDiagram(
   crossEdges: IREdge[],
   opts?: BuildDiagramsOptions,
 ): DiagramSet {
-  const threshold = opts?.chunkThreshold ?? DEFAULT_CHUNK_THRESHOLD
+  // A2 ④: 어댑터가 BE 폴더를 인식 못했거나(pairAdapter undefined) FE+FE 페어면 beGraph가 비어
+  // 있다 — 결합 다이어그램을 만들지 않고 FE 단독 뷰로 조용히 강등하지 않는다(silent truncation 금지).
+  if (beGraph.nodes.length === 0) {
+    const feOnly = buildDiagrams(feGraph, opts)
+    return { ...feOnly, rendering: `${feOnly.rendering}\n${BE_NOT_FOUND_NOTICE}` }
+  }
 
-  // Tab1: FE subgraph + BE subgraph + cross-edges
-  const feRoutes = feGraph.nodes.filter(isRouteNode).filter(r => r.routeFileKind === 'page')
-  const beRoutes = beGraph.nodes.filter(isRouteNode).filter(r => r.routeFileKind === 'page')
+  const threshold = opts?.chunkThreshold ?? DEFAULT_CHUNK_THRESHOLD
+  const nodeThr = opts?.nodeThreshold ?? DEFAULT_NODE_THRESHOLD
+  const chunkOpts: ChunkOptions = {
+    maxNodesPerGroup: opts?.grouping?.maxNodesPerGroup ?? DEFAULT_GROUPING.maxNodesPerGroup,
+    maxDepth: opts?.grouping?.maxDepth ?? DEFAULT_GROUPING.maxDepth,
+  }
+
+  // A2 ①: matched-only 필터 — crossEdges에 실제 참여하는 라우트만 Tab1에 렌더한다.
+  // 노드 수가 O(전체 라우트)가 아닌 O(crossEdges)가 되어 임계 문제 자체가 소멸한다(braintrust
+  // 판정 — 노드 가드 제거는 v1.2.49 freeze를 재현시키므로 기각, 범위축소가 대안).
+  const matchedEdges = crossEdges.filter(isMatchedCrossEdge)
+  // A2 재보정(scope-critic): matchedBeRouteIds를 matchedEdges 전체에서 뽑으면 FE 부모 라우트를
+  // 못 찾는(findParentRouteId undefined) 엣지의 BE 쪽 라우트만 연결선 없이 조용히 새어나간다
+  // (부분매칭 시 무경고 orphan BE 노드 leak). drawableEdges(선을 실제로 그릴 엣지)를 먼저 정하고
+  // FE·BE 라우트 집합을 **동일 기준**으로 파생시켜 비대칭을 없앤다.
+  const drawableEdges = matchedEdges.filter(e => findParentRouteId(e.from, feGraph) !== undefined)
+  const matchedBeRouteIds = new Set(drawableEdges.map(e => e.to))
+  const matchedFeRouteIds = new Set(
+    drawableEdges.map(e => findParentRouteId(e.from, feGraph)!),
+  )
+
+  const feRoutes = feGraph.nodes.filter(isRouteNode).filter(r => r.routeFileKind === 'page' && matchedFeRouteIds.has(r.id))
+  const beRoutes = beGraph.nodes.filter(isRouteNode).filter(r => r.routeFileKind === 'page' && matchedBeRouteIds.has(r.id))
 
   const lines: string[] = [RENDERING_INIT, 'graph TD', CLASS_DEFS]
 
   // FE subgraph
   if (feRoutes.length > 0) {
-    lines.push(`  subgraph FE_PROJ["🖥 Frontend · ${feGraph.projectName ?? 'FE'}"]`)
+    lines.push(`  subgraph FE_PROJ["🖥 Frontend · ${escapePlainLabel(feGraph.projectName ?? 'FE')}"]`)
     for (const l of buildNestedSubgraphLines(groupRoutesByUrl(feRoutes), '    ')) lines.push(l)
     lines.push('  end')
   }
 
   // BE subgraph
   if (beRoutes.length > 0) {
-    lines.push(`  subgraph BE_PROJ["⚙ Backend · ${beGraph.projectName ?? 'BE'}"]`)
+    lines.push(`  subgraph BE_PROJ["⚙ Backend · ${escapePlainLabel(beGraph.projectName ?? 'BE')}"]`)
     for (const l of buildNestedSubgraphLines(groupRoutesByUrl(beRoutes), '    ')) lines.push(l)
     lines.push('  end')
   }
 
-  // Cross-edges: find parent RouteNode for ComponentNode from ids
-  for (const edge of crossEdges) {
-    if (edge.kind !== 'fe-be-call') continue
-    const visualFrom = findParentRouteId(edge.from, feGraph) ?? edge.from
+  // Cross-edges: drawable만 그린다(dangling은 실제 BE 노드를 가리키지 않고, 부모 라우트를
+  // 못 찾는 엣지는 raw 컴포넌트 id로 fallback하지 않는다 — 어느 subgraph에도 속하지 않은 채
+  // 스타일 없는 bare 노드로 새어나가 Less is More를 위반하기 때문. drawableEdges는 위에서
+  // feRoutes/beRoutes와 동일 기준으로 이미 계산됨).
+  for (const edge of drawableEdges) {
+    const visualFrom = findParentRouteId(edge.from, feGraph)!
     lines.push(`  ${sanitizeId(visualFrom)} -.-> ${sanitizeId(edge.to)}`)
   }
 
-  const renderingText = lines.join('\n')
-  const totalRouteCount = feRoutes.length + beRoutes.length
-
-  if (!shouldChunk(renderingText, threshold, totalRouteCount)) {
-    return {
-      rendering: renderingText,
-      screenComponent: buildScreenComponentDiagram(feGraph),
-      dbScreen: buildDbScreenDiagram(beGraph),
-    }
+  // 매칭된 crossEdges가 있었는데도 실제로 그려진 연결이 0건이면(전량 dangling이거나 전량
+  // 부모 라우트 미해석) 빈 껍데기 대신 안내를 남긴다 — beGraph=0 폴백과 같은 원칙(조용한
+  // 강등 금지)을 matched=0 케이스에도 적용(scope-critic 지적).
+  if (drawableEdges.length === 0 && crossEdges.length > 0) {
+    const danglingCount = crossEdges.filter(e => e.kind === 'fe-be-call').length
+    lines.push(`  NO_MATCH["⚠ 매칭된 FE↔BE 라우트가 없습니다(crossEdges ${danglingCount}건 중 표시 가능 0건) — 각 프로젝트 단독 탭을 확인하세요"]:::muted`)
   }
 
+  const renderingText = lines.join('\n')
+  const matchedRouteCount = feRoutes.length + beRoutes.length
+
+  const combinedTableGraph = buildCombinedTableGraph(feGraph, beGraph)
+
+  // A2 ②: Tab2/Tab3는 buildDiagrams와 동일한 chunk fallback 경유(대형 BE에서 raw 호출 시
+  // v1.2.49 webview freeze 계열 재발 — braintrust 실측).
+  const screenComponent = buildWithChunkFallback(feGraph, buildScreenComponentDiagram, chunkOpts, threshold, feGraph.nodes.filter(isRouteNode).length, nodeThr)
+  const dbScreen = buildDbScreenWithFallback(combinedTableGraph, chunkOpts, threshold, nodeThr)
+
+  if (!shouldChunk(renderingText, threshold, matchedRouteCount, nodeThr)) {
+    return { rendering: renderingText, screenComponent, dbScreen }
+  }
+
+  // 실제 트리거를 문구에 반영한다 — 노드수가 임계를 넘지 않았는데도 "노드 N개 초과"라 적으면
+  // 사실과 다른 안내가 된다(예: chunkThreshold를 낮게 잡아 텍스트 길이만으로 트리거된 경우,
+  // scope-critic 실측 지적).
+  const nodeExceeded = matchedRouteCount > nodeThr
+  const fallbackMsg = nodeExceeded
+    ? `⚠ 결합 다이어그램 노드 ${matchedRouteCount}개 초과(임계 ${nodeThr}) — 안내만 표시`
+    : `⚠ 결합 다이어그램 텍스트 ${renderingText.length}자 초과(임계 ${threshold}) — 안내만 표시`
   return {
-    rendering: `graph TD\n  fallback["${COMBINED_FALLBACK}"]`,
-    screenComponent: buildScreenComponentDiagram(feGraph),
-    dbScreen: buildDbScreenDiagram(beGraph),
+    rendering: `graph TD\n  fallback["${fallbackMsg}"]`,
+    screenComponent,
+    dbScreen,
   }
 }
 

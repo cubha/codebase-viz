@@ -2,6 +2,7 @@ import { describe, it, expect, afterEach } from 'vitest'
 import * as fs from 'node:fs/promises'
 import * as path from 'node:path'
 import * as os from 'node:os'
+import { ANALYZER_VERSION } from '@codebase-viz/types'
 import { readDiagramCache, writeDiagramCache, type DiagramCache } from './diagram-cache.js'
 
 describe('readDiagramCache / writeDiagramCache — 캐시 파일 분리 (ARCH-1)', () => {
@@ -20,6 +21,7 @@ describe('readDiagramCache / writeDiagramCache — 캐시 파일 분리 (ARCH-1)
   })
 
   const sample: DiagramCache = {
+    analyzerVersion: ANALYZER_VERSION,
     savedAt: 1700000000000,
     projectName: 'demo',
     routeCount: 3,
@@ -85,5 +87,29 @@ describe('readDiagramCache / writeDiagramCache — 캐시 파일 분리 (ARCH-1)
       'utf8',
     )
     expect(await readDiagramCache(dir)).toBeUndefined()
+  })
+
+  it('A3: 이전 analyzerVersion의 diagram 캐시는 미스로 처리한다(graph 캐시와 동일한 무효화 규칙)', async () => {
+    const dir = await makeTmpDir()
+    const cacheDir = path.join(dir, '.codebase-viz')
+    await fs.mkdir(cacheDir, { recursive: true })
+    await fs.writeFile(
+      path.join(cacheDir, 'cache-diagrams.json'),
+      JSON.stringify({ ...sample, analyzerVersion: 'codebase-viz@0.0.1-stale' }),
+      'utf8',
+    )
+    expect(await readDiagramCache(dir)).toBeUndefined()
+  })
+
+  it('A3: pair 캐시도 이전 analyzerVersion이면 미스로 처리한다', async () => {
+    const dir = await makeTmpDir()
+    const pairDir = await makeTmpDir()
+    await writeDiagramCache(dir, sample, pairDir)
+    const files = await fs.readdir(path.join(dir, '.codebase-viz'))
+    const pairFile = files.find(f => f.startsWith('cache-diagrams-pair-'))!
+    const filePath = path.join(dir, '.codebase-viz', pairFile)
+    const raw = JSON.parse(await fs.readFile(filePath, 'utf8')) as DiagramCache
+    await fs.writeFile(filePath, JSON.stringify({ ...raw, analyzerVersion: 'codebase-viz@0.0.1-stale' }), 'utf8')
+    expect(await readDiagramCache(dir, pairDir)).toBeUndefined()
   })
 })

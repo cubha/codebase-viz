@@ -44,6 +44,24 @@ let sidebarProvider: SidebarProvider | undefined
 let panelProvider: PanelProvider | undefined
 
 const STATE_KEY_SELECTED_FOLDER = 'codebaseViz.selectedFolder'
+// A3: openViewer(캐시만 열기)·selectFolder(메인 폴더 전환)가 마지막 pair 상태를 몰라 pairRepoRoot
+// 없이 readCache를 호출하던 결함 — pair 캐시(cache-diagrams-pair-<suffix>.json)를 못 찾아 단일
+// 캐시로 강등되거나 "캐시 없음"으로 보였다. **메인 폴더별로 스코프**한다(flat 단일값이면
+// multi-root에서 폴더를 전환할 때 이전 폴더의 pair가 새 폴더에 잘못 적용될 위험이 있음 —
+// scope-critic 지적, selectFolder가 정확히 "폴더 전환" 용도라 이 위험이 즉시 발현되는 지점).
+const STATE_KEY_PAIR_FOLDER_MAP = 'codebaseViz.pairFolderMap'
+
+function getLastPairFolder(context: vscode.ExtensionContext, workspaceRoot: string): string | undefined {
+  const map = context.workspaceState.get<Record<string, string>>(STATE_KEY_PAIR_FOLDER_MAP, {})
+  return map[workspaceRoot]
+}
+
+async function setLastPairFolder(context: vscode.ExtensionContext, workspaceRoot: string, pairRepoRoot: string | undefined): Promise<void> {
+  const map = { ...context.workspaceState.get<Record<string, string>>(STATE_KEY_PAIR_FOLDER_MAP, {}) }
+  if (pairRepoRoot === undefined) delete map[workspaceRoot]
+  else map[workspaceRoot] = pairRepoRoot
+  await context.workspaceState.update(STATE_KEY_PAIR_FOLDER_MAP, map)
+}
 
 function listWorkspaceFolders(): readonly vscode.WorkspaceFolder[] {
   return vscode.workspace.workspaceFolders ?? []
@@ -100,6 +118,7 @@ async function readCache(repoRoot: string, pairRepoRoot?: string): Promise<Diagr
 
 async function writeCache(repoRoot: string, graph: IRGraph, diagrams: DiagramSet, pairRepoRoot?: string): Promise<void> {
   const data: DiagramCache = {
+    analyzerVersion: graph.analyzerVersion,
     savedAt: Date.now(),
     projectName: graph.projectName ?? path.basename(repoRoot),
     routeCount: graph.nodes.filter(n => n.kind === 'route').length,
@@ -146,6 +165,10 @@ async function doAnalyze(
   if (!forceRefresh) {
     const cached = await readCache(workspaceRoot, pairRepoRoot)
     if (cached !== undefined) {
+      // A3(scope-critic 재보정): 캐시 히트 조기반환 경로도 pair 상태를 갱신해야 한다 —
+      // workspaceState가 비어있는 새 창에서 디스크의 기존 pair 캐시를 히트한 뒤 갱신 없이
+      // 반환하면, 다음 openViewer/activate가 다시 pairRepoRoot를 몰라 같은 결함이 재발한다.
+      await setLastPairFolder(context, workspaceRoot, pairRepoRoot)
       await panel.showCached(cached)
       sidebarProvider?.updateStatus({
         projectName: cached.projectName,
@@ -177,6 +200,7 @@ async function doAnalyze(
       ...(pairRepoRoot !== undefined ? { pairRepoRoot } : {}),
     })
     await writeCache(workspaceRoot, graph, diagrams, pairRepoRoot)
+    await setLastPairFolder(context, workspaceRoot, pairRepoRoot)
     await panel.updateGraph(graph, diagrams)
 
     const result = {
@@ -227,7 +251,8 @@ export function activate(context: vscode.ExtensionContext): void {
     const hasApiKey = (await context.secrets.get(apiKeySlot(getProvider())) ?? '') !== ''
     const llmEnabled = vscode.workspace.getConfiguration('codebaseViz').get<boolean>('enableLLM', false)
     const workspaceRoot = getWorkspaceRoot(context)
-    const cached = workspaceRoot !== undefined ? await readCache(workspaceRoot) : undefined
+    const lastPairRepoRoot = workspaceRoot !== undefined ? getLastPairFolder(context, workspaceRoot) : undefined
+    const cached = workspaceRoot !== undefined ? await readCache(workspaceRoot, lastPairRepoRoot) : undefined
     const stackStatus = workspaceRoot !== undefined ? await getStackStatus(workspaceRoot) : {}
 
     sidebarProvider?.updateStatus({
@@ -302,7 +327,8 @@ export function activate(context: vscode.ExtensionContext): void {
     vscode.commands.registerCommand('codebaseViz.openViewer', async () => {
       const workspaceRoot = getWorkspaceRoot(context)
       if (workspaceRoot === undefined) return
-      const cached = await readCache(workspaceRoot)
+      const pairRepoRoot = getLastPairFolder(context, workspaceRoot)
+      const cached = await readCache(workspaceRoot, pairRepoRoot)
       if (cached === undefined) {
         void vscode.window.showInformationMessage(t('msg.noCacheRunFirst', getLocale()))
         return
@@ -322,7 +348,8 @@ export function activate(context: vscode.ExtensionContext): void {
       }
       if (target === undefined) return
       await context.workspaceState.update(STATE_KEY_SELECTED_FOLDER, target.uri.fsPath)
-      const cached = await readCache(target.uri.fsPath)
+      const pairRepoRoot = getLastPairFolder(context, target.uri.fsPath)
+      const cached = await readCache(target.uri.fsPath, pairRepoRoot)
       const stackStatus = await getStackStatus(target.uri.fsPath)
       sidebarProvider?.updateStatus({
         selectedFolder: target.uri.fsPath,

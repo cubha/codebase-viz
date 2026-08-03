@@ -1,5 +1,25 @@
 # Changelog
 
+## [1.2.60] — 2026-08-03
+
+### Fixed — MyBatis queries 엣지 부재 복구 (C4 커버리지 갭)
+
+- **Repository→table `queries` 엣지 신설**: MyBatis 경로가 Tab3 ERD 렌더러(`erd/db-diagram.ts`)를 관계선 0건으로 굶기던 결함 복구(partner-mock 실측: 엔티티 19개·관계선 0 → 관계선 정상 생성, 신규 프록시 엔티티 0개). `mapper-xml-parser`가 namespace 매칭 시점에 XML SQL 본문에서 접근 테이블명을 Repository 단위로 1-pass 추출(`repoTableRefs`) → adapter가 최종 `tableNodes`(ORM·Flyway 2중 dedup 후) 기준 정확 이름매칭으로 엣지 생성(`repo-table-edges.ts`, 실패 시 침묵). statement 단위 2-pass 브리지는 Tab3 §4 "변경 없음" 위반·depth 예산 부족으로 기각.
+- **`extractTablesFromSql` 위생 강화**: SQL 라인주석(`--`)·문자열 리터럴·`WITH [RECURSIVE] ... AS(...)` CTE 별칭을 결과에서 차감해 유령 테이블 오탐 제거(리터럴 제거를 주석 제거보다 먼저 수행해야 `'a--b'` 같은 리터럴이 뒤 FROM절을 삼키지 않음).
+
+### Fixed — FE↔BE cross-edge 렌더링 결함
+
+- **결합(pair) 다이어그램 실제 배선**: `buildCombinedDiagram`이 계산만 되고 익스텐션 실행 경로(`analyzer.ts::runAnalysis`)에서 한 번도 호출되지 않던 결함 수정. pair 분석 시 Tab1이 결합 다이어그램으로 치환된다.
+- **matched-only 필터**: crossEdges에 실제 참여(verified 또는 dynamic-segment-match)하는 라우트만 렌더 — 노드 수가 O(전체 라우트)가 아닌 O(crossEdges)가 되어 대형 페어에서도 노드 임계 문제가 구조적으로 소멸.
+- **Tab2/Tab3 chunk fallback 경유**: 대형 BE 페어에서 raw 호출로 인한 webview freeze 재발 방지.
+- **Tab3 FE·BE 테이블 합집합**: 이전엔 BE 테이블만 전달해 FE(Supabase 등) 테이블이 전량 누락되던 결함 수정.
+- **조용한 강등 금지**: BE 미인식 페어는 FE 단독 뷰 + 안내 노트로 폴백, crossEdges 전량 dangling이면 "매칭 없음" 안내 노드 표시(빈 다이어그램 없음).
+- **pair 캐시 도달 경로**: `openViewer`·`selectFolder`·`activate` 커맨드가 마지막 pair 상태를 몰라 pair 캐시를 못 읽던 결함 — 메인 폴더별로 스코프된 pair map(`codebaseViz.pairFolderMap`)으로 정확히 조회. `DiagramCache`에 `analyzerVersion` 검증 추가(구 버전 pair 캐시 재생 방지).
+
+### Added
+
+- GitHub star 배지(`package.json` badges 필드, shields.io).
+
 ## [1.2.59] — 2026-07-22
 
 ### Added — BE Adapter Phase 2 (Task7, BE-DIAGRAM-STANDARD v1.1→v1.2)

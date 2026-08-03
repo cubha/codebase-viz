@@ -1,8 +1,10 @@
 import * as fs from 'node:fs/promises'
 import * as path from 'node:path'
+import { ANALYZER_VERSION } from '@codebase-viz/types'
 import type { DiagramSet } from '@codebase-viz/renderer'
 
 export interface DiagramCache {
+  analyzerVersion: string
   savedAt: number
   projectName: string
   routeCount: number
@@ -19,6 +21,7 @@ function isDiagramCache(value: unknown): value is DiagramCache {
   if (typeof value !== 'object' || value === null) return false
   const v = value as Record<string, unknown>
   return (
+    typeof v.analyzerVersion === 'string' &&
     typeof v.savedAt === 'number' &&
     typeof v.projectName === 'string' &&
     typeof v.diagrams === 'object' &&
@@ -42,6 +45,9 @@ export async function readDiagramCache(repoRoot: string, pairRepoRoot?: string):
       const raw = await fs.readFile(file, 'utf8')
       const parsed: unknown = JSON.parse(raw)
       if (!isDiagramCache(parsed)) continue
+      // A3: graph 캐시(analyzer.ts::loadCachedGraph)엔 이미 있던 analyzerVersion 검증이 diagram
+      // 캐시엔 없어, 확장 업데이트 후에도 구 pair 결합 다이어그램이 계속 재생되던 결함.
+      if (parsed.analyzerVersion !== ANALYZER_VERSION) continue
       return parsed
     } catch {
       continue

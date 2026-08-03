@@ -106,7 +106,7 @@ Tab1과 동일한 패키지 트리 위에, leaf를 단순 Controller 노드가 �
 | **R-T2.6 클래스** (v1.2 amendment) | Controller=`:::ctrl`(청록), Service/ServiceImpl=`:::unk`(회색), Repository=`:::ssg`(보라), XML/Statement=`:::pkg`(슬레이트). |
 | **R-T2.7 IR 계약** | Service(interface)→ServiceImpl은 di-parser의 `implements` 추적 `calls` 엣지. Repository→XML은 mapper-xml-parser의 namespace(FQN) 정확 매칭 `calls` 엣지 + XML ComponentNode(`*.xml`). IR EdgeKind 확장 없음. |
 | **R-T2.8 Route↔Controller** (v1.2, C2) | RouteNode와 그 파일의 Controller ComponentNode를 `handles` 엣지(신규 EdgeKind)로 연결 — filePath 정확 일치, verified. `renders`(FE page/layout SSR)와 의미가 달라 재사용하지 않음(K3와 동일 취지). Tab1/2 렌더링에는 영향 없음(기존 filePath 그룹핑 그대로) — 그래프 질의 가능성만 추가. |
-| **R-T2.9 XML→Statement** (v1.2, C1) | mapper XML의 `<select/insert/update/delete id="...">`를 ComponentNode(`id [SQL_TYPE]` 네이밍, ST7-2 Option A — 신규 NodeKind 없음)로 노출, XML→Statement `calls` 엣지 추가(DI 체인 5번째 홉). Repository.method ↔ statement-id 매핑(인터페이스 메서드 파싱)은 범위 밖 — 결정론적으로 확인 가능한 XML 구조만 다룸. Tab2 cross-pkg 게이트는 XML과 동일하게 Statement도 판정 예외(resources 하위라 package 없음). |
+| **R-T2.9 XML→Statement** (v1.2, C1) | mapper XML의 `<select/insert/update/delete id="...">`를 ComponentNode(`id [SQL_TYPE]` 네이밍, ST7-2 Option A — 신규 NodeKind 없음)로 노출, XML→Statement `calls` 엣지 추가(DI 체인 5번째 홉). Repository.method ↔ statement-id 매핑(인터페이스 메서드 파싱)은 범위 밖 — 결정론적으로 확인 가능한 XML 구조만 다룸. Tab2 cross-pkg 게이트는 XML과 동일하게 Statement도 판정 예외(resources 하위라 package 없음). **amendment(v1.2.6x, C4 갭 복구)**: Repository→table `queries` 엣지는 XML의 SQL 본문에서 `extractTablesFromSql`로 추출해 **Repository 단위**로 emit한다(statement 단위 아님) — statement 노드는 `isBeRepository` 판정에 안 걸려 Tab3 ERD(§4)에 신규 프록시 엔티티로 새는 반면, Repository는 이미 Tab3 sourcesMap에 있어 관계선만 추가되고 §4 "변경 없음" 원칙을 지킨다. 이 amendment로도 인터페이스 메서드 파싱 범위 확대는 없다(여전히 SQL 본문 정적 추출만). |
 | **R-T2.10 외부 시스템** (v1.2, C3) | `@FeignClient` 인터페이스를 ComponentNode로 등록(이름은 원본 클래스명 그대로 — 접미사를 붙이면 di-parser `@Autowired` 필드-타입명 매칭이 깨짐). 대신 `provenance.adapter === 'external-call-extractor@0.1'`을 렌더러 판별 마커로 사용, `:::ext`(호박색) 클래스 부여. Tab2 cross-pkg 게이트에서도 XML/Statement와 동일하게 판정 예외(패키지 소속이 없는 게 정상). RestTemplate/WebClient(호출 URL이 표현식이라 정적 추출 신뢰도 낮음)·SAP RFC(범용 Java 문법으로 판별 불가)·`@JmsListener`(외부→컴포넌트로 엣지 방향이 반대)는 defer. |
 
 ## 4. Tab3 — DB–Screen (BE)
@@ -127,7 +127,20 @@ Tab1과 동일한 패키지 트리 위에, leaf를 단순 Controller 노드가 �
 | elk mrtree | `packages/extension/media/viewer.html` (mermaid init 검토) | mermaid 기본 dagre로 fallback 가능 |
 | 테스트 | `packages/renderer/src/mermaid-renderer.test.ts` BE Tab1/2 케이스 갱신 + 회귀 fixture(`mini-spring-deep-pkg-app`) 활용 | snapshot 갱신 필요 |
 
-## 7. 미해결·검토 사항
+## 7. Fullstack(pair) 결합 뷰
+
+FE↔BE 페어 분석(`pairRepoRoot` 지정)은 본 표준(§1~§6, BE 단독)과 `FE-DIAGRAM-STANDARD.md`(FE 단독) 어느 쪽도 관할하지 않는 별도 뷰다. 두 표준을 각각 개정하는 대신 여기 §7에 단일 진실로 둔다 — pair는 두 카테고리를 한 그림에 담아 어느 한쪽 표준의 확장으로 보기 어렵기 때문이다(`renderer/src/mermaid-renderer.ts::buildCombinedDiagram`).
+
+| 항목 | 정의 |
+|---|---|
+| **적용 조건** | `pairRepoRoot` 지정 시 익스텐션의 Tab1 콘텐츠를 결합 다이어그램으로 **치환**한다. 4번째 탭 신설은 기각(DiagramSet 필드·viewer.html 마크업·CSS·i18n×4·export 라벨까지 3패키지 7파일 파급, QuickPick 뒤에 숨은 모드에 과투자). pair 캐시(`cache-diagrams-pair-<suffix>.json`)가 이미 단독 캐시와 분리 저장되므로 치환이 캐시를 오염시키지 않는다. |
+| **route-level 그래뉼래리티는 필수 요구** | 표준 v1.2 Tab1(BE §2)·FE Tab1 표준 모두 도메인 요약/endpoint collapse로 라우트를 뭉치므로 cross-edge를 붙일 노드가 양쪽 다 없다. 결합 Tab1이 자체 `groupRoutesByUrl` route-level 트리를 쓰는 건 **stale 코드가 아니라 구조적 필수**다 — 재논의 금지. |
+| **matched-only 필터** | crossEdges 중 실제 매칭(confidence:'verified' 또는 'inferred'+`dynamic-segment-match`)만 렌더한다. dangling(매칭 실패, `no-route-match`)은 선을 그리지 않고 해당 라우트도 Tab1에서 제외한다. 노드 수가 O(전체 라우트)가 아닌 **O(crossEdges)**가 되어 대형 페어에서도 노드 임계 문제가 구조적으로 소멸한다(노드 가드를 느슨히 하는 대신 범위를 좁히는 방식 — v1.2.49 webview freeze 재현 방지). 매칭 안 된 라우트는 FE/BE 단독 탭에 이미 전부 있어 정보 손실 없음. |
+| **Tab2/Tab3 소스** | Tab2(Screen–Component)는 FE 단독 뷰(`buildScreenComponentDiagram(feGraph)`), Tab3(DB–Screen)는 FE·BE 테이블 **합집합**(`buildCombinedTableGraph` — FE 쪽은 테이블 노드 + FE 자체 `queries` 엣지 source만 포함, FE 컴포넌트 전량을 섞어 BE Repository sourcesMap을 오염시키지 않음). 둘 다 `buildDiagrams`와 동일한 chunk fallback(`buildWithChunkFallback`/`buildDbScreenWithFallback`)을 경유해 raw 호출로 인한 프리즈를 방지한다. |
+| **노드 임계 초과** | matched-only 필터 이후에도 노드수가 임계(기본 300)를 넘으면 결합 Tab1을 안내 박스로 강등한다. 문구는 실제 트리거 수치를 포함(`⚠ 결합 다이어그램 노드 N개 초과(임계 T)`) — 이전의 고정 문구("1M 초과")는 실제 트리거(텍스트 5M자 또는 노드 300개)와 불일치했던 결함이었다. |
+| **BE 미인식 폴백** | `pairRepoRoot`에서 어댑터가 감지되지 않거나(BE 카테고리 없음) FE+FE 페어면 `beGraph.nodes.length === 0`이 되고, 이 경우 결합 다이어그램을 만들지 않고 FE 단독 뷰(`buildDiagrams(feGraph)`)에 안내 노드(`⚠ 페어 폴더에서 백엔드를 인식하지 못했습니다`)를 덧붙여 반환한다. 조용한 강등 금지(Evidence-First). |
+
+## 8. 미해결·검토 사항
 
 - **elk mrtree 가용성**: `@mermaid-js/layout-elk` 빌드가 어떤 ELK 알고리즘을 노출하는지 실제 확인 후 적용 가능 여부 결정.
 - ~~**leaf endpoint subgraph 가독성**~~: ✅ 해소 (v1.2.57 R-T1.6 amendment) — endpoint를 leaf 노드 안 markdown multiline으로 collapse하여 endpoint 적층 Y축 비대 제거.

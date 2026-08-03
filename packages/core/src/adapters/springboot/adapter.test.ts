@@ -78,3 +78,32 @@ public interface OrderServiceClient {}
     expect(feignNode?.provenance.adapter).toBe('external-call-extractor@0.1')
   })
 })
+
+describe('SpringBootAdapter — Repository→table queries 엣지 (B3, C4 커버리지 갭 복구)', () => {
+  it('fixture — CommonPopRepository가 TB_AGENCY·TB_PRDO_WRY로 향하는 queries 엣지를 만든다', async () => {
+    const FIXTURE = path.resolve(process.cwd(), 'fixtures/mini-spring-lombok-mybatis-app')
+    const result = await springBootAdapter.analyze({ repoRoot: FIXTURE, analyzerVersion: 'test', stack: STACK })
+
+    const repo = result.componentNodes.find(n => n.name === 'CommonPopRepository')!
+    expect(repo).toBeDefined()
+    const tableIdByName = new Map(result.tableNodes.map(t => [t.id, t.name]))
+    const queriesEdges = (result.serverEdges ?? []).filter(e => e.kind === 'queries' && e.from === repo.id)
+    const targetTableNames = queriesEdges.map(e => tableIdByName.get(e.to)).sort()
+    expect(targetTableNames).toEqual(['TB_AGENCY', 'TB_PRDO_WRY'])
+    for (const e of queriesEdges) expect(e.confidence).toBe('inferred')
+  })
+
+  it('SQL 본문에서 테이블명을 추출할 수 없으면(FROM 없음) queries 엣지 없이 침묵한다', async () => {
+    await writeFile('src/main/java/com/x/repo/PingRepository.java', `
+package com.x.repo;
+public interface PingRepository {}
+`)
+    await writeFile('src/main/resources/mapper/PingMapper.xml', `
+<mapper namespace="com.x.repo.PingRepository">
+  <select id="ping" resultType="int">SELECT 1</select>
+</mapper>
+`)
+    const result = await springBootAdapter.analyze({ repoRoot: tmpDir, analyzerVersion: 'test', stack: STACK })
+    expect((result.serverEdges ?? []).filter(e => e.kind === 'queries')).toEqual([])
+  })
+})

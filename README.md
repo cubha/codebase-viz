@@ -4,9 +4,9 @@
 
 Routes, components, and DB relationships — extracted statically from **13 frameworks**, optionally enriched by LLM, rendered as three live diagram tabs inside VS Code.
 
-> Marketplace: [`cubha.codebase-arch-viz`](https://marketplace.visualstudio.com/items?itemName=cubha.codebase-arch-viz) · Current release: **v1.2.59**
+> Marketplace: [`cubha.codebase-arch-viz`](https://marketplace.visualstudio.com/items?itemName=cubha.codebase-arch-viz) · Current release: **v1.2.60**
 >
-> **v1.2.59 highlights** — **Spring Boot BE 다이어그램 심화 + 툴체인 리프레시**. MyBatis XML statement 노드(Controller→…→XML→Statement 6단 체인, `[SELECT]` 등 SQL 타입 라벨), `@FeignClient` 외부시스템 노드(주황), Route→Controller `handles` 엣지, 컨트롤러 leaf 테이블 뱃지(`🗄`), BE Controller 색 분리(FE SSR 녹색→teal). BE-DIAGRAM-STANDARD v1.2. 툴체인: mermaid 11.16.0 · Node 22 · vitest 4 · ts-morph 28 · oxlint 게이트 · extension 테스트 ~50건 신설. verify.sh ALL PASS · Playwright 실 렌더 검증 · 회귀 0.
+> **v1.2.60 highlights** — **FE↔BE 결합 뷰 실배선 + MyBatis ERD 관계선 복구**. 페어(FE↔BE) 분석 시 결합 다이어그램이 Tab1에 실제로 배선(matched-only 필터·Tab2/3 chunk fallback·FE+BE 테이블 합집합·BE 미인식/매칭 0건 조용한 강등 금지). MyBatis Repository→table `queries` 엣지 신설로 Tab3 ERD 관계선 부재 결함 복구(신규 프록시 엔티티 0개). GitHub star 배지 추가.
 >
 > 이전 버전 이력은 [CHANGELOG](CHANGELOG.md) 참조.
 
@@ -31,7 +31,7 @@ When multiple workspace folders are open (e.g. a Next.js frontend + Spring Boot 
 1. Click **Analyze** → select the main (FE) project
 2. A second prompt appears — select the paired BE project (or **Skip** for single-project mode)
 
-Codebase Viz statically extracts `fetch()` / `axios.*` call URLs from the FE codebase and matches them against BE route definitions. Matched routes appear as **dashed cross-edges** in the combined Rendering Architecture diagram.
+Codebase Viz statically extracts `fetch()` / `axios.*` call URLs from the FE codebase and matches them against BE route definitions. The **Rendering Architecture tab is replaced** with a combined diagram: matched routes appear as **dashed cross-edges**, and only the FE/BE routes that actually participate in a match are shown (unmatched routes stay visible in their own project's standalone view instead of cluttering the combined one). Screen–Component stays FE-only; DB–Screen merges FE + BE tables into one ERD.
 
 | | Without LLM | With LLM (BYOK) |
 |---|---|---|
@@ -40,7 +40,7 @@ Codebase Viz statically extracts `fetch()` / `axios.*` call URLs from the FE cod
 | Dynamic segments (`${id}`) | shown as `${…}` placeholder | ✅ |
 | Import-resolved constants | ✗ | ✅ |
 
-Unmatched FE calls appear as **dangling edges** (inferred, `no-route-match`). Diagrams exceeding 1 M characters automatically split into chunks (rendered as multi-row grid in the viewer).
+FE calls with no matching BE route (`no-route-match`) are silently excluded from the combined diagram — they don't appear as dangling boxes. If the paired folder isn't recognized as a BE project, Codebase Viz falls back to the FE-only view with an inline notice instead of showing an empty diagram. Diagrams exceeding the node/text threshold collapse into a single notice box stating the actual count that triggered it.
 
 ---
 

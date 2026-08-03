@@ -11,6 +11,7 @@ import {
 import {
   renderMermaid,
   buildDiagrams,
+  buildCombinedDiagram,
   DEFAULT_GROUPING,
   type DiagramSet,
   type GroupingOptions,
@@ -64,8 +65,12 @@ export async function runAnalysis(
   await saveCachedGraph(repoRoot, finalGraph)
 
   if (opts.pairRepoRoot !== undefined) {
-    const pairResult = await buildPairResult(finalGraph, opts.pairRepoRoot, grouping)
-    return { graph: finalGraph, diagrams: buildDiagrams(finalGraph, { grouping }), pair: pairResult }
+    const pairResult = await buildPairResult(finalGraph, opts.pairRepoRoot)
+    // A1(FE↔BE cross-edge 렌더링 결함 복구): pair 모드는 Tab1을 결합 다이어그램으로 치환한다.
+    // 탭 4개 신설은 기각(braintrust) — pair 캐시가 cache-diagrams-pair-<suffix>.json으로 이미
+    // 분리 저장되므로 단일 탭 치환이 캐시를 오염시키지 않는다.
+    const combined = buildCombinedDiagram(finalGraph, pairResult.graph, pairResult.crossEdges, { grouping })
+    return { graph: finalGraph, diagrams: combined, pair: pairResult }
   }
 
   return { graph: finalGraph, diagrams: buildDiagrams(finalGraph, { grouping }) }
@@ -74,9 +79,6 @@ export async function runAnalysis(
 async function buildPairResult(
   feGraph: IRGraph,
   pairRepoRoot: string,
-  // FE↔BE 결합 다이어그램 렌더링(buildCombinedDiagram)이 extension.ts에서 아직 호출되지
-  // 않아 grouping이 여기선 미사용 — 결함 기록: project_v1259_residual_roadmap.md
-  _grouping: Required<GroupingOptions>,
 ): Promise<{ graph: IRGraph; crossEdges: IREdge[] }> {
   const pairStack = await detectStack(pairRepoRoot)
   const registry = createDefaultRegistry()

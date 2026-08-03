@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
-import { parseMybatisMappers } from './mybatis-parser.js'
+import { parseMybatisMappers, extractTablesFromSql } from './mybatis-parser.js'
 import * as fs from 'node:fs/promises'
 import * as os from 'node:os'
 import * as path from 'node:path'
@@ -307,5 +307,37 @@ public interface UserMapper {
     // 중복 없이 각 1개
     expect(cols.filter(c => c.name === 'STREET')).toHaveLength(1)
     expect(cols.filter(c => c.name === 'CITY')).toHaveLength(1)
+  })
+})
+
+describe('extractTablesFromSql — 위생 강화', () => {
+  it('SQL 라인주석(--) 안의 FROM은 테이블로 잡지 않는다', () => {
+    const sql = `-- SELECT * FROM TB_DEAD\nSELECT * FROM TB_LIVE`
+    expect(extractTablesFromSql(sql)).toEqual(['TB_LIVE'])
+  })
+
+  it('문자열 리터럴 안의 FROM은 테이블로 잡지 않는다', () => {
+    const sql = `SELECT 'from tb_fake' AS S FROM TB_REAL`
+    expect(extractTablesFromSql(sql)).toEqual(['TB_REAL'])
+  })
+
+  it('WITH CTE 별칭은 테이블 목록에서 제외한다', () => {
+    const sql = `WITH tmp AS (SELECT * FROM TB_REAL) SELECT * FROM tmp`
+    expect(extractTablesFromSql(sql)).toEqual(['TB_REAL'])
+  })
+
+  it('콤마로 연쇄된 다중 CTE(WITH a AS(...), b AS(...))도 전부 제외한다', () => {
+    const sql = `WITH a AS (SELECT * FROM TB_A), b AS (SELECT * FROM TB_B) SELECT * FROM a, b`
+    expect(extractTablesFromSql(sql).sort()).toEqual(['TB_A', 'TB_B'])
+  })
+
+  it('WITH RECURSIVE CTE 자기참조도 테이블 목록에서 제외한다', () => {
+    const sql = `WITH RECURSIVE cte_org AS (SELECT * FROM TB_ORG UNION ALL SELECT * FROM cte_org) SELECT * FROM cte_org`
+    expect(extractTablesFromSql(sql)).toEqual(['TB_ORG'])
+  })
+
+  it('문자열 리터럴 안에 --가 있어도 같은 줄의 실제 FROM절을 잃지 않는다', () => {
+    const sql = `SELECT 'a--b' AS x FROM TB_REAL`
+    expect(extractTablesFromSql(sql)).toEqual(['TB_REAL'])
   })
 })

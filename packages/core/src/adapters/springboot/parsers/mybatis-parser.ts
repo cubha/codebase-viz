@@ -44,18 +44,38 @@ async function findFiles(repoRoot: string, predicate: (name: string) => boolean)
   return results
 }
 
-function extractTablesFromSql(sql: string): string[] {
+// CTE(WITH [RECURSIVE] ... AS (...)) 별칭 수집 — `WITH a AS (...), b AS (...)` 콤마 연쇄 및
+// `WITH RECURSIVE` 자기참조 형태까지 포함.
+const CTE_PATTERNS = [
+  /\bWITH\s+(?:RECURSIVE\s+)?([A-Za-z_][A-Za-z0-9_$]*)\s+AS\s*\(/gi,
+  /,\s*([A-Za-z_][A-Za-z0-9_$]*)\s+AS\s*\(/gi,
+]
+
+export function extractTablesFromSql(sql: string): string[] {
   const cleaned = sql
     .replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, '$1')
     .replace(/<!--[\s\S]*?-->/g, '')
     .replace(/<[^>]+>/g, ' ')
+    // 문자열 리터럴을 먼저 제거해야 한다 — 라인 주석(--)을 먼저 지우면 리터럴 내부의 '--'가
+    // 그 뒤의 진짜 FROM절까지 한 줄 통째로 삼켜버린다(예: SELECT 'a--b' FROM TB_REAL).
+    .replace(/'(?:[^']|'')*'/g, ' ')
+    .replace(/--[^\n]*/g, ' ')
+
+  const cteNames = new Set<string>()
+  for (const p of CTE_PATTERNS) {
+    p.lastIndex = 0
+    let m: RegExpExecArray | null
+    while ((m = p.exec(cleaned)) !== null) cteNames.add(m[1]!.toUpperCase())
+  }
+
   const tables = new Set<string>()
   for (const p of TABLE_PATTERNS) {
     p.lastIndex = 0
     let m: RegExpExecArray | null
     while ((m = p.exec(cleaned)) !== null) {
       const name = m[1]
-      if (name && !SQL_KW.has(name.toUpperCase()) && name.length > 1) tables.add(name)
+      if (name && !SQL_KW.has(name.toUpperCase()) && name.length > 1 && !cteNames.has(name.toUpperCase()))
+        tables.add(name)
     }
   }
   return [...tables]
