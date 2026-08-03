@@ -12,6 +12,7 @@ import { parseMybatisMappers } from './parsers/mybatis-parser.js'
 import { parseMapperXmlEdges } from './parsers/mapper-xml-parser.js'
 import { buildControllerRouteEdges } from './parsers/route-controller-edges.js'
 import { parseFeignClients } from './parsers/external-call-extractor.js'
+import { buildRepoTableEdges } from './parsers/repo-table-edges.js'
 import { buildMapperEdges } from '../_shared/mapper-utils.js'
 import { parseFlywayMigrations, mergeFlywayTables } from '../../db/flyway-parser.js'
 
@@ -43,11 +44,10 @@ export class SpringBootAdapter implements IAdapter {
     const diEdges = await parseSpringDependencies(repoRoot, componentNodes, analyzerVersion).catch(() => [])
 
     // A-ST3: MyBatis Mapper XML ↔ Repository interface 매칭 → XML 노드 + Repository→XML 엣지.
-    const { xmlNodes, xmlEdges } = await parseMapperXmlEdges(repoRoot, componentNodes, analyzerVersion)
-      .catch(() => ({ xmlNodes: [], xmlEdges: [] }))
+    const { xmlNodes, xmlEdges, repoTableRefs } = await parseMapperXmlEdges(repoRoot, componentNodes, analyzerVersion)
+      .catch(() => ({ xmlNodes: [], xmlEdges: [], repoTableRefs: [] }))
     const allComponentNodes = [...componentNodes, ...xmlNodes]
     const routeHandlesEdges = buildControllerRouteEdges(routeNodes, componentNodes)
-    const allServerEdges = [...diEdges, ...xmlEdges, ...routeHandlesEdges]
 
     const tablesByName = new Map(jpaNodes.map(n => [n.name, n]))
     for (const n of mybatisNodes) {
@@ -59,6 +59,10 @@ export class SpringBootAdapter implements IAdapter {
 
     // Flyway DDL supplements ORM tables (ORM takes precedence)
     const tableNodes = mergeFlywayTables(ormTables, flywayNodes)
+
+    // B3: Repository→table queries 엣지 — 최종 tableNodes(2중 dedup 후) 기준 이름 매칭.
+    const repoTableEdges = buildRepoTableEdges(repoTableRefs, tableNodes)
+    const allServerEdges = [...diEdges, ...xmlEdges, ...routeHandlesEdges, ...repoTableEdges]
 
     // buildMapperEdges(파일명 ↔ 테이블)는 XML 노드를 대상에서 제외 — 원본 컴포넌트만 전달.
     const mapperEdges = buildMapperEdges(routeNodes, componentNodes, tableNodes, analyzerVersion)

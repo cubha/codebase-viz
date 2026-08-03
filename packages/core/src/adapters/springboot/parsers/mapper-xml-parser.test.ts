@@ -124,4 +124,50 @@ public interface UserRepository {}
     expect(has('OrderRepository', 'OrderMapper.xml')).toBe(true)
     expect(has('PerfStatusRepository', 'PerfStatusMapper.xml')).toBe(true)
   })
+
+  describe('repoTableRefs — Repository 단위 접근 테이블 추출 (B2)', () => {
+    it('namespace 매칭된 Repository의 XML 본문에서 접근 테이블명을 1-pass로 추출한다', async () => {
+      await writeFile('src/main/java/com/x/repo/UserRepository.java', `
+package com.x.repo;
+public interface UserRepository {}
+`)
+      await writeFile('src/main/resources/mapper/UserMapper.xml', `
+<mapper namespace="com.x.repo.UserRepository">
+  <select id="findAll">SELECT * FROM TB_USER</select>
+  <select id="findOrders">SELECT * FROM TB_ORDER</select>
+</mapper>
+`)
+      const comps = await parseSpringComponents(tmpDir, 'test')
+      const r = await parseMapperXmlEdges(tmpDir, comps, 'test')
+      const repo = comps.find(c => c.name === 'UserRepository')!
+      expect(r.repoTableRefs).toHaveLength(1)
+      expect(r.repoTableRefs[0]?.repoComponentId).toBe(repo.id)
+      expect(r.repoTableRefs[0]?.tableNames.sort()).toEqual(['TB_ORDER', 'TB_USER'])
+    })
+
+    it('namespace 매칭 실패(고아 XML)면 repoTableRefs에 포함하지 않는다', async () => {
+      await writeFile('src/main/java/com/x/repo/UserRepository.java', `
+package com.x.repo;
+public interface UserRepository {}
+`)
+      await writeFile('src/main/resources/mapper/GhostMapper.xml', `
+<mapper namespace="com.ghost.NoSuchRepository">
+  <select id="x">SELECT * FROM TB_GHOST</select>
+</mapper>
+`)
+      const comps = await parseSpringComponents(tmpDir, 'test')
+      const r = await parseMapperXmlEdges(tmpDir, comps, 'test')
+      expect(r.repoTableRefs).toEqual([])
+    })
+
+    it('fixture — CommonPopRepository가 TB_AGENCY·TB_PRDO_WRY를 참조한다', async () => {
+      const FIXTURE = path.resolve(process.cwd(), 'fixtures/mini-spring-lombok-mybatis-app')
+      const comps = await parseSpringComponents(FIXTURE, 'test')
+      const r = await parseMapperXmlEdges(FIXTURE, comps, 'test')
+      const repo = comps.find(c => c.name === 'CommonPopRepository')!
+      const ref = r.repoTableRefs.find(x => x.repoComponentId === repo.id)!
+      expect(ref).toBeDefined()
+      expect(ref.tableNames.sort()).toEqual(['TB_AGENCY', 'TB_PRDO_WRY'])
+    })
+  })
 })

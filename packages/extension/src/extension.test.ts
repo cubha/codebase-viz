@@ -203,4 +203,94 @@ describe('doAnalyze (codebaseViz.analyze 커맨드 핵심 플로우)', () => {
     expect(vscode.window.showErrorMessage).toHaveBeenCalledTimes(1)
     expect(writeDiagramCacheMock).not.toHaveBeenCalled()
   })
+
+  it('pairRepoRoot로 분석 성공 시 workspaceState에 마지막 pair 폴더를 기록한다(A3)', async () => {
+    readDiagramCacheMock.mockResolvedValue(undefined)
+    runAnalysisMock.mockResolvedValue({
+      graph: { projectName: 'demo', repoRoot: '/repo/a', nodes: [], edges: [] },
+      diagrams: FAKE_DIAGRAMS,
+      pair: { graph: { nodes: [], edges: [] }, crossEdges: [] },
+    })
+    const context = makeContext()
+    vscode.workspace.workspaceFolders = [{ uri: makeUri('/repo/a'), name: 'a' }] as never
+    vscode.workspace.getConfiguration.mockImplementation(() => makeConfiguration({ enableLLM: false }))
+    activate(context)
+    const handler = vscode.commands.registerCommand.mock.calls.find(
+      (c: unknown[]) => c[0] === 'codebaseViz.reanalyze',
+    )?.[1] as (fsPath?: unknown, pairFsPath?: unknown) => Promise<void>
+
+    // pickPairFolder는 QuickPick 경유라 여기서 직접 재현하지 않고, doAnalyze에 전달되는 값만 검증한다.
+    // reanalyze 핸들러가 pickPairFolder를 내부에서 부르므로, workspaceFolders를 2개로 만들고
+    // QuickPick이 두 번째 폴더를 선택하도록 스텁한다.
+    vscode.workspace.workspaceFolders = [
+      { uri: makeUri('/repo/a'), name: 'a' },
+      { uri: makeUri('/repo/be'), name: 'be' },
+    ] as never
+    vscode.window.showQuickPick.mockResolvedValue({ label: 'be', fsPath: '/repo/be' })
+
+    await handler()
+
+    expect(context.workspaceState.update).toHaveBeenCalledWith('codebaseViz.pairFolderMap', { '/repo/a': '/repo/be' })
+  })
+
+  it('메인 폴더별로 스코프된다 — 다른 폴더의 pair 기록을 덮어쓰지 않는다(scope-critic 지적 회귀 방지)', async () => {
+    readDiagramCacheMock.mockResolvedValue(undefined)
+    runAnalysisMock.mockResolvedValue({
+      graph: { projectName: 'demo', repoRoot: '/repo/c', nodes: [], edges: [] },
+      diagrams: FAKE_DIAGRAMS,
+      pair: { graph: { nodes: [], edges: [] }, crossEdges: [] },
+    })
+    const context = makeContext()
+    await context.workspaceState.update('codebaseViz.pairFolderMap', { '/repo/a': '/repo/be' })
+    vscode.workspace.workspaceFolders = [
+      { uri: makeUri('/repo/c'), name: 'c' },
+      { uri: makeUri('/repo/d'), name: 'd' },
+    ] as never
+    vscode.workspace.getConfiguration.mockImplementation(() => makeConfiguration({ enableLLM: false }))
+    activate(context)
+    const handler = vscode.commands.registerCommand.mock.calls.find(
+      (c: unknown[]) => c[0] === 'codebaseViz.analyze',
+    )?.[1] as () => Promise<void>
+    vscode.window.showQuickPick.mockResolvedValue({ label: 'd', fsPath: '/repo/d' })
+
+    await handler()
+
+    expect(context.workspaceState.update).toHaveBeenCalledWith(
+      'codebaseViz.pairFolderMap',
+      { '/repo/a': '/repo/be', '/repo/c': '/repo/d' },
+    )
+  })
+})
+
+describe('codebaseViz.openViewer 커맨드 (A3: pair 캐시 도달 경로)', () => {
+  it('마지막 pair 폴더가 기록돼 있으면 readCache에 pairRepoRoot를 함께 전달한다', async () => {
+    const context = makeContext()
+    vscode.workspace.workspaceFolders = [{ uri: makeUri('/repo/a'), name: 'a' }] as never
+    await context.workspaceState.update('codebaseViz.pairFolderMap', { '/repo/a': '/repo/be' })
+    readDiagramCacheMock.mockResolvedValue({
+      savedAt: 1, projectName: 'demo', routeCount: 1, tableCount: 0, diagrams: FAKE_DIAGRAMS,
+    })
+    activate(context)
+    const handler = vscode.commands.registerCommand.mock.calls.find(
+      (c: unknown[]) => c[0] === 'codebaseViz.openViewer',
+    )?.[1] as () => Promise<void>
+
+    await handler()
+
+    expect(readDiagramCacheMock).toHaveBeenCalledWith('/repo/a', '/repo/be')
+  })
+
+  it('pair 이력이 없으면 pairRepoRoot 없이 readCache를 호출한다(회귀 방지)', async () => {
+    const context = makeContext()
+    vscode.workspace.workspaceFolders = [{ uri: makeUri('/repo/a'), name: 'a' }] as never
+    readDiagramCacheMock.mockResolvedValue(undefined)
+    activate(context)
+    const handler = vscode.commands.registerCommand.mock.calls.find(
+      (c: unknown[]) => c[0] === 'codebaseViz.openViewer',
+    )?.[1] as () => Promise<void>
+
+    await handler()
+
+    expect(readDiagramCacheMock).toHaveBeenCalledWith('/repo/a', undefined)
+  })
 })

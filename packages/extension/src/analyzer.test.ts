@@ -5,6 +5,9 @@ import * as os from 'node:os'
 import { runAnalysis, loadCachedGraph, saveCachedGraph } from './analyzer.js'
 import { ANALYZER_VERSION } from '@codebase-viz/types'
 
+const FE_PAIR_FIXTURE = path.resolve(process.cwd(), 'fixtures/mini-react-partner-mock-app')
+const BE_PAIR_FIXTURE = path.resolve(process.cwd(), 'fixtures/mini-spring-partner-mock-app')
+
 describe('runAnalysis — LLM OFF + LLM-only stack', () => {
   const tmpDirs: string[] = []
 
@@ -120,5 +123,64 @@ describe('loadCachedGraph / saveCachedGraph — 캐시 무효화 (C1)', () => {
     const raw = await fs.readFile(path.join(dir, '.codebase-viz', 'cache-graph.json'), 'utf8')
     const entry = JSON.parse(raw) as { analyzerVersion: string }
     expect(entry.analyzerVersion).toBe(ANALYZER_VERSION)
+  })
+})
+
+describe('runAnalysis — pair 모드 결합 다이어그램 배선 (A1, FE↔BE cross-edge 렌더링 결함 복구)', () => {
+  afterEach(async () => {
+    await fs.rm(path.join(FE_PAIR_FIXTURE, '.codebase-viz'), { recursive: true, force: true }).catch(() => undefined)
+    await fs.rm(path.join(BE_PAIR_FIXTURE, '.codebase-viz'), { recursive: true, force: true }).catch(() => undefined)
+  })
+
+  // 이 fixture 페어는 FE가 '/api/...' 접두사, BE가 '/v1/...' 접두사를 써서 실제로는 한 건도
+  // 매칭되지 않는다(gateway rewrite를 가정한 실제 파트너 코드베이스 재현 — 실측 확인). A2의
+  // matched-only 필터가 dangling crossEdge에는 선을 그리지 않으므로 FE_PROJ/BE_PROJ/dashed는
+  // 이 fixture로 증명할 수 없다 — 그 경로는 정확 매칭 fixture로 별도 검증한다
+  // (packages/cli/src/cross-project-integration.test.ts, packages/renderer/src/combined-diagram.test.ts).
+  // 여기서는 배선 자체(pair 모드가 실제로 buildCombinedDiagram을 타는지)만 증명한다 — Tab3가
+  // FE 단독일 때의 형태(react-router+무테이블 → FE API-call 다이어그램)가 아니라 BE의 실제
+  // erDiagram·실제 테이블명으로 바뀐다는 사실이 배선의 유일하게 거짓없는 증거다.
+  it('pair 분석 시 diagrams가 결합 경로(buildCombinedDiagram)로 구성된다 — Tab3가 BE의 실제 ERD로 바뀐다', async () => {
+    const result = await runAnalysis(FE_PAIR_FIXTURE, { pairRepoRoot: BE_PAIR_FIXTURE })
+    expect(result.pair).toBeDefined()
+    expect(result.pair?.crossEdges.length).toBeGreaterThan(0)
+    expect(result.diagrams.dbScreen).toContain('erDiagram')
+    expect(result.diagrams.dbScreen).toContain('TWA_CONTRACT_MST')
+  })
+
+  it('실제 매칭되는 crossEdge는 matched-only 필터를 거쳐 FE_PROJ·BE_PROJ·dashed cross-edge로 렌더된다', async () => {
+    const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'codebase-viz-pair-match-'))
+    const beDir = await fs.mkdtemp(path.join(os.tmpdir(), 'codebase-viz-pair-match-be-'))
+    try {
+      await fs.mkdir(path.join(dir, 'app'), { recursive: true })
+      await fs.writeFile(
+        path.join(dir, 'package.json'),
+        JSON.stringify({ dependencies: { next: '^15.0.0', react: '^18.2.0' } }),
+      )
+      await fs.writeFile(
+        path.join(dir, 'app', 'page.tsx'),
+        `export default function Page() {\n  fetch('/api/users')\n  return null\n}\n`,
+      )
+      await fs.mkdir(path.join(beDir, 'src/main/java/com/x/controller'), { recursive: true })
+      await fs.writeFile(path.join(beDir, 'pom.xml'), '<project></project>')
+      await fs.writeFile(
+        path.join(beDir, 'src/main/java/com/x/controller/UserController.java'),
+        `package com.x.controller;\nimport org.springframework.web.bind.annotation.*;\n@RestController\npublic class UserController {\n  @GetMapping("/api/users")\n  public Object list() { return null; }\n}\n`,
+      )
+      const result = await runAnalysis(dir, { pairRepoRoot: beDir })
+      expect(result.pair?.crossEdges.length).toBeGreaterThan(0)
+      expect(result.diagrams.rendering).toContain('FE_PROJ')
+      expect(result.diagrams.rendering).toContain('BE_PROJ')
+      expect(result.diagrams.rendering).toContain('-.->')
+    } finally {
+      await fs.rm(dir, { recursive: true, force: true }).catch(() => undefined)
+      await fs.rm(beDir, { recursive: true, force: true }).catch(() => undefined)
+    }
+  })
+
+  it('pair 미지정 시(단일 분석)에는 결합 다이어그램을 만들지 않는다(회귀 방지)', async () => {
+    const result = await runAnalysis(FE_PAIR_FIXTURE)
+    expect(result.pair).toBeUndefined()
+    expect(result.diagrams.rendering).not.toContain('BE_PROJ')
   })
 })
