@@ -169,7 +169,7 @@ async function doAnalyze(
       // workspaceState가 비어있는 새 창에서 디스크의 기존 pair 캐시를 히트한 뒤 갱신 없이
       // 반환하면, 다음 openViewer/activate가 다시 pairRepoRoot를 몰라 같은 결함이 재발한다.
       await setLastPairFolder(context, workspaceRoot, pairRepoRoot)
-      await panel.showCached(cached)
+      await panel.showCached(cached, workspaceRoot, pairRepoRoot)
       sidebarProvider?.updateStatus({
         projectName: cached.projectName,
         cachedAt: cached.savedAt,
@@ -201,7 +201,7 @@ async function doAnalyze(
     })
     await writeCache(workspaceRoot, graph, diagrams, pairRepoRoot)
     await setLastPairFolder(context, workspaceRoot, pairRepoRoot)
-    await panel.updateGraph(graph, diagrams)
+    await panel.updateGraph(graph, diagrams, pairRepoRoot)
 
     const result = {
       projectName: graph.projectName ?? path.basename(workspaceRoot),
@@ -334,7 +334,7 @@ export function activate(context: vscode.ExtensionContext): void {
         return
       }
       const panel = CodebaseVizPanel.createOrShow(context.extensionUri)
-      await panel.showCached(cached)
+      await panel.showCached(cached, workspaceRoot, pairRepoRoot)
     }),
 
     // 멀티 워크스페이스: 폴더 선택

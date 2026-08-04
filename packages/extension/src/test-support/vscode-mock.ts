@@ -31,6 +31,15 @@ export const Uri = {
 export const ConfigurationTarget = { Global: 1, Workspace: 2, WorkspaceFolder: 3 }
 export const ViewColumn = { Active: -1, Beside: -2, One: 1 }
 
+export class Range {
+  constructor(
+    public startLine: number,
+    public startChar: number,
+    public endLine: number,
+    public endChar: number,
+  ) {}
+}
+
 export interface MockConfiguration {
   get: ReturnType<typeof vi.fn>
   update: ReturnType<typeof vi.fn>
@@ -49,6 +58,7 @@ export const workspace = {
   onDidChangeWorkspaceFolders: vi.fn(() => ({ dispose: vi.fn() })),
   onDidChangeConfiguration: vi.fn(() => ({ dispose: vi.fn() })),
   fs: { writeFile: vi.fn(async () => undefined) },
+  openTextDocument: vi.fn(async (uri: MockUri) => ({ uri })),
 }
 
 export interface MockWebview {
@@ -119,6 +129,7 @@ export const window = {
   showInformationMessage: vi.fn(async () => undefined),
   showInputBox: vi.fn(async () => undefined),
   showSaveDialog: vi.fn(async () => undefined),
+  showTextDocument: vi.fn(async () => undefined),
   createWebviewPanel: vi.fn(() => makeWebviewPanel()),
   registerWebviewViewProvider: vi.fn(() => ({ dispose: vi.fn() })),
 }
@@ -139,5 +150,7 @@ export function resetVscodeMock(): void {
   workspace.getConfiguration.mockImplementation((_section?: string) => makeConfiguration())
   window.createWebviewPanel.mockImplementation(() => makeWebviewPanel())
   window.registerWebviewViewProvider.mockImplementation(() => ({ dispose: vi.fn() }))
+  window.showTextDocument.mockImplementation(async () => undefined)
+  workspace.openTextDocument.mockImplementation(async (uri: MockUri) => ({ uri }))
   env.language = 'en'
 }

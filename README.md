@@ -4,9 +4,9 @@
 
 Routes, components, and DB relationships — extracted statically from **13 frameworks**, optionally enriched by LLM, rendered as three live diagram tabs inside VS Code.
 
-> Marketplace: [`cubha.codebase-arch-viz`](https://marketplace.visualstudio.com/items?itemName=cubha.codebase-arch-viz) · Current release: **v1.2.60**
+> Marketplace: [`cubha.codebase-arch-viz`](https://marketplace.visualstudio.com/items?itemName=cubha.codebase-arch-viz) · Current release: **v1.2.61**
 >
-> **v1.2.60 highlights** — **FE↔BE 결합 뷰 실배선 + MyBatis ERD 관계선 복구**. 페어(FE↔BE) 분석 시 결합 다이어그램이 Tab1에 실제로 배선(matched-only 필터·Tab2/3 chunk fallback·FE+BE 테이블 합집합·BE 미인식/매칭 0건 조용한 강등 금지). MyBatis Repository→table `queries` 엣지 신설로 Tab3 ERD 관계선 부재 결함 복구(신규 프록시 엔티티 0개). GitHub star 배지 추가.
+> **v1.2.61 highlights** — **UX Wave A: 딥링크·hover·검색**. Tab1/Tab2 노드 클릭 시 소스 코드 해당 라인으로 딥링크, hover 시 file:line+confidence+inferenceChain tooltip, 라우트/컴포넌트 fuzzy 검색바(미매칭 dim 처리) 신설. GitHub star 배지를 marketplace 미노출 필드에서 README로 이전.
 >
 > 이전 버전 이력은 [CHANGELOG](CHANGELOG.md) 참조.
 

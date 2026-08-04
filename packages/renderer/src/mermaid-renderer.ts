@@ -21,6 +21,7 @@ import {
 import { RENDERING_INIT, CLASS_DEFS } from './helpers/constants.js'
 import { sanitizeId } from './helpers/ids.js'
 import { escapePlainLabel } from './helpers/label-escape.js'
+import { buildNodeMap, mergeNodeMaps, type NodeMap } from './helpers/node-map.js'
 import { findBranchingGroups, chunkGroups, splitGroupsByNodeBound, CHUNK_ROUTE_BUDGET, SINGLE_DIAGRAM_ROUTE_THRESHOLD } from './helpers/layout.js'
 import { isFileTreeTab2Eligible } from './fe/infra.js'
 import { buildNestedSubgraphLines } from './fe/nested.js'
@@ -148,6 +149,9 @@ export interface DiagramSet {
   rendering: string
   screenComponent: string
   dbScreen: string
+  // T1 딥링크·T2 hover 사이드채널(webview 전용). sanitizeId(node.id) → {file,line,confidence,...}.
+  // renderMermaid(.md CLI 출력)는 이 필드를 emit하지 않는다 — DiagramSet은 webview 경로 전용 산출물.
+  nodeMap?: NodeMap
 }
 
 export interface GroupingOptions {
@@ -297,8 +301,16 @@ export function buildCombinedDiagram(
   const screenComponent = buildWithChunkFallback(feGraph, buildScreenComponentDiagram, chunkOpts, threshold, feGraph.nodes.filter(isRouteNode).length, nodeThr)
   const dbScreen = buildDbScreenWithFallback(combinedTableGraph, chunkOpts, threshold, nodeThr)
 
+  // T1/T2 사이드채널: FE·BE 각자의 노드를 자기 그래프 기준으로 매핑 후 병합. BE 쪽만 r:'pair'로
+  // 표시해 확장이 pairRepoRoot로 경로를 해석하게 한다. 충돌 시 더 확실한 confidence가 이기고
+  // (Evidence-First), 동순위면 FE가 이긴다 — mergeNodeMaps가 buildNodeMap과 동일 규칙 적용.
+  const emittedTexts = [renderingText, screenComponent, dbScreen]
+  const feNodeMap = buildNodeMap(feGraph, emittedTexts)
+  const beNodeMap = buildNodeMap(beGraph, emittedTexts, { root: 'pair' })
+  const nodeMap: NodeMap = mergeNodeMaps(feNodeMap, beNodeMap)
+
   if (!shouldChunk(renderingText, threshold, matchedRouteCount, nodeThr)) {
-    return { rendering: renderingText, screenComponent, dbScreen }
+    return { rendering: renderingText, screenComponent, dbScreen, nodeMap }
   }
 
   // 실제 트리거를 문구에 반영한다 — 노드수가 임계를 넘지 않았는데도 "노드 N개 초과"라 적으면
@@ -312,6 +324,7 @@ export function buildCombinedDiagram(
     rendering: `graph TD\n  fallback["${fallbackMsg}"]`,
     screenComponent,
     dbScreen,
+    nodeMap,
   }
 }
 
@@ -356,13 +369,13 @@ export function buildDiagrams(graph: IRGraph, opts?: BuildDiagramsOptions): Diag
   const threshold = opts?.chunkThreshold ?? DEFAULT_CHUNK_THRESHOLD
   const nodeThr = opts?.nodeThreshold ?? DEFAULT_NODE_THRESHOLD
   const routeCount = graph.nodes.filter(isRouteNode).length
-  return {
-    // FE 표준 v1.2 (R-T1.7, §9): Tab1은 top-level 도메인 요약이라 노드 수 O(도메인)로 항상 단일.
-    // routeCount 기반 chunk fallback에 태우면 >300 routes(예: 516)에서 도메인 그룹별로 재청킹되어
-    // wrapper가 청크마다 반복 emit + findBranchingGroups가 부분 트리를 하강해 sub-segment로 산란된다.
-    // 직접 호출로 단일 래퍼·전체 top-level 도메인을 보장. (Tab2/Tab3는 leaf 열거라 청킹 유지.)
-    rendering: buildRenderingDiagram(graph),
-    screenComponent: buildWithChunkFallback(graph, buildScreenComponentDiagram, chunkOpts, threshold, routeCount, nodeThr),
-    dbScreen: buildDbScreenWithFallback(graph, chunkOpts, threshold, nodeThr),
-  }
+  // FE 표준 v1.2 (R-T1.7, §9): Tab1은 top-level 도메인 요약이라 노드 수 O(도메인)로 항상 단일.
+  // routeCount 기반 chunk fallback에 태우면 >300 routes(예: 516)에서 도메인 그룹별로 재청킹되어
+  // wrapper가 청크마다 반복 emit + findBranchingGroups가 부분 트리를 하강해 sub-segment로 산란된다.
+  // 직접 호출로 단일 래퍼·전체 top-level 도메인을 보장. (Tab2/Tab3는 leaf 열거라 청킹 유지.)
+  const rendering = buildRenderingDiagram(graph)
+  const screenComponent = buildWithChunkFallback(graph, buildScreenComponentDiagram, chunkOpts, threshold, routeCount, nodeThr)
+  const dbScreen = buildDbScreenWithFallback(graph, chunkOpts, threshold, nodeThr)
+  const nodeMap = buildNodeMap(graph, [rendering, screenComponent, dbScreen])
+  return { rendering, screenComponent, dbScreen, nodeMap }
 }

@@ -110,6 +110,85 @@ describe('CodebaseVizPanel.updateGraph / showCached', () => {
   })
 })
 
+describe('CodebaseVizPanel openNode 메시지 핸들링 (Wave A ST4 — T1 딥링크)', () => {
+  const DIAGRAMS_WITH_MAP: DiagramSet = {
+    rendering: '', screenComponent: '', dbScreen: '',
+    nodeMap: {
+      fe_sid: { f: 'src/app/blog/page.tsx', l: 12, c: 'verified' },
+      be_sid: { f: 'src/main/Ctrl.java', l: 3, c: 'verified', r: 'pair' },
+    },
+  } as unknown as DiagramSet
+
+  it('FE nodeMap 히트 시 repoRoot 기준으로 파일을 열고 (line-1)로 이동한다', async () => {
+    const panel = CodebaseVizPanel.createOrShow(EXT_URI)
+    const created = vscode.window.createWebviewPanel.mock.results[0]?.value
+    await panel.updateGraph(makeGraph(), DIAGRAMS_WITH_MAP)
+
+    created.webview.__fireMessage({ type: 'openNode', id: 'fe_sid' })
+    await vi.waitFor(() => expect(vscode.window.showTextDocument).toHaveBeenCalledTimes(1))
+
+    const openedUri = vscode.workspace.openTextDocument.mock.calls[0][0]
+    expect(openedUri.fsPath).toBe('/repo/src/app/blog/page.tsx')
+    const opts = vscode.window.showTextDocument.mock.calls[0][1]
+    expect(opts.selection.startLine).toBe(11)
+  })
+
+  it('r:"pair" 엔트리는 pairRepoRoot 기준으로 해석한다', async () => {
+    const panel = CodebaseVizPanel.createOrShow(EXT_URI)
+    const created = vscode.window.createWebviewPanel.mock.results[0]?.value
+    await panel.updateGraph(makeGraph(), DIAGRAMS_WITH_MAP, '/be-repo')
+
+    created.webview.__fireMessage({ type: 'openNode', id: 'be_sid' })
+    await vi.waitFor(() => expect(vscode.window.showTextDocument).toHaveBeenCalledTimes(1))
+
+    const openedUri = vscode.workspace.openTextDocument.mock.calls[0][0]
+    expect(openedUri.fsPath).toBe('/be-repo/src/main/Ctrl.java')
+  })
+
+  it('pairRepoRoot 없이 r:"pair" 엔트리를 클릭하면 무반응(no-op)한다', async () => {
+    const panel = CodebaseVizPanel.createOrShow(EXT_URI)
+    const created = vscode.window.createWebviewPanel.mock.results[0]?.value
+    await panel.updateGraph(makeGraph(), DIAGRAMS_WITH_MAP) // pairRepoRoot 미지정
+
+    created.webview.__fireMessage({ type: 'openNode', id: 'be_sid' })
+    await vi.waitFor(() => expect(created.webview.__fireMessage).toBeDefined())
+    await new Promise(r => setTimeout(r, 20))
+    expect(vscode.window.showTextDocument).not.toHaveBeenCalled()
+  })
+
+  it('nodeMap에 없는 id는 무반응한다', async () => {
+    const panel = CodebaseVizPanel.createOrShow(EXT_URI)
+    const created = vscode.window.createWebviewPanel.mock.results[0]?.value
+    await panel.updateGraph(makeGraph(), DIAGRAMS_WITH_MAP)
+
+    created.webview.__fireMessage({ type: 'openNode', id: 'no_such_id' })
+    await new Promise(r => setTimeout(r, 20))
+    expect(vscode.window.showTextDocument).not.toHaveBeenCalled()
+  })
+
+  it('id가 "__proto__"/"constructor" 등 프로토타입 체인 키여도 무반응한다(security-auditor S6)', async () => {
+    const panel = CodebaseVizPanel.createOrShow(EXT_URI)
+    const created = vscode.window.createWebviewPanel.mock.results[0]?.value
+    await panel.updateGraph(makeGraph(), DIAGRAMS_WITH_MAP)
+
+    created.webview.__fireMessage({ type: 'openNode', id: '__proto__' })
+    created.webview.__fireMessage({ type: 'openNode', id: 'constructor' })
+    await new Promise(r => setTimeout(r, 20))
+    expect(vscode.window.showTextDocument).not.toHaveBeenCalled()
+  })
+
+  it('openTextDocument가 실패(파일 부재 등)해도 예외 없이 무반응한다', async () => {
+    vscode.workspace.openTextDocument.mockRejectedValueOnce(new Error('ENOENT'))
+    const panel = CodebaseVizPanel.createOrShow(EXT_URI)
+    const created = vscode.window.createWebviewPanel.mock.results[0]?.value
+    await panel.updateGraph(makeGraph(), DIAGRAMS_WITH_MAP)
+
+    created.webview.__fireMessage({ type: 'openNode', id: 'fe_sid' })
+    await vi.waitFor(() => expect(vscode.workspace.openTextDocument).toHaveBeenCalledTimes(1))
+    expect(vscode.window.showTextDocument).not.toHaveBeenCalled()
+  })
+})
+
 describe('CodebaseVizPanel dispose', () => {
   it('panel dispose 시 singleton 인스턴스를 해제한다', () => {
     CodebaseVizPanel.createOrShow(EXT_URI)

@@ -1,5 +1,18 @@
 # Changelog
 
+## [1.2.61] — 2026-08-05
+
+### Added — UX Wave A: 딥링크·hover·검색 (T1/T2/T3)
+
+- **T1 노드 클릭 → 소스 코드 딥링크**: Tab1/Tab2 SVG 노드를 클릭하면 원본 파일의 해당 라인으로 바로 이동한다. 렌더러가 다이어그램 emit 시점에 `Map<sanitizedId, {filePath, line, confidence, ...}>` 사이드채널(`DiagramSet.nodeMap`)을 생성해 webview에 함께 전달 — webview는 경로를 전혀 다루지 않고 sanitized id만 확장으로 보내며, 확장이 자기 nodeMap으로 조회해 `resolveWithinRoot`로 root 이탈을 방어한 뒤 `showTextDocument`로 jump한다. 전달 기구는 계획 단계의 mermaid `click` 지시자 emit 대신 **DOM 이벤트 위임**으로 확정(기존 보안 회귀 테스트·mermaid #4346과 충돌 회피). row-mode(다중 청크)에서도 chunk-local로 정상 동작.
+- **T2 노드 hover → tooltip**: filePath:line + confidence 배지(verified/manual/inferred) + inferred 시 inferenceChain 첫 항목을 노출. T1과 동일한 nodeMap 사이드채널 재사용.
+- **T3 라우트/컴포넌트 fuzzy 검색바**: Tab1/Tab2 상단 검색 입력, 미매칭 노드는 opacity 0.15로 dim 처리, ESC로 초기화. 매치 밀도 보정(`+(query.len/text.len)*10`)으로 동점 정렬 퇴화 방지. Tab3(ERD)는 `.node` 클래스가 없어 범위 밖.
+- FE/BE 페어 분석 시 nodeMap 병합은 confidence 랭크(verified/manual > inferred) 우선 — Evidence-First 준수, IR(`IRGraph`) 확장 없음(`DiagramSet` 산출물 확장).
+
+### Added
+
+- GitHub star 배지를 `package.json` badges 필드(마켓플레이스 미노출 결함) 대신 README.md 마크다운 배지로 이전.
+
 ## [1.2.60] — 2026-08-03
 
 ### Fixed — MyBatis queries 엣지 부재 복구 (C4 커버리지 갭)

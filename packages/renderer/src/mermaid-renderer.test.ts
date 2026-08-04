@@ -831,3 +831,35 @@ describe('Tab1 v1.2.54 Fix1 — deployTarget=mobile 뒷문 차단 (렌더러 경
     expect(rendering).not.toContain('External REST API')
   })
 })
+
+describe('buildDiagrams — nodeMap (Wave A T1/T2 사이드채널, v1.2.61)', () => {
+  it('emit된 라우트/컴포넌트 노드가 nodeMap에 f/l/c/n으로 포함된다', () => {
+    const routeProv = { file: 'app/blog/page.tsx', line: 3, adapter: 'nextjs@0.1', analyzerVersion: 'test' }
+    const route = createRouteNode({
+      id: makeNodeId('route', 'app/blog/page.tsx', 'page'),
+      path: '/blog',
+      filePath: 'app/blog/page.tsx',
+      routeFileKind: 'page',
+      dynamicSegmentType: 'static',
+      isGroupRoute: false,
+      renderingMode: 'SSR',
+      provenance: routeProv,
+      confidence: 'verified',
+    })
+    const graph = createIRGraph({
+      analyzerVersion: '0.1',
+      repoRoot: '/tmp/next',
+      nodes: [route],
+      edges: [],
+    })
+    const { rendering, nodeMap } = buildDiagrams(graph)
+    expect(rendering).toContain('/blog')
+    expect(nodeMap).toBeDefined()
+    const entries = Object.values(nodeMap ?? {})
+    const hit = entries.find(e => e.f === 'app/blog/page.tsx' && e.l === 3)
+    expect(hit).toBeDefined()
+    expect(hit?.c).toBe('verified')
+    expect(hit?.n).toBe('/blog')
+    expect(hit?.r).toBeUndefined()
+  })
+})

@@ -6,7 +6,13 @@ import type { IRGraph } from '@codebase-viz/types'
 import type { DiagramSet } from '@codebase-viz/renderer'
 import { dictForLocale, resolveLocale } from './i18n/dict.js'
 import { safeJson, escapeHtml } from './webview-escape.js'
-import { isValidExportMessage, sanitizeExportFilename, type ValidExportMessage } from './message-guard.js'
+import {
+  isValidExportMessage,
+  sanitizeExportFilename,
+  isValidOpenNodeMessage,
+  resolveWithinRoot,
+  type ValidExportMessage,
+} from './message-guard.js'
 
 interface ViewerParams {
   projectName: string
@@ -14,6 +20,8 @@ interface ViewerParams {
   tableCount: number
   diagrams: DiagramSet
   cachedAt?: number
+  repoRoot: string
+  pairRepoRoot?: string
 }
 
 export class CodebaseVizPanel {
@@ -32,6 +40,8 @@ export class CodebaseVizPanel {
       (msg: unknown) => {
         if (isValidExportMessage(msg)) {
           void this.handleExport(msg)
+        } else if (isValidOpenNodeMessage(msg)) {
+          void this.handleOpenNode(msg.id)
         } else if (
           typeof msg === 'object' &&
           msg !== null &&
@@ -86,23 +96,31 @@ export class CodebaseVizPanel {
     this.panel.webview.postMessage({ type: 'triggerExport', format })
   }
 
-  async updateGraph(graph: IRGraph, diagrams: DiagramSet): Promise<void> {
+  async updateGraph(graph: IRGraph, diagrams: DiagramSet, pairRepoRoot?: string): Promise<void> {
     this.lastParams = {
       projectName: graph.projectName ?? path.basename(graph.repoRoot),
       routeCount: graph.nodes.filter(n => n.kind === 'route').length,
       tableCount: graph.nodes.filter(n => n.kind === 'table').length,
       diagrams,
+      repoRoot: graph.repoRoot,
+      ...(pairRepoRoot !== undefined ? { pairRepoRoot } : {}),
     }
     this.panel.webview.html = await this.buildViewerHtmlImpl(this.lastParams)
   }
 
-  async showCached(data: { projectName: string; routeCount: number; tableCount: number; diagrams: DiagramSet; savedAt: number }): Promise<void> {
+  async showCached(
+    data: { projectName: string; routeCount: number; tableCount: number; diagrams: DiagramSet; savedAt: number },
+    repoRoot: string,
+    pairRepoRoot?: string,
+  ): Promise<void> {
     this.lastParams = {
       projectName: data.projectName,
       routeCount: data.routeCount,
       tableCount: data.tableCount,
       diagrams: data.diagrams,
       cachedAt: data.savedAt,
+      repoRoot,
+      ...(pairRepoRoot !== undefined ? { pairRepoRoot } : {}),
     }
     this.panel.webview.html = await this.buildViewerHtmlImpl(this.lastParams)
   }
@@ -111,6 +129,32 @@ export class CodebaseVizPanel {
     // language 설정 변경 시 캐시된 lastParams로 viewer를 새 locale로 다시 렌더.
     if (this.lastParams !== undefined) {
       this.panel.webview.html = await this.buildViewerHtmlImpl(this.lastParams)
+    }
+  }
+
+  // T1 딥링크: 웹뷰가 보낸 sanitized id로 lastParams.diagrams.nodeMap을 조회해 소스로 점프한다.
+  // 웹뷰는 경로를 전혀 공급하지 않는다 — id만 받고 파일경로는 확장이 자체 nodeMap에서 해석한다.
+  private async handleOpenNode(id: string): Promise<void> {
+    const params = this.lastParams
+    if (params === undefined) return
+    const nodeMap = params.diagrams.nodeMap
+    // webview가 보낸 id는 신뢰 불가 — '__proto__'/'constructor' 등으로 프로토타입 체인을 조회해
+    // entry가 undefined가 아닌 것처럼 보이는 것을 막기 위해 own-property만 허용한다.
+    const entry = nodeMap !== undefined && Object.prototype.hasOwnProperty.call(nodeMap, id) ? nodeMap[id] : undefined
+    if (entry === undefined) return // 명시적 no-op: nodeMap 미스(subgraph wrapper 등)는 조용히 무시
+    const root = entry.r === 'pair' ? params.pairRepoRoot : params.repoRoot
+    if (root === undefined) return
+    const absPath = resolveWithinRoot(root, entry.f)
+    if (absPath === undefined) return
+    try {
+      const doc = await vscode.workspace.openTextDocument(vscode.Uri.file(absPath))
+      const line = Math.max(0, entry.l - 1)
+      await vscode.window.showTextDocument(doc, {
+        selection: new vscode.Range(line, 0, line, 0),
+        viewColumn: vscode.ViewColumn.One,
+      })
+    } catch {
+      // 파일 부재 등 — 잘못된 점프보다 무반응이 안전하다(Less is More).
     }
   }
 
