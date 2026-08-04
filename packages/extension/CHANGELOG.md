@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.2.61] — 2026-08-05
+
+### Added
+
+- **Click a node to jump straight to the source.** Nodes on the Rendering Architecture and Screen–Component tabs are now clickable — jumps to the exact file and line.
+- **Hover a node to see where it comes from.** Shows the file:line, a confidence badge (verified/manual/inferred), and — for inferred nodes — the first step of the inference chain.
+- **Search bar on the diagram tabs.** Fuzzy-search routes and components by name or path; non-matching nodes dim out. Press Escape to clear.
+- GitHub star badge moved from the marketplace metadata (wasn't rendering) to the README.
+
 ## [1.2.60] — 2026-08-03
 
 ### Fixed

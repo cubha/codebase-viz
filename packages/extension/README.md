@@ -4,6 +4,7 @@
 [![Open VSX](https://img.shields.io/open-vsx/v/cubha/codebase-arch-viz?label=Open%20VSX&color=a60ee5)](https://open-vsx.org/extension/cubha/codebase-arch-viz)
 [![Downloads](https://img.shields.io/visual-studio-marketplace/d/cubha.codebase-arch-viz)](https://marketplace.visualstudio.com/items?itemName=cubha.codebase-arch-viz)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green)](https://github.com/cubha/codebase-viz/blob/master/LICENSE)
+[![GitHub stars](https://img.shields.io/github/stars/cubha/codebase-viz?style=social)](https://github.com/cubha/codebase-viz)
 
 **Instant architecture diagrams for 13 frameworks — no API key needed.**  
 Available on **VS Code**, **Cursor**, **VSCodium**, and any editor using the Open VSX registry.
@@ -57,22 +58,20 @@ Frameworks not in this list (Express, Hono, Rails, Go, etc.) use **LLM primary**
 
 ---
 
-## ✨ What's new in v1.2.60
+## ✨ What's new in v1.2.61
 
-### FE↔BE combined view is now actually wired up + MyBatis ERD fix
+### Click, hover, search — navigate diagrams like code
 
-- **Paired (FE↔BE) analysis now renders the real combined diagram.** Previously the combined Rendering Architecture view was computed but never used — pair mode silently showed FE-only content. It now replaces that tab, showing only the routes that actually participate in a match, with the DB–Screen tab merging tables from both projects.
-- **MyBatis-based repositories now show their table relationships in the ERD.** The DB–Screen tab was silently missing all relationship lines for MyBatis repos — tables appeared as disconnected entities. Fixed by tracing table references from the mapper XML SQL bodies back to the owning Repository.
-- No more silent fallbacks: if the paired folder isn't a recognized backend, or nothing actually matched, you get a clear inline notice instead of an empty or misleading diagram.
-- GitHub star badge added to the marketplace listing.
+- **Click a node to jump straight to the source.** Nodes on the Rendering Architecture and Screen–Component tabs are now clickable — jumps to the exact file and line.
+- **Hover a node to see where it comes from.** Shows the file:line, a confidence badge (verified/manual/inferred), and — for inferred nodes — the first step of the inference chain.
+- **Search bar on the diagram tabs.** Fuzzy-search routes and components by name or path; non-matching nodes dim out. Press Escape to clear.
+- GitHub star badge moved to the README (wasn't rendering from the marketplace metadata field).
 
-### v1.2.59 — Deeper Spring Boot diagrams + toolchain refresh
+### v1.2.60 — FE↔BE combined view wired up + MyBatis ERD fix
 
-- **MyBatis SQL statements are now visible.** The Screen–Component tab extends the DI chain one level further: Controller → Service → Repository → Mapper XML → individual `<select>/<insert>/<update>/<delete>` statements, each labeled with its SQL type (e.g. `selectAgencyPopup [SELECT]`).
-- **`@FeignClient` interfaces appear as external-system nodes** (amber) at the end of the DI chain, so cross-service calls are visible at a glance.
-- **Controllers got their own color.** BE controllers were reusing the green of FE SSR routes, which was ambiguous in fullstack pair analysis — they are now teal across all BE adapters.
-- **Controller leaves show which DB tables they reach** (`🗄 table, table` badge) by walking the DI chain to `queries` edges — no new analysis pass, zero cost when no tables are reachable.
-- Under the hood: mermaid bundle updated to 11.16.0, Node 22 / vitest 4 / ts-morph 28 upgrades, a new oxlint correctness gate in CI, and ~50 new extension-host tests on a new `vscode` mock harness.
+- **Paired (FE↔BE) analysis now renders the real combined diagram**, showing only the routes that actually participate in a match, with the DB–Screen tab merging tables from both projects.
+- **MyBatis-based repositories now show their table relationships in the ERD** — previously appeared as disconnected entities.
+- No more silent fallbacks: unrecognized backend or no matches now shows a clear inline notice.
 
 > Full version history lives in the [CHANGELOG](CHANGELOG.md).
 

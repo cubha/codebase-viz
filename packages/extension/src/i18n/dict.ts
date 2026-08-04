@@ -43,6 +43,9 @@ const KO: Dict = {
   'alert.renderError': 'Render error',
   // viewer.html — chunk-nav suffix
   'chunk.suffix': 'wheel zoom · drag pan',
+  // viewer.html — search (Wave A T3)
+  'search.placeholder': '라우트·컴포넌트 검색...',
+  'search.ariaLabel': '라우트·컴포넌트 검색',
   // viewer.html — sidebar (table card)
   'card.fk': 'FK',
   'card.usedBy': 'Used by',
@@ -128,6 +131,8 @@ const EN: Dict = {
   'alert.imageLoadFailed': 'Image load failed',
   'alert.renderError': 'Render error',
   'chunk.suffix': 'wheel zoom · drag pan',
+  'search.placeholder': 'Search routes/components...',
+  'search.ariaLabel': 'Search routes and components',
   'card.fk': 'FK',
   'card.usedBy': 'Used by',
   'export.dbScreenAll': 'Data Flow (All)',
@@ -207,6 +212,8 @@ const JA: Dict = {
   'alert.imageLoadFailed': '画像読み込み失敗',
   'alert.renderError': 'レンダーエラー',
   'chunk.suffix': 'ホイールズーム · ドラッグパン',
+  'search.placeholder': 'ルート・コンポーネントを検索...',
+  'search.ariaLabel': 'ルート・コンポーネント検索',
   'card.fk': 'FK',
   'card.usedBy': '使用元',
   'export.dbScreenAll': 'データフロー (全て)',
@@ -286,6 +293,8 @@ const ZH_CN: Dict = {
   'alert.imageLoadFailed': '图像加载失败',
   'alert.renderError': '渲染错误',
   'chunk.suffix': '滚轮缩放 · 拖动平移',
+  'search.placeholder': '搜索路由·组件...',
+  'search.ariaLabel': '搜索路由和组件',
   'card.fk': 'FK',
   'card.usedBy': '使用方',
   'export.dbScreenAll': '数据流 (全部)',

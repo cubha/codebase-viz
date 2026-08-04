@@ -1,9 +1,12 @@
 import { describe, it, expect } from 'vitest'
+import * as path from 'node:path'
 import {
   isHttpsUrl,
   sanitizeExportFilename,
   isValidExportMessage,
   isAllowedSidebarMessageType,
+  isValidOpenNodeMessage,
+  resolveWithinRoot,
 } from './message-guard.js'
 
 describe('isHttpsUrl (ST2)', () => {
@@ -64,5 +67,37 @@ describe('isAllowedSidebarMessageType (ST2)', () => {
   it('알 수 없는 타입은 거부한다', () => {
     expect(isAllowedSidebarMessageType('__proto__')).toBe(false)
     expect(isAllowedSidebarMessageType(123)).toBe(false)
+  })
+})
+
+describe('isValidOpenNodeMessage (Wave A ST4 — T1 딥링크)', () => {
+  it('id 문자열만 있는 openNode 메시지를 허용한다', () => {
+    expect(isValidOpenNodeMessage({ type: 'openNode', id: 'route_app_blog_page_tsx_page' })).toBe(true)
+  })
+  it('빈 id는 거부한다', () => {
+    expect(isValidOpenNodeMessage({ type: 'openNode', id: '' })).toBe(false)
+  })
+  it('id가 문자열이 아니면 거부한다 — 절대경로/객체 등 임의 데이터를 웹뷰가 주입 못 하게 한다', () => {
+    expect(isValidOpenNodeMessage({ type: 'openNode', id: 123 })).toBe(false)
+    expect(isValidOpenNodeMessage({ type: 'openNode', id: { f: '/etc/passwd' } })).toBe(false)
+  })
+  it('type이 다르거나 null/비객체면 거부한다', () => {
+    expect(isValidOpenNodeMessage({ type: 'export', id: 'x' })).toBe(false)
+    expect(isValidOpenNodeMessage(null)).toBe(false)
+    expect(isValidOpenNodeMessage('x')).toBe(false)
+  })
+})
+
+describe('resolveWithinRoot (Wave A ST4 — T1 딥링크 경로 이탈 차단)', () => {
+  const root = path.resolve('/repo')
+
+  it('root 하위 상대경로는 절대경로로 해석한다', () => {
+    expect(resolveWithinRoot(root, 'src/app/blog/page.tsx')).toBe(path.join(root, 'src/app/blog/page.tsx'))
+  })
+  it('상위 디렉터리 이탈(..)은 undefined를 반환한다', () => {
+    expect(resolveWithinRoot(root, '../../etc/passwd')).toBeUndefined()
+  })
+  it('root 밖 절대경로가 섞여 들어와도 undefined를 반환한다', () => {
+    expect(resolveWithinRoot(root, path.resolve('/etc/passwd'))).toBeUndefined()
   })
 })

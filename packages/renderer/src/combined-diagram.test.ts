@@ -320,3 +320,87 @@ describe('buildCombinedDiagram — A2 재보정(scope-critic): 전량 dangling·
     expect(diagrams.rendering).not.toContain('apiClient')
   })
 })
+
+describe('buildCombinedDiagram — nodeMap FE/BE 병합 (Wave A T1/T2, v1.2.61)', () => {
+  it('FE·BE 매칭 라우트가 nodeMap에 함께 포함되고, BE 쪽은 r:"pair"로 구분된다', () => {
+    const matched = makeFeRoute('/mapmatch', 'MapMatchWidget')
+    const feGraph: IRGraph = createIRGraph({
+      analyzerVersion: 'test', repoRoot: '/fe', projectName: 'fe',
+      nodes: matched.nodes, edges: matched.edges,
+    })
+    const beRoute = makeBeRoute('/api/mapmatch')
+    const beGraph: IRGraph = createIRGraph({
+      analyzerVersion: 'test', repoRoot: '/be', projectName: 'be', metadata: BE_META,
+      nodes: [beRoute], edges: [],
+    })
+    const remapped: IREdge[] = [makeCrossEdge(matched.comp.id, beRoute.id)]
+    const diagrams = buildCombinedDiagram(feGraph, beGraph, remapped)
+
+    const feSid = Object.keys(diagrams.nodeMap ?? {}).find(k => diagrams.nodeMap?.[k]?.n === '/mapmatch')
+    const beSid = Object.keys(diagrams.nodeMap ?? {}).find(k => diagrams.nodeMap?.[k]?.n === '/api/mapmatch')
+    expect(feSid).toBeDefined()
+    expect(beSid).toBeDefined()
+    expect(diagrams.nodeMap?.[feSid as string]?.r).toBeUndefined()
+    expect(diagrams.nodeMap?.[beSid as string]?.r).toBe('pair')
+  })
+
+  it('sanitizeId 충돌 시 FE 엔트리가 BE보다 우선한다', () => {
+    // route:app/a.b/page.tsx (FE) vs route:src/a-b (BE) 둘 다 sanitizeId 시 동일 sid로 붕괴하도록 구성.
+    const feRoute = createRouteNode({
+      id: makeNodeId('route', 'app/dup/page.tsx', 'page'),
+      path: '/dup', filePath: 'app/dup/page.tsx', routeFileKind: 'page',
+      dynamicSegmentType: 'static', isGroupRoute: false, renderingMode: 'SSR',
+      provenance: { ...PROV, file: 'app/dup/page.tsx' }, confidence: 'verified',
+    })
+    const feGraph: IRGraph = createIRGraph({
+      analyzerVersion: 'test', repoRoot: '/fe', projectName: 'fe',
+      nodes: [feRoute], edges: [],
+    })
+    // 동일 NodeId 문자열을 BE 쪽에도 강제 부여해 실제 충돌을 재현(sanitizeId는 id 문자열 자체에 적용).
+    const beRoute = createRouteNode({
+      id: feRoute.id,
+      path: '/dup', filePath: 'src/dup', routeFileKind: 'page',
+      dynamicSegmentType: 'static', isGroupRoute: false, renderingMode: 'SSR',
+      provenance: { ...PROV, file: 'src/dup' }, confidence: 'verified',
+    })
+    const beGraph: IRGraph = createIRGraph({
+      analyzerVersion: 'test', repoRoot: '/be', projectName: 'be', metadata: BE_META,
+      nodes: [beRoute], edges: [],
+    })
+    const diagrams = buildCombinedDiagram(feGraph, beGraph, [])
+    const sid = Object.keys(diagrams.nodeMap ?? {}).find(k => diagrams.nodeMap?.[k]?.f === 'app/dup/page.tsx' || diagrams.nodeMap?.[k]?.f === 'src/dup')
+    expect(sid).toBeDefined()
+    expect(diagrams.nodeMap?.[sid as string]?.f).toBe('app/dup/page.tsx')
+    expect(diagrams.nodeMap?.[sid as string]?.r).toBeUndefined()
+  })
+
+  it('sid 충돌인데 BE가 verified·FE가 inferred면 confidence가 FE 우선 규칙을 이긴다 (Evidence-First)', () => {
+    const feRoute = createRouteNode({
+      id: makeNodeId('route', 'app/dup2/page.tsx', 'page'),
+      path: '/dup2', filePath: 'app/dup2/page.tsx', routeFileKind: 'page',
+      dynamicSegmentType: 'static', isGroupRoute: false, renderingMode: 'SSR',
+      provenance: { ...PROV, file: 'app/dup2/page.tsx' },
+      confidence: 'inferred', inferenceChain: ['guess'],
+    })
+    const feGraph: IRGraph = createIRGraph({
+      analyzerVersion: 'test', repoRoot: '/fe', projectName: 'fe',
+      nodes: [feRoute], edges: [],
+    })
+    const beRoute = createRouteNode({
+      id: feRoute.id,
+      path: '/dup2', filePath: 'src/dup2', routeFileKind: 'page',
+      dynamicSegmentType: 'static', isGroupRoute: false, renderingMode: 'SSR',
+      provenance: { ...PROV, file: 'src/dup2' }, confidence: 'verified',
+    })
+    const beGraph: IRGraph = createIRGraph({
+      analyzerVersion: 'test', repoRoot: '/be', projectName: 'be', metadata: BE_META,
+      nodes: [beRoute], edges: [],
+    })
+    const diagrams = buildCombinedDiagram(feGraph, beGraph, [])
+    const sid = Object.keys(diagrams.nodeMap ?? {}).find(k => diagrams.nodeMap?.[k]?.f === 'app/dup2/page.tsx' || diagrams.nodeMap?.[k]?.f === 'src/dup2')
+    expect(sid).toBeDefined()
+    expect(diagrams.nodeMap?.[sid as string]?.f).toBe('src/dup2')
+    expect(diagrams.nodeMap?.[sid as string]?.c).toBe('verified')
+    expect(diagrams.nodeMap?.[sid as string]?.r).toBe('pair')
+  })
+})

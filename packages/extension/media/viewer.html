@@ -64,6 +64,15 @@
     .legend-row { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; font-size: 10px; color: var(--text-sec); }
     .legend-row:last-child { margin-bottom: 0; }
     .l-dot { width: 8px; height: 8px; border-radius: 2px; flex-shrink: 0; }
+    /* Wave A T3: 검색바 — .legend(top-left)·.chunk-nav(top-center)와 겹치지 않는
+       유일한 비충돌 슬롯인 top-right에 배치. */
+    .node-search { position: absolute; top: 16px; right: 20px; z-index: 30; }
+    .search-input { width: 220px; padding: 4px 10px; font-family: var(--font); font-size: 10px;
+      background: rgba(6,8,16,.88); border: 1px solid var(--border); border-radius: 6px;
+      color: var(--text-pri); backdrop-filter: blur(10px); }
+    .search-input::placeholder { color: var(--text-muted); }
+    .search-input:focus-visible { outline: 1px solid var(--blue); outline-offset: 1px; border-color: var(--blue); }
+    .node.node-dim { opacity: .15; transition: opacity .15s; }
     .db-wrap { display: grid; grid-template-columns: 1fr 300px; height: 100%; }
     .db-canvas-area { display: flex; flex-direction: column; overflow: hidden; }
     .db-canvas-wrap { flex: 1; position: relative; overflow: hidden; }
@@ -164,9 +173,28 @@
     .erDiagram .label.attribute-name p,
     .erDiagram .label.attribute-keys p,
     .erDiagram .label.attribute-comment p { color: #1e293b !important; font-weight: 500; }
+    /* Wave A T1: 딥링크 클릭 피드백 — 확장이 에디터를 여는 동안의 유일한 시각 확인 신호.
+       g.node는 지오메트리가 없어 border를 못 그리므로, 실제 도형(rect/polygon 등) 자식에 적용. */
+    .node.node-click-pulse rect, .node.node-click-pulse polygon,
+    .node.node-click-pulse circle, .node.node-click-pulse path {
+      outline: 2px solid var(--blue); outline-offset: 2px;
+    }
+    /* Wave A T2: hover tooltip — 범례(.legend)의 confidence 색 규약(verified=green,
+       inferred=amber+dashed)을 그대로 계승한다. */
+    .node-tooltip { position: fixed; z-index: 100; display: none; pointer-events: none;
+      background: var(--bg-card); border: 1px solid var(--border); border-radius: 6px;
+      padding: 8px 10px; font-size: 10px; max-width: 360px; backdrop-filter: blur(10px);
+      box-shadow: 0 4px 16px rgba(0,0,0,.4); }
+    .node-tooltip .tt-path { color: var(--text-sec); word-break: break-all; margin-bottom: 4px; }
+    .node-tooltip .tt-conf { display: inline-block; padding: 1px 6px; border-radius: 3px; font-weight: 600; letter-spacing: .3px; }
+    .node-tooltip .tt-conf.tt-verified { color: var(--green); border: 1px solid rgba(74,222,128,.35); background: rgba(74,222,128,.08); }
+    .node-tooltip .tt-conf.tt-inferred { color: var(--amber); border: 1px dashed rgba(245,158,11,.5); background: rgba(245,158,11,.08); }
+    .node-tooltip .tt-chain { color: var(--text-muted); margin-top: 5px; padding-top: 5px; border-top: 1px solid var(--border-sub); }
   </style>
 </head>
 <body>
+
+<div id="node-tooltip" class="node-tooltip" role="tooltip" aria-hidden="true"></div>
 
 <header>
   <div class="logo">Codebase <em>Visualizer</em></div>
@@ -193,6 +221,11 @@
       <div class="legend-row"><div class="l-dot" style="background:#6b7280;border:1px dashed #7dd3fc;border-radius:2px"></div><span data-i18n="legend.inferred">inferred (LLM)</span></div>
       <div class="legend-row"><div class="l-dot" style="background:transparent;border:1px dashed #7dd3fc;border-radius:2px"></div><span data-i18n="legend.feBe">FE→BE 연결 (dashed)</span></div>
     </div>
+    <div class="node-search">
+      <input type="text" class="search-input" id="search-r" data-t="r" autocomplete="off"
+        data-i18n-placeholder="search.placeholder" data-i18n-aria="search.ariaLabel"
+        placeholder="Search routes/components...">
+    </div>
     <div class="canvas-wrap" id="w-r"><div class="canvas-inner" id="i-r"><div class="loading-msg" data-i18n="status.rendering">렌더링 중...</div></div></div>
     <div id="cnav-r" class="chunk-nav" style="display:none"><span class="cn-label"></span></div>
     <div class="zoom-ctrl">
@@ -208,6 +241,11 @@
       <div class="legend-row"><div class="l-dot" style="background:#ca8a04"></div><span data-i18n="legend.isr">ISR · 증분 재생성</span></div>
       <div class="legend-row"><div class="l-dot" style="background:#7c3aed"></div><span data-i18n="legend.ssg">SSG · 정적 생성</span></div>
       <div class="legend-row"><div class="l-dot" style="background:#6b7280;border:1px dashed #7dd3fc;border-radius:2px"></div><span data-i18n="legend.inferred">inferred (LLM)</span></div>
+    </div>
+    <div class="node-search">
+      <input type="text" class="search-input" id="search-s" data-t="s" autocomplete="off"
+        data-i18n-placeholder="search.placeholder" data-i18n-aria="search.ariaLabel"
+        placeholder="Search routes/components...">
     </div>
     <div class="canvas-wrap" id="w-s"><div class="canvas-inner" id="i-s"><div class="loading-msg" data-i18n="status.rendering">렌더링 중...</div></div></div>
     <div id="cnav-s" class="chunk-nav" style="display:none"><span class="cn-label"></span></div>
@@ -271,8 +309,33 @@ function esc(s) {
   if (s === null || s === undefined) return '';
   return String(s).replace(/[&<>"']/g, c => ESC_MAP[c]);
 }
+// Wave A T3(검색) 코어 — 대소문자 무시 부분열(subsequence) fuzzy 매칭.
+// query의 모든 문자가 text에 순서대로(연속일 필요 없음) 나타나야 매치로 본다.
+// 매치 실패는 null, 매치 성공은 점수(클수록 더 좋은 매치)를 반환한다.
+// 빈 쿼리는 전체 매치로 취급(점수 0) — 검색 초기 상태에서 전 노드 표시.
+function fuzzyScore(query, text) {
+  if (!query) return 0;
+  const q = String(query).toLowerCase();
+  const t = String(text).toLowerCase();
+  let qi = 0, score = 0, consecutive = 0;
+  for (let ti = 0; ti < t.length && qi < q.length; ti++) {
+    if (t[ti] !== q[qi]) { consecutive = 0; continue; }
+    consecutive++;
+    score += 1 + consecutive; // 연속 매치 보너스 — 뒤로 갈수록 가중치 증가
+    if (ti === 0 || /[/_.\-\s]/.test(t[ti - 1])) score += 2; // 단어 경계 시작 보너스
+    qi++;
+  }
+  if (qi !== q.length) return null;
+  // 매치 밀도 보너스 — 위치·연속성이 같은 매치라도 쿼리 대비 텍스트가 짧을수록(관련성이
+  // 높을수록) 우선한다. 없으면 'user' 검색 시 '/users'와 '/api/.../user-management-service'가
+  // 둘 다 경계+연속 매치라 동점이 되어 정렬이 사실상 알파벳순으로 퇴화한다(scope-critic 지적).
+  return score + (q.length / t.length) * 10;
+}
 // data-i18n attribute로 마크된 모든 element textContent 일괄 치환 (페이지 로드 시 1회)
 document.querySelectorAll('[data-i18n]').forEach(function(el) { el.textContent = tr(el.dataset.i18n); });
+// Wave A T3: placeholder/aria-label은 textContent가 아니라 별도 속성 치환이 필요하다.
+document.querySelectorAll('[data-i18n-placeholder]').forEach(function(el) { el.placeholder = tr(el.dataset.i18nPlaceholder); });
+document.querySelectorAll('[data-i18n-aria]').forEach(function(el) { el.setAttribute('aria-label', tr(el.dataset.i18nAria)); });
 
 if (meta.projectName) {
   document.getElementById('h-badge').textContent = meta.projectName;
@@ -289,6 +352,9 @@ const DIAGRAMS = {
   s: injected.screenComponent || '',
   d: injected.dbScreen       || '',
 };
+// Wave A T1/T2 사이드채널(옵셔널) — renderer/src/helpers/node-map.ts가 만든 sanitizedId → {f,l,c,i,n,r}.
+// 구 harness/캐시는 이 필드가 없을 수 있으므로 조용히 {}로 degrade한다(기존 스펙 파손 방지).
+const NODE_MAP = injected.nodeMap || {};
 
 // ── Runtime ──────────────────────────────────────────────────────────────────
 mermaid.initialize({
@@ -445,6 +511,112 @@ document.addEventListener('click', e => {
   else if (action === 'rz') rz(el.dataset.arg);
   else if (action === 'zm') zm(el.dataset.argT, parseFloat(el.dataset.argF));
   else if (action === 'setDbView') setDbView(el.dataset.v);
+});
+
+// Wave A T1(딥링크) — mermaid v11이 .node 요소에 부여하는 id는
+// `<renderId>-flowchart-<sanitizedId>-<seq>` 형식(tests/playwright/node-id-extraction.spec.mjs
+// 실측 확정). sanitizeId 출력은 '-'를 포함하지 않아 이 정규식은 모호성이 없다.
+const NODE_ID_RE = /-flowchart-(.+)-\d+$/;
+document.addEventListener('click', e => {
+  const nodeEl = e.target.closest('.node');
+  if (!nodeEl) return;
+  // Tab3(ERD)는 erDiagram이라 .node 클래스가 없음 — 이 리스너는 자연히 Tab1/Tab2에만 적용된다.
+  if (didDragSinceMousedown(e)) return;
+  const m = NODE_ID_RE.exec(nodeEl.id || '');
+  if (!m) return;
+  const entry = NODE_MAP[m[1]];
+  if (!entry) return; // 명시적 no-op: subgraph wrapper·가상 endpoint 등 nodeMap 미스
+  postMsg({ type: 'openNode', id: m[1] });
+  nodeEl.classList.add('node-click-pulse');
+  setTimeout(() => nodeEl.classList.remove('node-click-pulse'), 150);
+});
+
+// Wave A T2(hover) — ST1의 nodeMap을 그대로 재사용(별도 데이터 구조 신설 없음).
+// mouseover/mouseout(비버블 대체용 delegation)로 .node subtree 진입·이탈만 판정한다.
+const nodeTooltipEl = document.getElementById('node-tooltip');
+let hoverNodeEl = null;
+
+function hideNodeTooltip() {
+  nodeTooltipEl.style.display = 'none';
+  nodeTooltipEl.setAttribute('aria-hidden', 'true');
+  hoverNodeEl = null;
+}
+
+function positionNodeTooltip(x, y) {
+  const pad = 12;
+  let left = x + pad, top = y + 16;
+  const rect = nodeTooltipEl.getBoundingClientRect();
+  if (left + rect.width > window.innerWidth) left = x - rect.width - pad;
+  if (top + rect.height > window.innerHeight) top = y - rect.height - 16;
+  nodeTooltipEl.style.left = Math.max(0, left) + 'px';
+  nodeTooltipEl.style.top = Math.max(0, top) + 'px';
+}
+
+document.addEventListener('mouseover', e => {
+  const nodeEl = e.target.closest('.node');
+  if (!nodeEl || nodeEl === hoverNodeEl) return;
+  const m = NODE_ID_RE.exec(nodeEl.id || '');
+  const entry = m && NODE_MAP[m[1]];
+  if (!entry) { hideNodeTooltip(); return; }
+  hoverNodeEl = nodeEl;
+  const confClass = entry.c === 'inferred' ? 'tt-inferred' : 'tt-verified';
+  let html = '<div class="tt-path">' + esc(entry.f) + ':' + esc(entry.l) + '</div>'
+    + '<div class="tt-conf ' + confClass + '">' + esc(entry.c) + '</div>';
+  if (entry.i) html += '<div class="tt-chain">' + esc(entry.i) + '</div>';
+  nodeTooltipEl.innerHTML = html;
+  nodeTooltipEl.style.display = 'block';
+  nodeTooltipEl.setAttribute('aria-hidden', 'false');
+  positionNodeTooltip(e.clientX, e.clientY);
+});
+
+document.addEventListener('mousemove', e => {
+  if (!hoverNodeEl) return;
+  positionNodeTooltip(e.clientX, e.clientY);
+});
+
+document.addEventListener('mouseout', e => {
+  if (!hoverNodeEl) return;
+  const to = e.relatedTarget;
+  if (to && hoverNodeEl.contains(to)) return; // 같은 노드의 자식 도형 간 이동 — 유지
+  hideNodeTooltip();
+});
+
+// Wave A T3(검색) — Tab1/Tab2(flowchart)에만 적용. Tab3(ERD)는 erDiagram이라 .node가 없어
+// 이 로직이 자연히 적용되지 않는다(별도 분기 불필요). ST1 nodeMap의 표시명(n)을 우선 쓰고,
+// 없으면(미매핑 노드) 렌더된 라벨 텍스트로 폴백 — 검색 대상에서 조용히 빠지지 않게 한다.
+function getSearchableText(nodeEl) {
+  const m = NODE_ID_RE.exec(nodeEl.id || '');
+  const entry = m && NODE_MAP[m[1]];
+  if (entry && entry.n) return entry.n;
+  return nodeEl.textContent || '';
+}
+
+// row-mode(다중 청크)에서도 #i-<t> 하위 전체를 순회 — content-visibility:auto인 화면 밖
+// 청크도 DOM 순회 자체는 정상이므로(geometry만 지연), opacity 토글에는 영향 없다.
+function applyNodeSearch(t, query) {
+  const container = document.getElementById('i-' + t);
+  if (!container) return;
+  container.querySelectorAll('.node').forEach(nodeEl => {
+    if (!query) { nodeEl.classList.remove('node-dim'); return; }
+    const score = fuzzyScore(query, getSearchableText(nodeEl));
+    nodeEl.classList.toggle('node-dim', score === null);
+  });
+}
+
+function debounce(fn, ms) {
+  let timer;
+  return (...args) => { clearTimeout(timer); timer = setTimeout(() => fn(...args), ms); };
+}
+const runNodeSearch = debounce(applyNodeSearch, 120);
+
+document.querySelectorAll('.search-input').forEach(input => {
+  input.addEventListener('input', () => runNodeSearch(input.dataset.t, input.value.trim()));
+  input.addEventListener('keydown', e => {
+    if (e.key !== 'Escape') return;
+    input.value = '';
+    applyNodeSearch(input.dataset.t, '');
+    input.blur();
+  });
 });
 
 function switchTab(t) {
@@ -760,7 +932,18 @@ function zm(t, f) {
 }
 function rz(t) { fitToView(t); }
 
+// Wave A T1: 노드 위에서 팬(pan) 후 놓으면 클릭으로 오작동 점프하는 것을 막기 위한 이동거리
+// 추적. drag 객체는 mouseup에서 곧바로 null로 리셋되어 그 뒤에 발생하는 click 시점엔 이미 비어
+// 있으므로(mousedown→mousemove*→mouseup→click 순서), 별도 좌표로 기록한다.
+let clickStartXY = null;
+function didDragSinceMousedown(e) {
+  if (!clickStartXY) return false;
+  const dx = Math.abs(e.clientX - clickStartXY.x), dy = Math.abs(e.clientY - clickStartXY.y);
+  return (dx + dy) > 4;
+}
+
 document.addEventListener('mousedown', e => {
+  clickStartXY = { x: e.clientX, y: e.clientY };
   const row = e.target.closest('.row-diagram');
   if (row && row.dataset.t) {
     e.preventDefault();
@@ -885,6 +1068,8 @@ const vsApi = (typeof acquireVsCodeApi !== 'undefined') ? acquireVsCodeApi() : n
 
 function postMsg(msg) {
   if (vsApi) { vsApi.postMessage(msg); return; }
+  // Wave A T1: 확장 없이 브라우저에서 열린 harness에는 "소스로 점프" 대응물이 없다 — no-op.
+  if (msg.type === 'openNode') return;
   // browser fallback: blob download
   const { format, data, filename } = msg;
   let href;

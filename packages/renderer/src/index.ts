@@ -7,3 +7,4 @@ export {
   type GroupingOptions,
   type BuildDiagramsOptions,
 } from './mermaid-renderer.js'
+export { type NodeMap, type NodeMapEntry } from './helpers/node-map.js'
