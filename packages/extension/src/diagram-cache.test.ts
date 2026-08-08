@@ -26,8 +26,19 @@ describe('readDiagramCache / writeDiagramCache — 캐시 파일 분리 (ARCH-1)
     projectName: 'demo',
     routeCount: 3,
     tableCount: 2,
-    diagrams: { rendering: 'graph LR', screenComponent: '', dbScreen: '' },
+    diagrams: { rendering: 'graph LR', screenComponent: '', dbScreen: '', nodeMap: {} },
   }
+
+  // v1.2.62: nodeMap이 없는 캐시 = v1.2.61 이전 산출물. analyzerVersion 범프를 빠뜨려도
+  // 딥링크·hover가 조용히 죽지 않도록 shape로 한 번 더 무효화한다.
+  it('nodeMap 없는 구버전 diagrams 캐시는 무효 처리한다', async () => {
+    const dir = await makeTmpDir()
+    const cacheDir = path.join(dir, '.codebase-viz')
+    await fs.mkdir(cacheDir, { recursive: true })
+    const legacy = { ...sample, diagrams: { rendering: 'graph LR', screenComponent: '', dbScreen: '' } }
+    await fs.writeFile(path.join(cacheDir, 'cache-diagrams.json'), JSON.stringify(legacy))
+    expect(await readDiagramCache(dir)).toBeUndefined()
+  })
 
   it('캐시 파일 없으면 undefined 반환', async () => {
     const dir = await makeTmpDir()

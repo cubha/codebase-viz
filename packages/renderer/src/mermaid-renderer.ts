@@ -21,7 +21,7 @@ import {
 import { RENDERING_INIT, CLASS_DEFS } from './helpers/constants.js'
 import { sanitizeId } from './helpers/ids.js'
 import { escapePlainLabel } from './helpers/label-escape.js'
-import { buildNodeMap, mergeNodeMaps, type NodeMap } from './helpers/node-map.js'
+import { buildNodeMap, mergeNodeMaps, stripNodeMapMarkers, type NodeMap } from './helpers/node-map.js'
 import { findBranchingGroups, chunkGroups, splitGroupsByNodeBound, CHUNK_ROUTE_BUDGET, SINGLE_DIAGRAM_ROUTE_THRESHOLD } from './helpers/layout.js'
 import { isFileTreeTab2Eligible } from './fe/infra.js'
 import { buildNestedSubgraphLines } from './fe/nested.js'
@@ -122,9 +122,10 @@ function wrapMermaid(diagram: string): string {
 export async function renderMermaid(graph: IRGraph, outputDir: string): Promise<void> {
   await fs.mkdir(outputDir, { recursive: true })
 
-  const renderingDiagram = buildRenderingDiagram(graph)
-  const screenComponentDiagram = buildScreenComponentDiagram(graph)
-  const dbScreenDiagram = buildDbScreenDiagram(graph)
+  // CLI .md는 사람이 읽는 산출물 — nodeMap 마커(webview 전용 사이드채널)는 여기 남으면 안 된다.
+  const renderingDiagram = stripNodeMapMarkers(buildRenderingDiagram(graph))
+  const screenComponentDiagram = stripNodeMapMarkers(buildScreenComponentDiagram(graph))
+  const dbScreenDiagram = stripNodeMapMarkers(buildDbScreenDiagram(graph))
 
   await fs.writeFile(
     path.join(outputDir, 'rendering.md'),
@@ -310,7 +311,12 @@ export function buildCombinedDiagram(
   const nodeMap: NodeMap = mergeNodeMaps(feNodeMap, beNodeMap)
 
   if (!shouldChunk(renderingText, threshold, matchedRouteCount, nodeThr)) {
-    return { rendering: renderingText, screenComponent, dbScreen, nodeMap }
+    return {
+      rendering: stripNodeMapMarkers(renderingText),
+      screenComponent: stripNodeMapMarkers(screenComponent),
+      dbScreen: stripNodeMapMarkers(dbScreen),
+      nodeMap,
+    }
   }
 
   // 실제 트리거를 문구에 반영한다 — 노드수가 임계를 넘지 않았는데도 "노드 N개 초과"라 적으면
@@ -322,8 +328,8 @@ export function buildCombinedDiagram(
     : `⚠ 결합 다이어그램 텍스트 ${renderingText.length}자 초과(임계 ${threshold}) — 안내만 표시`
   return {
     rendering: `graph TD\n  fallback["${fallbackMsg}"]`,
-    screenComponent,
-    dbScreen,
+    screenComponent: stripNodeMapMarkers(screenComponent),
+    dbScreen: stripNodeMapMarkers(dbScreen),
     nodeMap,
   }
 }
@@ -377,5 +383,12 @@ export function buildDiagrams(graph: IRGraph, opts?: BuildDiagramsOptions): Diag
   const screenComponent = buildWithChunkFallback(graph, buildScreenComponentDiagram, chunkOpts, threshold, routeCount, nodeThr)
   const dbScreen = buildDbScreenWithFallback(graph, chunkOpts, threshold, nodeThr)
   const nodeMap = buildNodeMap(graph, [rendering, screenComponent, dbScreen])
-  return { rendering, screenComponent, dbScreen, nodeMap }
+  // 마커는 nodeMap 생성 전용 사이드채널 — 렌더 텍스트에 남기면 CLI .md 출력과 스냅샷이 내부 IR id로
+  // 오염된다. nodeMap을 뽑은 직후 제거해 기존 출력과 byte-identical을 유지한다.
+  return {
+    rendering: stripNodeMapMarkers(rendering),
+    screenComponent: stripNodeMapMarkers(screenComponent),
+    dbScreen: stripNodeMapMarkers(dbScreen),
+    nodeMap,
+  }
 }

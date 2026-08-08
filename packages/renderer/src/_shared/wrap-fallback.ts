@@ -9,6 +9,7 @@ import {
 } from '@codebase-viz/types'
 import { groupRoutesByUrl } from '../url-grouper.js'
 import { chunkGroups, collectNestedRoutes } from '../helpers/layout.js'
+import { stripNodeMapMarkers } from '../helpers/node-map.js'
 
 export const DEFAULT_CHUNK_THRESHOLD = 5_000_000
 export const DEFAULT_NODE_THRESHOLD = 300
@@ -19,13 +20,17 @@ export interface ChunkOptions {
   maxDepth: number
 }
 
+// 임계 판정은 **webview가 실제로 받는 텍스트** 기준이어야 한다. `%% nodemap:` 마커는 렌더 직전
+// 제거되므로 길이에 세면 안 된다 — 현재 실측 영향은 미미하지만(최대 Δ7,900자 = 임계의 0.16%,
+// mini-spring-large-app) 마커가 늘면 사용자가 안 보는 텍스트 때문에 청킹이 켜지는 결합이 생긴다.
 export function shouldChunk(
   diagramText: string,
   textThreshold = DEFAULT_CHUNK_THRESHOLD,
   nodeCount = 0,
   nodeThreshold = DEFAULT_NODE_THRESHOLD,
 ): boolean {
-  return diagramText.length > textThreshold || (nodeCount > 0 && nodeCount > nodeThreshold)
+  const renderedLength = stripNodeMapMarkers(diagramText).length
+  return renderedLength > textThreshold || (nodeCount > 0 && nodeCount > nodeThreshold)
 }
 
 export function wrapDiagramHeader(chunkIndex: number, total: number): string {

@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { createIRGraph, createRouteNode, createEdge, makeNodeId, makeEdgeId, type RouteNode, type IREdge } from '@codebase-viz/types'
 import { buildNestedFolderOverviewLines } from './tab1-tree.js'
+import { stripNodeMapMarkers } from '../helpers/node-map.js'
 import { buildDiagrams } from '../mermaid-renderer.js'
 import { groupRoutesByUrl } from '../url-grouper.js'
 
@@ -50,8 +51,10 @@ function rrGraph(routes: RouteNode[], edges: IREdge[] = []): ReturnType<typeof c
   })
 }
 
+// `%% nodemap:` 마커는 딥링크(T1) 전용 사이드채널로 buildDiagrams/renderMermaid가 출력 직전
+// 제거한다 — 렌더되는 라벨 내용을 검사하는 이 스펙들에는 애초에 존재하지 않는 라인이다.
 function overview(routes: RouteNode[]): string {
-  return buildNestedFolderOverviewLines(groupRoutesByUrl(routes), '  ').join('\n')
+  return stripNodeMapMarkers(buildNestedFolderOverviewLines(groupRoutesByUrl(routes), '  ').join('\n'))
 }
 
 describe('buildNestedFolderOverviewLines (Tab1 v1.2.55 — full-depth folder 개요)', () => {

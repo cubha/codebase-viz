@@ -1,5 +1,6 @@
 import type { NestedGroup } from '../url-grouper.js'
 import { sanitizeId } from '../helpers/ids.js'
+import { nodeMapMarker, pickRepresentativeRoute } from '../helpers/node-map.js'
 import { collectNestedRoutes } from '../helpers/layout.js'
 
 // FE 표준 v1.2.55 (R-T1.2 re-amendment, §9): Tab1은 단일 아키텍처 래퍼 안에 URL 도메인 트리를
@@ -30,6 +31,12 @@ function routeCount(g: NestedGroup): number {
   return collectNestedRoutes([g]).length
 }
 
+function pushWithMarker(lines: string[], indent: string, declId: string, groups: NestedGroup[], decl: string): void {
+  const rep = pickRepresentativeRoute(collectNestedRoutes(groups))
+  if (rep !== undefined) lines.push(nodeMapMarker(indent, declId, rep.id))
+  lines.push(decl)
+}
+
 // 자식이 전부 단일 라우트(재귀합 1)면 펼칠 구조적 분기가 없으므로 부모 카운트 박스 하나로 collapse한다.
 // 이로써 deepest 단일-라우트 폴더가 형제마다 개별 박스로 반복되는 현상(v1.2.55 사용자 보고)을 제거한다.
 // 다중 라우트(≥2)로 갈라지는 자식이 하나라도 있으면 그 분기는 구조로 보존해야 하므로 subgraph로 중첩.
@@ -50,7 +57,7 @@ function aggregateLabel(singles: NestedGroup[]): string {
 
 function emitFolder(g: NestedGroup, indent: string, lines: string[]): void {
   if (isCollapsed(g)) {
-    lines.push(`${indent}${folderId(g.groupKey)}["${badgeLabel(g)}"]:::pkg`)
+    pushWithMarker(lines, indent, folderId(g.groupKey), [g], `${indent}${folderId(g.groupKey)}["${badgeLabel(g)}"]:::pkg`)
     return
   }
   // 혼합/구조적 폴더 → subgraph. 다중 자식은 구조로 재귀, 단일 자식은 1개면 이름 박스·2개+면 집계 박스.
@@ -62,7 +69,7 @@ function emitFolder(g: NestedGroup, indent: string, lines: string[]): void {
   if (singles.length === 1) {
     emitFolder(singles[0]!, inner, lines)
   } else if (singles.length >= 2) {
-    lines.push(`${inner}${folderId(g.groupKey)}_PAGES["${aggregateLabel(singles)}"]:::pkg`)
+    pushWithMarker(lines, inner, `${folderId(g.groupKey)}_PAGES`, singles, `${inner}${folderId(g.groupKey)}_PAGES["${aggregateLabel(singles)}"]:::pkg`)
   }
   lines.push(`${indent}end`)
 }

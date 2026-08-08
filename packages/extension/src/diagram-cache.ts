@@ -25,7 +25,11 @@ function isDiagramCache(value: unknown): value is DiagramCache {
     typeof v.savedAt === 'number' &&
     typeof v.projectName === 'string' &&
     typeof v.diagrams === 'object' &&
-    v.diagrams !== null
+    v.diagrams !== null &&
+    // nodeMap 사이드채널(T1 딥링크·T2 hover)이 없는 캐시는 v1.2.61 이전 산출물이다. shape로도
+    // 걸러 둔다 — analyzerVersion 범프를 한 번이라도 빠뜨리면 기능이 조용히 죽는 구조였다.
+    typeof (v.diagrams as Record<string, unknown>).nodeMap === 'object' &&
+    (v.diagrams as Record<string, unknown>).nodeMap !== null
   )
 }
 

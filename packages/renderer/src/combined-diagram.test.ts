@@ -344,6 +344,24 @@ describe('buildCombinedDiagram — nodeMap FE/BE 병합 (Wave A T1/T2, v1.2.61)'
     expect(diagrams.nodeMap?.[beSid as string]?.r).toBe('pair')
   })
 
+  // pair(FE↔BE 결합) 경로는 buildDiagrams와 별개 반환 지점이라, 마커 strip을 여기서 빠뜨리면
+  // 사용자 화면·내보내기에 내부 IR id가 새어나간다.
+  it('pair 결합 산출물에도 %% nodemap: 마커가 남지 않는다', () => {
+    const matched = makeFeRoute('/mapmatch', 'MapMatchWidget')
+    const feGraph: IRGraph = createIRGraph({
+      analyzerVersion: 'test', repoRoot: '/fe', projectName: 'fe',
+      nodes: matched.nodes, edges: matched.edges,
+    })
+    const beRoute = makeBeRoute('/api/mapmatch')
+    const beGraph: IRGraph = createIRGraph({
+      analyzerVersion: 'test', repoRoot: '/be', projectName: 'be', metadata: BE_META,
+      nodes: [beRoute], edges: [],
+    })
+    const diagrams = buildCombinedDiagram(feGraph, beGraph, [makeCrossEdge(matched.comp.id, beRoute.id)])
+    const all = diagrams.rendering + diagrams.screenComponent + diagrams.dbScreen
+    expect(all).not.toContain('%% nodemap:')
+  })
+
   it('sanitizeId 충돌 시 FE 엔트리가 BE보다 우선한다', () => {
     // route:app/a.b/page.tsx (FE) vs route:src/a-b (BE) 둘 다 sanitizeId 시 동일 sid로 붕괴하도록 구성.
     const feRoute = createRouteNode({

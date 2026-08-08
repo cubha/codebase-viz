@@ -4,6 +4,15 @@ import { sanitizeId } from '../helpers/ids.js'
 import { pathSegmentLcp } from './pkg-tree.js'
 
 import { escapeMd } from '../helpers/label-escape.js'
+import { nodeMapMarker, pickRepresentativeRoute } from '../helpers/node-map.js'
+
+// leafId는 컨트롤러 *파일명*에서 만들어져 IR 노드 id와 대응 관계가 없다 — 딥링크(T1)가 BE Tab1
+// 전체에서 죽지 않도록 대표 endpoint를 마커로 명시한다.
+function withMarker(indent: string, leafId: string, routes: RouteNode[], declLines: string[]): string[] {
+  const rep = pickRepresentativeRoute(routes)
+  if (rep === undefined) return declLines
+  return [nodeMapMarker(indent, leafId, rep.id), ...declLines]
+}
 
 // BE Tab1 = 패키지 트리(node+edge) + leaf = 📄 Controller [/api/prefix] + endpoint multiline.
 // 표준: docs/design/BE-DIAGRAM-STANDARD.md §2 (R-T1.1~9).
@@ -38,6 +47,7 @@ export function emitControllerFileLeaf(
     return { leafId, lines: [`${indent}${leafId}["\`${body}\`"]:::ctrl`] }
   }
 
+
   const titleSuffix = prefix !== '' ? ` [${escapeMd(prefix)}]` : ''
   const title = `📄 **${escapeMd(controllerName)}**${titleSuffix}`
   const endpointLines = routes.map(r => {
@@ -51,7 +61,7 @@ export function emitControllerFileLeaf(
   const bodyLines = [title, sep, ...endpointLines]
   if (tableLine !== undefined) bodyLines.push(sep, tableLine)
   const body = bodyLines.join('\n')
-  return { leafId, lines: [`${indent}${leafId}["\`${body}\`"]:::ctrl`] }
+  return { leafId, lines: withMarker(indent, leafId, routes, [`${indent}${leafId}["\`${body}\`"]:::ctrl`]) }
 }
 
 export function isBeController(name: string): boolean { return name.endsWith('Controller') }

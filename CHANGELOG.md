@@ -1,5 +1,27 @@
 # Changelog
 
+## [1.2.62] — 2026-08-08
+
+### Fixed — Wave A 실사용 결함 3건 (딥링크 전량 무반응 · 검색 오탐 · 대비 부족)
+
+- **딥링크 전 노드 무반응 복구**: v1.2.61의 `nodeMap` 키는 bare `sanitizeId(node.id)`였으나 빌더는 접두사를 붙이거나(`leaf_`/`file_`/`pageleaf_`/`pkg_`) IR 노드와 무관한 합성 id(`T1_*`)로 노드를 선언해 **전량 키 미스**였다(실측 Tab1 0/5·Tab2 1/5). 두 갈래로 해소 — ① `resolveBySuffix`가 `_` 경계 **최장** suffix로 접두사 id를 역해석(짧은 suffix 우선 시 전혀 다른 노드로 오매핑되므로 최장 우선이 필수) ② IR 노드가 없는 집계 박스는 `%% nodemap:<declId>=<percent-encoded IR id>` 주석 마커로 **대표 노드를 명시 선언**(`%% table:` 선례와 동일 기법 — IR 확장 0, 빌더 시그니처 변경 0). 대표 = 하위 라우트 중 URL 세그먼트 최단, 동수는 id 사전순으로 결정론 고정. 마커는 `buildNodeMap` 추출 직후 3개 반환 경로 전부에서 제거되어 CLI `.md` 산출물은 byte-identical.
+  - 마커 값은 분석 대상 리포의 파일·라우트 경로로 조립되는 **신뢰 불가 입력**이라 percent-encoding으로 `[A-Za-z0-9%._~()!*'-]` 안에 가둬 구조적으로 단일 라인·단일 토큰이 되게 했다. 원문을 그대로 실으면 파일명 하나의 개행만으로 마커가 여러 물리 라인으로 쪼개지고 strip이 첫 줄만 지워 나머지가 생 mermaid 소스로 남는다(실측 재현: `app/evil\nEVIL_NODE["pwned"]\n/page.tsx`가 노드 선언으로 렌더됨).
+  - 실측 커버리지 14개 fixture **362/363 노드**(미매핑 1건은 IR 노드가 없는 `empty` 플레이스홀더). 비청킹·강제 청킹·FE↔BE 결합 3분기 전부 동일.
+- **`ANALYZER_VERSION` v1.2.46 → v1.2.62**: 캐시 유효성 키가 15개 릴리스 동안 방치돼 `nodeMap`이 신설된 뒤에도 구버전 캐시가 "유효" 판정을 받아 nodeMap 없는 다이어그램이 재생됐다(딥링크·hover 무반응의 2차 원인). 버전 규율만으로는 사람이 빠뜨리는 순간 조용한 기능 사망이 되므로 `isDiagramCache`에 **`nodeMap` 존재 shape 가드**를 함께 걸어 이중화.
+- **검색 매칭 규칙 교체 — 임의 부분열 폐기**: 구 매처는 쿼리 문자가 순서만 맞으면 흩어져 있어도 매치해(`customerMgmt`가 `user`에, `ProcCodeMgmtController`가 `order`에 매치) 무관한 노드가 대량 활성화됐다. **Tier 1 연속 부분문자열 → Tier 2 공백 구분 다중 term AND(순서 무관) → Tier 3 단어경계/camelCase 약어(2자 이상)** 3단계로 교체. tier별 base(200/100/10)를 품질 점수(0~30: 단어경계 시작 +20, 밀도 보정)와 분리해 tier 간 순위가 품질에 의해 뒤집히지 않게 했다. Tier 3 이니셜은 라벨 장식(`📁`·`SSR`·`2 routes`)을 뺀 의미 있는 이름에서만 뽑는다.
+  - 실측(partner-mock 86노드): `deco` 44→11, `order` 32→1, 약어 `dsc` 40→3. Tier 2는 순서 무관이라 신규 매치도 생긴다(`mgmt agency` 2→4 — 전부 두 term을 실제 포함하는 정상 매치).
+- **매칭/비매칭 대비 강화**: 비매칭 `opacity .15 → .08 + grayscale(1)`(`.cluster`에도 적용), 매칭에 `stroke-width 2.5px` + 시안 글로우 신설, 검색 중 엣지는 `opacity .12`로 후퇴, "N건 일치"/"일치 없음" 카운트 표시(`aria-live`, 4개 로케일). 매칭 하이라이트가 stroke **색**을 건드리지 않는 것은 의도 — mermaid가 `classDef`를 inline style로 박아 stylesheet가 못 이기고, 애초에 그 색은 렌더링 모드(SSR/CSR/SSG) 정보라 덮으면 의미가 소실된다.
+- **청킹 임계 판정에서 마커 제외**: `shouldChunk`가 webview가 받지 않는 마커 텍스트까지 세면 사용자가 안 보는 바이트 때문에 row-mode가 켜진다. 현재 실측 영향은 임계의 0.16%(최대 Δ7,900자)지만 결합 자체를 제거.
+
+### Added — 검증 사각지대 보강
+
+- `packages/renderer/src/nodemap-coverage.test.ts` — **실제 `buildDiagrams` 출력**의 선언 id를 nodeMap과 대조하는 커버리지 스펙(14 tests). 기존 Playwright 스펙은 손으로 쓴 `graph TD\n <sid>["..."]` 하니스만 태워 실제 빌더 id를 한 번도 지나지 않았고, 그래서 전 노드 클릭 무반응이 전 게이트 GREEN 상태로 배포됐다. 강제 청킹 케이스 4건 포함(`chunked=true` 전제를 먼저 단언 — 없으면 비청킹을 두 번 재고 통과한다).
+- `tests/playwright/node-deeplink-real-output.spec.mjs` — 실 산출물을 렌더해 클릭까지 태우는 E2E.
+
+### Known issues
+
+- react-router FE 프로젝트의 Tab3(API 호출 다이어그램)는 `graph LR` flowchart라 클릭 리스너가 붙지만, endpoint 박스(`ep_*`)는 IR 노드로 등록되지 않는 합성 노드라 클릭해도 반응이 없다. 라우트 박스는 정상 동작.
+
 ## [1.2.61] — 2026-08-05
 
 ### Added — UX Wave A: 딥링크·hover·검색 (T1/T2/T3)
