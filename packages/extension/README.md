@@ -58,20 +58,26 @@ Frameworks not in this list (Express, Hono, Rails, Go, etc.) use **LLM primary**
 
 ---
 
-## ✨ What's new in v1.2.61
+## ✨ What's new in v1.2.62
 
-### Click, hover, search — navigate diagrams like code
+### Click-to-source and search, actually working
 
-- **Click a node to jump straight to the source.** Nodes on the Rendering Architecture and Screen–Component tabs are now clickable — jumps to the exact file and line.
-- **Hover a node to see where it comes from.** Shows the file:line, a confidence badge (verified/manual/inferred), and — for inferred nodes — the first step of the inference chain.
-- **Search bar on the diagram tabs.** Fuzzy-search routes and components by name or path; non-matching nodes dim out. Press Escape to clear.
-- GitHub star badge moved to the README (wasn't rendering from the marketplace metadata field).
+- **Node clicks now jump to the source — all of them.** In v1.2.61 clicking did nothing: the lookup table was keyed differently from the ids the diagram builders emit. Folder and package boxes, which summarize several routes, now jump to their representative route (the shallowest one). Across our 14 test fixtures, every clickable node resolves.
+- **Search no longer lights up unrelated nodes.** The old matcher accepted any query whose characters appeared *somewhere in order*, so `user` matched `customerMgmt`. It now matches on substrings, multi-word AND (order doesn't matter), and word-boundary abbreviations like `dsc` → `DecoSheetController`. On one sample project, searching `deco` went from 44 hits to 11.
+- **Matches stand out.** Matched nodes get a glow and a thicker outline; everything else fades to grayscale and edges recede. A live "N matches" count sits next to the search box.
+- **Stale caches are rejected.** Analyses cached by older versions no longer replay without the data these features need.
+
+### v1.2.61 — Click, hover, search introduced
+
+- Clickable nodes, hover tooltips showing file:line + confidence badge (verified/manual/inferred), and a search bar on the diagram tabs.
 
 ### v1.2.60 — FE↔BE combined view wired up + MyBatis ERD fix
 
 - **Paired (FE↔BE) analysis now renders the real combined diagram**, showing only the routes that actually participate in a match, with the DB–Screen tab merging tables from both projects.
 - **MyBatis-based repositories now show their table relationships in the ERD** — previously appeared as disconnected entities.
 - No more silent fallbacks: unrecognized backend or no matches now shows a clear inline notice.
+
+> Known issue: on React Router projects, the endpoint boxes on the DB–Screen tab aren't clickable yet (route boxes are).
 
 > Full version history lives in the [CHANGELOG](CHANGELOG.md).
 

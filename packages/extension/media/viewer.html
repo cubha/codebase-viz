@@ -66,13 +66,31 @@
     .l-dot { width: 8px; height: 8px; border-radius: 2px; flex-shrink: 0; }
     /* Wave A T3: 검색바 — .legend(top-left)·.chunk-nav(top-center)와 겹치지 않는
        유일한 비충돌 슬롯인 top-right에 배치. */
-    .node-search { position: absolute; top: 16px; right: 20px; z-index: 30; }
+    .node-search { position: absolute; top: 16px; right: 20px; z-index: 30; display: flex; align-items: center; gap: 8px; }
     .search-input { width: 220px; padding: 4px 10px; font-family: var(--font); font-size: 10px;
       background: rgba(6,8,16,.88); border: 1px solid var(--border); border-radius: 6px;
       color: var(--text-pri); backdrop-filter: blur(10px); }
     .search-input::placeholder { color: var(--text-muted); }
     .search-input:focus-visible { outline: 1px solid var(--blue); outline-offset: 1px; border-color: var(--blue); }
-    .node.node-dim { opacity: .15; transition: opacity .15s; }
+    .search-count { font-size: 10px; color: var(--text-sec); white-space: nowrap; min-width: 54px;
+      text-align: right; opacity: 0; transition: opacity .15s; }
+    .search-count.on { opacity: 1; }
+    .search-count.zero { color: var(--amber); }
+    /* 검색 대비 — v1.2.61은 미매칭 opacity .15만 걸고 매칭 쪽엔 아무 표시가 없어, 매칭 규칙이
+       느슨했던 것과 겹쳐 "구분이 안 된다"는 보고로 이어졌다. 미매칭은 더 죽이고(+탈채도),
+       매칭에는 적극적 하이라이트를 준다 — 시선이 갈 곳을 지정하는 쪽이 죽이는 쪽보다 강하다. */
+    .node.node-dim, .cluster.node-dim { opacity: .08; filter: grayscale(1); transition: opacity .15s, filter .15s; }
+    /* 매칭 하이라이트는 stroke **색**을 건드리지 않는다. (1) mermaid가 classDef를 inline style로
+       박아 stylesheet가 못 이긴다(실측: node-match여도 computed stroke가 classDef 값 그대로).
+       (2) 애초에 그 색은 렌더링 모드(SSR/CSR/SSG…) 정보라 덮으면 의미가 사라진다.
+       inline 경쟁자가 없는 굵기 + glow만으로 충분히 눈에 띈다(스크린샷 실측). */
+    .node.node-match rect, .node.node-match polygon,
+    .node.node-match circle, .node.node-match ellipse, .node.node-match path {
+      stroke-width: 2.5px !important;
+      filter: drop-shadow(0 0 7px rgba(56,189,248,.95)); }
+    .node.node-match { opacity: 1; }
+    /* 검색 중 엣지는 배경으로 물러난다 — 매칭 노드가 선 뭉치에 묻히지 않게. */
+    .searching .edgePaths, .searching .edgeLabels, .searching .flowchart-link { opacity: .12; transition: opacity .15s; }
     .db-wrap { display: grid; grid-template-columns: 1fr 300px; height: 100%; }
     .db-canvas-area { display: flex; flex-direction: column; overflow: hidden; }
     .db-canvas-wrap { flex: 1; position: relative; overflow: hidden; }
@@ -225,6 +243,7 @@
       <input type="text" class="search-input" id="search-r" data-t="r" autocomplete="off"
         data-i18n-placeholder="search.placeholder" data-i18n-aria="search.ariaLabel"
         placeholder="Search routes/components...">
+      <span class="search-count" id="count-r" role="status" aria-live="polite"></span>
     </div>
     <div class="canvas-wrap" id="w-r"><div class="canvas-inner" id="i-r"><div class="loading-msg" data-i18n="status.rendering">렌더링 중...</div></div></div>
     <div id="cnav-r" class="chunk-nav" style="display:none"><span class="cn-label"></span></div>
@@ -246,6 +265,7 @@
       <input type="text" class="search-input" id="search-s" data-t="s" autocomplete="off"
         data-i18n-placeholder="search.placeholder" data-i18n-aria="search.ariaLabel"
         placeholder="Search routes/components...">
+      <span class="search-count" id="count-s" role="status" aria-live="polite"></span>
     </div>
     <div class="canvas-wrap" id="w-s"><div class="canvas-inner" id="i-s"><div class="loading-msg" data-i18n="status.rendering">렌더링 중...</div></div></div>
     <div id="cnav-s" class="chunk-nav" style="display:none"><span class="cn-label"></span></div>
@@ -309,27 +329,84 @@ function esc(s) {
   if (s === null || s === undefined) return '';
   return String(s).replace(/[&<>"']/g, c => ESC_MAP[c]);
 }
-// Wave A T3(검색) 코어 — 대소문자 무시 부분열(subsequence) fuzzy 매칭.
-// query의 모든 문자가 text에 순서대로(연속일 필요 없음) 나타나야 매치로 본다.
-// 매치 실패는 null, 매치 성공은 점수(클수록 더 좋은 매치)를 반환한다.
+// Wave A T3(검색) 코어 — 3-tier 매칭. 매치 실패는 null, 성공은 점수(클수록 좋은 매치).
+//
+// v1.2.61의 임의 subsequence 매칭은 폐기했다. 'user'가 '/dashboard/settings/profile-editor'에도
+// 걸려(u…s…e…r 순서만 맞으면 성립) 사실상 전 노드가 매치되니 dim이 무력화되고 "연관 없는 대상이
+// 활성화된다"는 사용자 보고로 이어졌다. 문자가 흩어져도 되는 매칭은 노드 라벨처럼 짧고 경로성
+// 문자열이 많은 도메인에서는 노이즈만 만든다(Less is More).
+//
+// Tier 1 — 연속 부분문자열: 'user' → '/users', 'UserCard'. 가장 확실한 의도.
+// Tier 2 — 공백 구분 다중 term AND: 'user detail' → 두 단어가 모두 들어있어야 매치.
+// Tier 3 — 단어경계 약어: 'upc' → 'UserProfileCard'. 각 문자가 단어 시작 위치에서만 매칭돼야
+//          하므로 흩어진 문자 매칭과 달리 오탐이 나지 않는다.
 // 빈 쿼리는 전체 매치로 취급(점수 0) — 검색 초기 상태에서 전 노드 표시.
-function fuzzyScore(query, text) {
-  if (!query) return 0;
-  const q = String(query).toLowerCase();
-  const t = String(text).toLowerCase();
-  let qi = 0, score = 0, consecutive = 0;
-  for (let ti = 0; ti < t.length && qi < q.length; ti++) {
-    if (t[ti] !== q[qi]) { consecutive = 0; continue; }
-    consecutive++;
-    score += 1 + consecutive; // 연속 매치 보너스 — 뒤로 갈수록 가중치 증가
-    if (ti === 0 || /[/_.\-\s]/.test(t[ti - 1])) score += 2; // 단어 경계 시작 보너스
-    qi++;
+
+const WORD_BOUNDARY_RE = /[/_.\-\s:]/;
+
+// 단어 시작 위치의 문자들 — '/api/user-profile' → 'aup', 'UserProfileCard' → 'upc'.
+// camelCase 대문자도 단어 시작으로 인정한다(라벨이 컴포넌트명인 경우가 많다).
+function wordInitials(text) {
+  let out = '';
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i];
+    if (!/[A-Za-z0-9]/.test(ch)) continue;
+    const prev = i > 0 ? text[i - 1] : undefined;
+    const isCamel = /[A-Z]/.test(ch) && prev !== undefined && /[a-z0-9]/.test(prev);
+    if (prev === undefined || WORD_BOUNDARY_RE.test(prev) || isCamel) out += ch.toLowerCase();
   }
-  if (qi !== q.length) return null;
-  // 매치 밀도 보너스 — 위치·연속성이 같은 매치라도 쿼리 대비 텍스트가 짧을수록(관련성이
-  // 높을수록) 우선한다. 없으면 'user' 검색 시 '/users'와 '/api/.../user-management-service'가
-  // 둘 다 경계+연속 매치라 동점이 되어 정렬이 사실상 알파벳순으로 퇴화한다(scope-critic 지적).
-  return score + (q.length / t.length) * 10;
+  return out;
+}
+
+// 부분문자열 1건의 "품질" 점수(0~30) — 단어경계에서 시작할수록, 텍스트 대비 쿼리가 길수록
+// (관련성이 높을수록) 높다. 밀도항이 없으면 'user'에 대해 '/users'와
+// '/api/v2/internal/user-management-service'가 동점이 되어 정렬이 알파벳순으로 퇴화한다.
+// 매치 실패는 null. tier별 base는 호출부가 더한다 — tier 간 순위가 품질에 의해 뒤집히면 안 된다.
+function substringScore(q, t) {
+  const idx = t.indexOf(q);
+  if (idx < 0) return null;
+  const atBoundary = idx === 0 || WORD_BOUNDARY_RE.test(t[idx - 1]);
+  return (atBoundary ? 20 : 0) + (q.length / Math.max(t.length, 1)) * 10;
+}
+
+const TIER1_BASE = 200; // 연속 부분문자열
+const TIER2_BASE = 100; // 다중 term AND
+const TIER3_BASE = 10;  // 단어경계 약어
+
+// abbrevText: Tier 3(약어) 전용 텍스트. 검색 대상 텍스트에는 라벨 장식(📁 · SSR · 🔗 · "2 routes")이
+// 섞여 있는데, 그 장식 단어들까지 이니셜에 들어가면 '2r'·'aa' 같은 무의미 쿼리가 매치된다(실측).
+// Tier 1/2는 장식 포함 전체를 봐도 부분문자열이라 안전하지만, Tier 3만은 의미 있는 이름(라우트
+// 경로·컴포넌트명)으로 좁힌다. 미지정 시 text를 그대로 쓴다.
+function fuzzyScore(query, text, abbrevText) {
+  const raw = String(query == null ? '' : query).trim();
+  if (!raw) return 0;
+  const q = raw.toLowerCase();
+  const original = String(text == null ? '' : text);
+  const t = original.toLowerCase();
+
+  const direct = substringScore(q, t);
+  if (direct !== null) return TIER1_BASE + direct;
+
+  // Tier 2: 공백으로 나뉜 term이 2개 이상이면 전부(AND) 포함돼야 매치.
+  const terms = q.split(/\s+/).filter(Boolean);
+  if (terms.length > 1) {
+    let total = 0;
+    for (const term of terms) {
+      const s = substringScore(term, t);
+      if (s === null) return null;
+      total += s;
+    }
+    return TIER2_BASE + total / terms.length;
+  }
+
+  // Tier 3: 단어경계 약어. 2글자 미만은 약어로 볼 수 없어 제외(오탐 방지).
+  // initials는 **원문**에서 뽑는다 — 소문자로 눌러버리면 camelCase 경계가 사라져
+  // 'UserProfileCard'의 이니셜이 'upc'가 아닌 'u'가 된다.
+  if (q.length < 2 || !/^[a-z0-9]+$/.test(q)) return null;
+  const initials = wordInitials(abbrevText == null ? original : String(abbrevText));
+  const s = substringScore(q, initials);
+  if (s === null) return null;
+  return TIER3_BASE + s;
 }
 // data-i18n attribute로 마크된 모든 element textContent 일괄 치환 (페이지 로드 시 1회)
 document.querySelectorAll('[data-i18n]').forEach(function(el) { el.textContent = tr(el.dataset.i18n); });
@@ -584,23 +661,86 @@ document.addEventListener('mouseout', e => {
 // Wave A T3(검색) — Tab1/Tab2(flowchart)에만 적용. Tab3(ERD)는 erDiagram이라 .node가 없어
 // 이 로직이 자연히 적용되지 않는다(별도 분기 불필요). ST1 nodeMap의 표시명(n)을 우선 쓰고,
 // 없으면(미매핑 노드) 렌더된 라벨 텍스트로 폴백 — 검색 대상에서 조용히 빠지지 않게 한다.
+// nodeMap의 표시명(라우트 경로·컴포넌트명)과 렌더된 라벨을 **둘 다** 검색 대상으로 삼는다.
+// Tab1 폴더 박스는 라벨이 '📁 /matMgmt · 2 routes'인데 nodeMap 표시명은 대표 라우트 경로라,
+// 한쪽만 보면 사용자가 화면에서 읽은 단어로 못 찾거나 경로로 못 찾는 반쪽 검색이 된다.
 function getSearchableText(nodeEl) {
   const m = NODE_ID_RE.exec(nodeEl.id || '');
   const entry = m && NODE_MAP[m[1]];
-  if (entry && entry.n) return entry.n;
-  return nodeEl.textContent || '';
+  const label = nodeEl.textContent || '';
+  const name = entry && entry.n ? entry.n : '';
+  return { full: name ? name + ' ' + label : label, name: name || label };
 }
+
+// mermaid v11은 .cluster(subgraph)와 .node를 DOM상 형제로 배치한다(중첩 아님 — 실측 확인).
+// 따라서 "이 subgraph 안에 매치가 있나"를 DOM 포함관계로는 못 판정한다. 다이어그램 소스에서
+// subgraph 중첩을 파싱해 clusterId → 하위 노드 id 집합을 만들어 둔다.
+const clusterMembersCache = {};
+function clusterMembers(t) {
+  if (clusterMembersCache[t]) return clusterMembersCache[t];
+  const map = new Map();
+  const stack = [];
+  for (const rawLine of String(DIAGRAMS[t] || '').split('\n')) {
+    const line = rawLine.trim();
+    if (!line || line.startsWith('%%')) continue;
+    const sg = /^subgraph\s+([A-Za-z0-9_]+)/.exec(line);
+    if (sg) { stack.push(sg[1]); if (!map.has(sg[1])) map.set(sg[1], new Set()); continue; }
+    if (line === 'end') { stack.pop(); continue; }
+    if (stack.length === 0) continue;
+    const decl = /^([A-Za-z0-9_]+)\s*[[({]/.exec(line);
+    if (!decl) continue;
+    for (const c of stack) map.get(c).add(decl[1]);
+  }
+  clusterMembersCache[t] = map;
+  return map;
+}
+
+// cluster DOM id는 `<renderId>-<clusterId>` (node의 `-flowchart-<sid>-<seq>`와 구분됨).
+const CLUSTER_ID_RE = /-([A-Za-z0-9_]+)$/;
 
 // row-mode(다중 청크)에서도 #i-<t> 하위 전체를 순회 — content-visibility:auto인 화면 밖
 // 청크도 DOM 순회 자체는 정상이므로(geometry만 지연), opacity 토글에는 영향 없다.
 function applyNodeSearch(t, query) {
   const container = document.getElementById('i-' + t);
-  if (!container) return;
+  if (!container) return 0;
+  const matched = new Set();
+  let count = 0;
   container.querySelectorAll('.node').forEach(nodeEl => {
-    if (!query) { nodeEl.classList.remove('node-dim'); return; }
-    const score = fuzzyScore(query, getSearchableText(nodeEl));
-    nodeEl.classList.toggle('node-dim', score === null);
+    if (!query) { nodeEl.classList.remove('node-dim', 'node-match'); return; }
+    const text = getSearchableText(nodeEl);
+    const hit = fuzzyScore(query, text.full, text.name) !== null;
+    nodeEl.classList.toggle('node-dim', !hit);
+    nodeEl.classList.toggle('node-match', hit);
+    if (!hit) return;
+    count++;
+    const m = NODE_ID_RE.exec(nodeEl.id || '');
+    if (m) matched.add(m[1]);
   });
+
+  const members = query ? clusterMembers(t) : null;
+  container.querySelectorAll('.cluster').forEach(cl => {
+    if (!query) { cl.classList.remove('node-dim'); return; }
+    const m = CLUSTER_ID_RE.exec(cl.id || '');
+    const set = m && members.get(m[1]);
+    // 멤버를 못 알아낸 cluster는 건드리지 않는다 — 잘못 죽이는 것보다 그냥 두는 게 안전하다.
+    if (!set) { cl.classList.remove('node-dim'); return; }
+    let hasHit = false;
+    for (const id of set) { if (matched.has(id)) { hasHit = true; break; } }
+    cl.classList.toggle('node-dim', !hasHit);
+  });
+
+  container.classList.toggle('searching', Boolean(query));
+  updateSearchCount(t, query, count);
+  return count;
+}
+
+function updateSearchCount(t, query, count) {
+  const el = document.getElementById('count-' + t);
+  if (!el) return;
+  if (!query) { el.textContent = ''; el.classList.remove('on', 'zero'); return; }
+  el.textContent = count === 0 ? tr('search.noMatch') : tr('search.matchCount').replace('{n}', String(count));
+  el.classList.add('on');
+  el.classList.toggle('zero', count === 0);
 }
 
 function debounce(fn, ms) {
@@ -635,6 +775,10 @@ async function renderTab(t) {
   if (!DIAGRAMS[t]) { inner.innerHTML = '<div class="loading-msg">' + tr('status.noData') + '</div>'; return; }
   try {
     await renderChunkedInto(t, inner, 'msvg_'+t, DIAGRAMS[t]);
+    // 렌더로 SVG가 새로 생기면 dim/highlight 클래스가 통째로 사라진다 — 입력에 남아있는
+    // 검색어를 다시 적용해 화면과 검색바 상태가 어긋나지 않게 한다.
+    const si = document.getElementById('search-' + t);
+    if (si && si.value.trim()) applyNodeSearch(t, si.value.trim());
   } catch(e) {
     inner.innerHTML = '<pre style="color:#fb923c;padding:20px;font-size:11px">' + tr('alert.renderError') + ': '+esc(e.message)+'</pre>';
   }

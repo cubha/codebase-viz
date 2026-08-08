@@ -1,5 +1,6 @@
 import type { RouteNode } from '@codebase-viz/types'
 import { sanitizeId } from '../helpers/ids.js'
+import { nodeMapMarker, pickRepresentativeRoute } from '../helpers/node-map.js'
 
 // Path-segment-aware longest common prefix.
 // Finds the longest shared URL prefix (up to segment boundaries).
@@ -48,6 +49,35 @@ export type PkgTreeNode = {
   files: Array<{ filePath: string; routes: RouteNode[] }>
 }
 
+function collectSubtreeRoutes(node: PkgTreeNode): RouteNode[] {
+  const out: RouteNode[] = []
+  for (const f of node.files) out.push(...f.routes)
+  for (const child of node.children.values()) out.push(...collectSubtreeRoutes(child))
+  return out
+}
+
+function collectSubtreeFiles(node: PkgTreeNode): string[] {
+  const out: string[] = node.files.map(f => f.filePath)
+  for (const child of node.children.values()) out.push(...collectSubtreeFiles(child))
+  return out
+}
+
+// BE Tab2는 트리를 `routes: []`로 만든다(라우트가 아니라 컨트롤러를 매단다) — 그 경우 파일 경로가
+// 가장 얕은 것(동수면 사전순)을 대표로 잡고 호출부가 준 resolver로 IR 노드 id를 얻는다.
+function representativeFileNodeId(
+  node: PkgTreeNode,
+  resolve: (filePath: string) => string | undefined,
+): string | undefined {
+  const files = [...new Set(collectSubtreeFiles(node))].sort(
+    (a, b) => a.split('/').length - b.split('/').length || a.localeCompare(b),
+  )
+  for (const f of files) {
+    const id = resolve(f)
+    if (id !== undefined) return id
+  }
+  return undefined
+}
+
 export function buildPkgTree(
   fileRoutes: Array<{ filePath: string; segments: string[]; routes: RouteNode[] }>,
 ): PkgTreeNode {
@@ -94,7 +124,7 @@ export function emitTreeNodes(
   tree: PkgTreeNode,
   rootId: string,
   prefixPath: string[] = [],
-  opts: { clusterRoot?: boolean } = {},
+  opts: { clusterRoot?: boolean; nodeIdForFile?: (filePath: string) => string | undefined } = {},
 ): TreeEmit {
   const lines: string[] = []
   const nodeIdByPath = new Map<string, string>()
@@ -102,6 +132,13 @@ export function emitTreeNodes(
     for (const [seg, child] of node.children) {
       const segs = [...pathSegs, seg]
       const id = `pkg_${sanitizeId(segs.join('__'))}`
+      // 패키지 박스도 하위 파일들을 합친 집계 노드다 — 마커가 없으면 BE Tab1/FE Tab2 파일트리에서
+      // 폴더 노드가 전부 클릭 불가가 된다(실측: partner-mock Tab1 19개 중 12개가 pkg_*).
+      const rep = pickRepresentativeRoute(collectSubtreeRoutes(child))
+      const markerTarget = rep !== undefined
+        ? rep.id
+        : (opts.nodeIdForFile === undefined ? undefined : representativeFileNodeId(child, opts.nodeIdForFile))
+      if (markerTarget !== undefined) lines.push(nodeMapMarker('  ', id, markerTarget))
       lines.push(`  ${id}["${seg}"]:::pkg`)
       if (!(opts.clusterRoot === true && depth === 0)) {
         lines.push(`  ${parentId} --> ${id}`)

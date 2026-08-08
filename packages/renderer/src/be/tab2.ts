@@ -177,7 +177,11 @@ export function buildBeArchitectureDiagram(graph: IRGraph): string {
     lines.push(...hdrOpen)
     const rootId = isCluster ? 'HDR_PKG' : 'BE_ANCHOR'
     if (!isCluster) lines.push(`  ${rootId}["(root)"]:::hdr`)
-    const treeEmit = emitTreeNodes(chunkTree, rootId, chunkPath, { clusterRoot: isCluster })
+    const treeEmit = emitTreeNodes(chunkTree, rootId, chunkPath, {
+      clusterRoot: isCluster,
+      // Tab2 트리는 라우트가 아닌 컨트롤러를 매단다 — 패키지 박스 딥링크는 대표 컨트롤러로 건다.
+      nodeIdForFile: filePath => ctrlByFilePath.get(filePath)?.id,
+    })
     lines.push(...treeEmit.lines)
     // Leaf Controllers: 부모 패키지 노드에서 leaf로 edge 연결.
     const walkFiles = (node: PkgTreeNode, parentId: string, pathSegs: string[], depth: number): void => {
