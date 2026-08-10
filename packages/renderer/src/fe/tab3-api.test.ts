@@ -127,6 +127,18 @@ describe('buildFeApiCallDiagram — endpoint 대표 엣지 선정 (v1.2.63 D5, E
     expect(nodeMap[epId!]?.f).toBe(expectedWinner.provenance.file)
   })
 
+  it.each(['inferred-first', 'verified-first'] as const)(
+    '엣지 배열 순서(%s)와 무관하게 endpoint 라벨(화살표·library)도 대표(verified) 엣지 기준으로 통일된다',
+    (order) => {
+      // 마커만 대표 엣지를 쓰고 라벨은 route-tree 순회 순서(call)를 쓰면, 화면엔 inferred
+      // 근거(⟿ fetch)가 보이는데 클릭하면 verified 호출(axios)로 점프하는 불일치가 생긴다.
+      const graph = buildSharedEndpointGraph(order)
+      const text = buildFeApiCallDiagram(graph)
+      expect(text).toContain('GET /shared → axios') // verified(axios, → 화살표) 기준으로 통일
+      expect(text).not.toContain('⟿ fetch') // inferred(fetch, ⟿ 화살표) 라벨은 나타나지 않는다
+    },
+  )
+
   it('endpoint 마커가 렌더 텍스트에 emit되어 nodeMap이 채워진다', () => {
     const graph = buildSharedEndpointGraph('inferred-first')
     const text = buildFeApiCallDiagram(graph)

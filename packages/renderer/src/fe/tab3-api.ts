@@ -134,11 +134,18 @@ export function emitRouteApiCalls(
     const endpointId = `ep_${sanitizeId(`${method}_${apiPath}`)}`
     if (!endpointEmitted.has(endpointId)) {
       endpointEmitted.add(endpointId)
+      // 라벨(화면 표시)도 마커(딥링크 타겟)와 같은 대표 엣지를 써야 한다 — 각자 다른 호출을
+      // 기준으로 삼으면 화면엔 inferred 근거(⟿ fetch)가 보이는데 클릭하면 verified 호출의
+      // file:line(다른 컴포넌트)로 점프하는 라벨-마커 불일치가 생긴다(scope-critic 지적).
+      // method/path는 endpointId 구성 요소라 call과 repEdge가 항상 같지만, library·confidence
+      // (화살표 스타일)는 다를 수 있으므로 repEdge 기준으로 통일한다.
       const repEdge = ctx.repEdgeByEndpointId.get(endpointId)
       if (repEdge !== undefined) lines.push(nodeMapMarker(indent, endpointId, repEdge.id))
-      const cls = library === 'fetch' ? 'apiFetch' : library === 'react-query' ? 'apiQuery' : 'apiAxios'
-      const arrow = call.confidence === 'inferred' ? '⟿' : '→'
-      lines.push(`${indent}${endpointId}["${method} ${apiPath} ${arrow} ${library}"]:::${cls}`)
+      const repLibrary = repEdge?.apiCall?.library ?? library
+      const repConfidence = repEdge?.confidence ?? call.confidence
+      const cls = repLibrary === 'fetch' ? 'apiFetch' : repLibrary === 'react-query' ? 'apiQuery' : 'apiAxios'
+      const arrow = repConfidence === 'inferred' ? '⟿' : '→'
+      lines.push(`${indent}${endpointId}["${method} ${apiPath} ${arrow} ${repLibrary}"]:::${cls}`)
     }
     const edgeArrowChar = call.confidence === 'inferred' ? '-.->' : '-->'
     edges.push(`  ${sanitizeId(r.id)} ${edgeArrowChar} ${endpointId}`)
