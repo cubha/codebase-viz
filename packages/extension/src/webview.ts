@@ -10,7 +10,7 @@ import {
   isValidExportMessage,
   sanitizeExportFilename,
   isValidOpenNodeMessage,
-  resolveWithinRoot,
+  resolveOpenNodeTarget,
   type ValidExportMessage,
 } from './message-guard.js'
 
@@ -137,20 +137,15 @@ export class CodebaseVizPanel {
   private async handleOpenNode(id: string): Promise<void> {
     const params = this.lastParams
     if (params === undefined) return
-    const nodeMap = params.diagrams.nodeMap
-    // webview가 보낸 id는 신뢰 불가 — '__proto__'/'constructor' 등으로 프로토타입 체인을 조회해
-    // entry가 undefined가 아닌 것처럼 보이는 것을 막기 위해 own-property만 허용한다.
-    const entry = nodeMap !== undefined && Object.prototype.hasOwnProperty.call(nodeMap, id) ? nodeMap[id] : undefined
-    if (entry === undefined) return // 명시적 no-op: nodeMap 미스(subgraph wrapper 등)는 조용히 무시
-    const root = entry.r === 'pair' ? params.pairRepoRoot : params.repoRoot
-    if (root === undefined) return
-    const absPath = resolveWithinRoot(root, entry.f)
-    if (absPath === undefined) return
+    // 판정(nodeMap 조회·프로토타입 가드·pair root 선택·라인 변환)은 message-guard의 순수 함수에
+    // 위임한다 — vscode API에 묶여 있으면 단위테스트가 불가능해 "확장이 올바른 파일:라인을 여는지"가
+    // 미검증으로 남는다. 실패는 전부 undefined = 조용한 no-op(nodeMap 미스·root 이탈 등).
+    const target = resolveOpenNodeTarget(params.diagrams.nodeMap, id, params.repoRoot, params.pairRepoRoot)
+    if (target === undefined) return
     try {
-      const doc = await vscode.workspace.openTextDocument(vscode.Uri.file(absPath))
-      const line = Math.max(0, entry.l - 1)
+      const doc = await vscode.workspace.openTextDocument(vscode.Uri.file(target.absPath))
       await vscode.window.showTextDocument(doc, {
-        selection: new vscode.Range(line, 0, line, 0),
+        selection: new vscode.Range(target.line, 0, target.line, 0),
         viewColumn: vscode.ViewColumn.One,
       })
     } catch {
