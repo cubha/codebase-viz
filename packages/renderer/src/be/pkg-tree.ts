@@ -49,14 +49,17 @@ export type PkgTreeNode = {
   files: Array<{ filePath: string; routes: RouteNode[] }>
 }
 
-function collectSubtreeRoutes(node: PkgTreeNode): RouteNode[] {
+// export: 메모이제이션이 실제로 캐시 히트하는지(참조 동일성) 직접 검증하려면 테스트가 이 함수를
+// 불러야 한다 — private로 감춰두면 emitTreeNodes 간접 호출로는 "결과가 맞다"만 보이고 "두 번째
+// 호출이 캐시를 탔다"는 증명 불가.
+export function collectSubtreeRoutes(node: PkgTreeNode): RouteNode[] {
   const out: RouteNode[] = []
   for (const f of node.files) out.push(...f.routes)
   for (const child of node.children.values()) out.push(...collectSubtreeRoutes(child))
   return out
 }
 
-function collectSubtreeFiles(node: PkgTreeNode): string[] {
+export function collectSubtreeFiles(node: PkgTreeNode): string[] {
   const out: string[] = node.files.map(f => f.filePath)
   for (const child of node.children.values()) out.push(...collectSubtreeFiles(child))
   return out

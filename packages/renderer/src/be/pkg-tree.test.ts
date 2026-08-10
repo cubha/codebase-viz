@@ -1,8 +1,12 @@
 import { describe, it, expect } from 'vitest'
+import { createRouteNode, makeNodeId, type RouteNode } from '@codebase-viz/types'
 import {
   buildPkgTree,
   estimateChunkCost,
   splitTreeByBudget,
+  collectSubtreeRoutes,
+  collectSubtreeFiles,
+  emitTreeNodes,
   type PkgTreeNode,
 } from './pkg-tree.js'
 
@@ -93,5 +97,73 @@ describe('BE chunking — node/edge budget 2차 sub-chunk (v1.2.51 B)', () => {
     // 파일 1개라 더 못 쪼갬 → 그대로 emit + overflow 보고
     expect(chunks.length).toBeGreaterThanOrEqual(1)
     expect(overflows.length).toBeGreaterThanOrEqual(1)
+  })
+})
+
+// D7(재귀 subtree 수집 비용) — collectSubtreeRoutes/collectSubtreeFiles가 노드마다 하위 전체를
+// 매번 새로 순회하면, 깊이 N짜리 선형 체인(패키지가 한 줄로 깊게 중첩되는 실제 Java 패키지 흔한
+// 형태: com.company.division.department.team.service.impl...)에서 총 비용이 O(N²)로 폭발한다
+// (walk가 모든 깊이의 노드마다 collectSubtreeRoutes를 호출하고, 각 호출이 남은 하위 전부를 재순회).
+// 메모이제이션은 각 노드의 결과를 한 번만 계산해 재사용 → O(N)으로 낮춘다.
+function routeAt(i: number): RouteNode {
+  const filePath = `be/src/main/java/s${i}/Controller${i}.java`
+  return createRouteNode({
+    id: makeNodeId('route', filePath, 'endpoint'),
+    path: `/api/s${i}`,
+    filePath,
+    routeFileKind: 'page',
+    dynamicSegmentType: 'static',
+    isGroupRoute: false,
+    renderingMode: 'unknown',
+    provenance: { file: filePath, line: 1, adapter: 'test', analyzerVersion: 'test' },
+    confidence: 'verified',
+  })
+}
+
+// depth 0..N-1의 선형 체인 — fileRoute i는 segments ['s0',...,'si'](i+1단)라 트리는
+// root→s0→s1→...→s{N-1}의 완전 직선(각 깊이 노드가 파일 1개 + 자식 1개, 마지막만 자식 0개).
+function deepChainFileRoutes(depth: number) {
+  return Array.from({ length: depth }, (_, i) => ({
+    filePath: `be/src/main/java/${Array.from({ length: i + 1 }, (_, j) => `s${j}`).join('/')}/Controller${i}.java`,
+    segments: Array.from({ length: i + 1 }, (_, j) => `s${j}`),
+    routes: [routeAt(i)],
+  }))
+}
+
+describe('collectSubtreeRoutes/collectSubtreeFiles 메모이제이션 (v1.2.63 D7)', () => {
+  it('동일 노드를 두 번 호출하면 같은 배열 참조를 반환한다(캐시 히트 증명)', () => {
+    const tree = buildPkgTree(deepChainFileRoutes(5))
+    const s0 = tree.children.get('s0')!
+    const first = collectSubtreeRoutes(s0)
+    const second = collectSubtreeRoutes(s0)
+    expect(second).toBe(first) // 참조 동일성 — 재계산이 아니라 캐시에서 나온 것
+  })
+
+  it('collectSubtreeFiles도 동일 노드 재호출 시 같은 배열 참조를 반환한다', () => {
+    const tree = buildPkgTree(deepChainFileRoutes(5))
+    const s0 = tree.children.get('s0')!
+    expect(collectSubtreeFiles(s0)).toBe(collectSubtreeFiles(s0))
+  })
+
+  it('메모이제이션 후에도 결과 내용은 동일하다(회귀 없음)', () => {
+    const tree = buildPkgTree(deepChainFileRoutes(4))
+    const s0 = tree.children.get('s0')!
+    // s0 하위(s0~s3) 전부의 route/file이 실려야 한다 — 캐싱이 부분 결과를 얼리면 안 된다.
+    expect(collectSubtreeRoutes(s0).map(r => r.path).sort()).toEqual(
+      ['/api/s0', '/api/s1', '/api/s2', '/api/s3'].sort(),
+    )
+    expect(collectSubtreeFiles(s0)).toHaveLength(4)
+  })
+
+  it('깊이 3000 선형 체인에서도 emitTreeNodes가 합리적 시간 내 끝난다(O(N²) 회귀 가드)', () => {
+    const DEPTH = 3000
+    const tree = buildPkgTree(deepChainFileRoutes(DEPTH))
+    const start = performance.now()
+    const { lines } = emitTreeNodes(tree, 'BE_ROOT')
+    const elapsedMs = performance.now() - start
+    expect(lines.length).toBeGreaterThan(DEPTH) // 노드당 최소 1줄(+엣지)
+    // 메모이즈 O(N)이면 수십~수백ms, 미메모이즈 O(N²)이면 수 초~수십 초로 자릿수가 다르다 —
+    // 느슨한 예산(2초)으로도 회귀를 잡되 CI 머신 편차로 인한 오탐(flaky)은 피한다.
+    expect(elapsedMs, `emitTreeNodes(${DEPTH}-deep chain) took ${elapsedMs}ms`).toBeLessThan(2000)
   })
 })
