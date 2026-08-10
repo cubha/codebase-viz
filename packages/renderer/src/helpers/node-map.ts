@@ -44,11 +44,14 @@ interface BuildNodeMapOptions {
 // 첫 줄만 지워 나머지가 생 mermaid 소스로 남는다(실측: `app/evil\nEVIL_NODE["pwned"]\n/page.tsx`가
 // 노드 선언으로 렌더됨). percent-encoding으로 값을 `[A-Za-z0-9%._~()!*'-]` 안에 가둬 마커가
 // **구조적으로** 단일 라인·단일 토큰이 되게 한다 — 이스케이프 누락 가능성 자체를 없앤다.
+// export: 테스트(누출 가드)가 리터럴을 따로 하드코딩하면 이 프리픽스가 바뀔 때 정규식과 테스트
+// 바늘이 갈릴 수 있다(scope-critic 지적) — 단일 소스로 강제한다.
+export const NODEMAP_MARKER_PREFIX = '%% nodemap:'
 const MARKER_RE = /^[ \t]*%% nodemap:([A-Za-z0-9_]+)=(\S+)[ \t]*$/gm
 const MARKER_STRIP_RE = /^[ \t]*%% nodemap:[A-Za-z0-9_]+=\S*[ \t]*(?:\r?\n|$)/gm
 
 export function nodeMapMarker(indent: string, declId: string, irNodeId: string): string {
-  return `${indent}%% nodemap:${declId}=${encodeURIComponent(irNodeId)}`
+  return `${indent}${NODEMAP_MARKER_PREFIX}${declId}=${encodeURIComponent(irNodeId)}`
 }
 
 export function stripNodeMapMarkers(text: string): string {

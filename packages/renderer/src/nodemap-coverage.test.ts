@@ -1,4 +1,7 @@
 import { describe, it, expect } from 'vitest'
+import * as fs from 'node:fs/promises'
+import * as path from 'node:path'
+import { fileURLToPath } from 'node:url'
 import {
   createIRGraph,
   createRouteNode,
@@ -9,8 +12,11 @@ import {
   type IRGraph,
   type RouteNode,
 } from '@codebase-viz/types'
-import { buildDiagrams, buildCombinedDiagram } from './mermaid-renderer.js'
+import { buildDiagrams, buildCombinedDiagram, renderMermaid } from './mermaid-renderer.js'
 import { shouldChunk, CHUNK_SEPARATOR } from './_shared/wrap-fallback.js'
+import { NODEMAP_MARKER_PREFIX } from './helpers/node-map.js'
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
 // v1.2.61 회귀 방지 — 이 스펙이 존재하는 이유:
 // T1(딥링크)·T2(hover)는 Playwright로 검증됐지만, 그 하니스는 손으로 쓴 `graph TD\n sid["..."]`
@@ -299,13 +305,21 @@ describe('청킹 임계는 마커를 제외한 렌더 텍스트 길이로 판정
 })
 
 // D1(마커 in-band 프로토콜 규율 분산) 대응 — 정규식 자체는 node-map.ts가 이미 독점하지만, "그 정규식을
-// 부른 뒤 strip을 빠뜨린 반환 경로"는 정규식 하나로 못 잡는다. buildDiagrams/buildCombinedDiagram의
-// **모든** DiagramSet 반환 지점을 한곳에 모아 강제한다 — 새 반환 경로가 생기면 이 describe에 케이스를
-// 추가해야 한다는 신호를 남기기 위한 목적의 통합 가드(개별 파일에 흩어진 기존 leak 테스트는 유지).
+// 부른 뒤 strip을 빠뜨린 반환 경로"는 정규식 하나로 못 잡는다. buildDiagrams/buildCombinedDiagram/
+// renderMermaid의 **모든** DiagramSet(또는 그 산출물) 반환 지점을 한곳에 모아 강제한다.
+//
+// ⚠️ 허수 가드 주의(scope-critic 실측 지적, 2026-08-10): 마커는 4개 빌더(be/leaf.ts·be/pkg-tree.ts·
+// fe/tab1-tree.ts·fe/tab3-api.ts)만 emit한다. buildCombinedDiagram의 rendering(buildNestedSubgraphLines
+// 경유)·screenComponent(feGraph만 소비, BE pkg-tree 경로 미도달)·dbScreen(BE면 erd 본문 직행, 마커
+// emit 없음)은 **구조적으로 마커가 생길 수 없다** — 어떤 픽스처를 넣어도 strip 호출을 통째로 지워도
+// 이 3필드에 대한 assertNoLeak은 계속 PASS한다(허수). 그래서 "beGraph 빈 폴백"만 feApiCallGraph()로
+// 바꿔 buildDiagrams(feGraph) 위임 경로의 진짜 ep_* 마커가 실제로 지워지는지 검증하고, 나머지 2개
+// combined 케이스는 "오늘은 구조적으로 마커가 없다"는 사실 자체를 고정(향후 BE 컴포넌트가
+// screenComponent에 섞이는 리팩터가 들어오면 이 테스트가 즉시 유의미해진다)하는 용도로 남긴다.
 describe('마커 누출 가드 — 전체 DiagramSet 반환경로 통합 (v1.2.63 D1)', () => {
   function assertNoLeak(label: string, diagrams: { rendering: string; screenComponent: string; dbScreen: string }) {
     const all = diagrams.rendering + diagrams.screenComponent + diagrams.dbScreen
-    expect(all, label).not.toContain('%% nodemap:')
+    expect(all, label).not.toContain(NODEMAP_MARKER_PREFIX)
   }
 
   it('buildDiagrams — FE(비청킹)', () => {
@@ -325,21 +339,46 @@ describe('마커 누출 가드 — 전체 DiagramSet 반환경로 통합 (v1.2.6
     assertNoLeak('BE 청킹', buildDiagrams(beGraph(), FORCE_CHUNK))
   })
 
+  // renderMermaid(CLI .md 출력 경로)는 buildDiagrams/buildCombinedDiagram과 별개의 stripNodeMapMarkers
+  // 호출 3곳(rendering.md/screen-component.md/db-screen.md)을 갖는데, 지금까지 이 경로를 강제로
+  // 태우는 leak 테스트가 하나도 없었다(scope-critic 지적 — strip을 지워도 기존 8개 테스트가 전부
+  // 우연히 PASS했을 사각지대). 실제 마커가 생기는 sampleGraph()(Tab1 T1_*)로 CLI 산출물을 검증한다.
+  it('renderMermaid — CLI .md 출력에는 마커가 남지 않는다(사람이 읽는 산출물)', async () => {
+    const outDir = path.join(__dirname, '../../../../.tmp-nodemap-leak-guard-test')
+    try {
+      await renderMermaid(sampleGraph(), outDir)
+      const [rendering, screenComponent, dbScreen] = await Promise.all([
+        fs.readFile(path.join(outDir, 'rendering.md'), 'utf8'),
+        fs.readFile(path.join(outDir, 'screen-component.md'), 'utf8'),
+        fs.readFile(path.join(outDir, 'db-screen.md'), 'utf8'),
+      ])
+      // 전제 확인: T1_* 노드가 실제로 존재해야(=마커가 emit됐어야) 이 테스트가 유의미하다.
+      expect(rendering).toContain('T1_')
+      assertNoLeak('renderMermaid CLI .md', { rendering, screenComponent, dbScreen })
+    } finally {
+      await fs.rm(outDir, { recursive: true, force: true })
+    }
+  })
+
   // buildCombinedDiagram은 buildDiagrams와 별개의 stripNodeMapMarkers 호출 3곳(shouldChunk true/false
   // 분기 + beGraph 빈 폴백)을 갖는다 — 각각을 강제로 태운다.
-  it('buildCombinedDiagram — 매칭 정상 경로(rendering 비청킹)', () => {
+  it('buildCombinedDiagram — 매칭 정상 경로(rendering 비청킹) — 오늘은 구조적으로 마커 없음, 회귀 대비 고정', () => {
     const fe = makeCombinedFe()
     const be = makeCombinedBe()
     assertNoLeak('combined 정상', buildCombinedDiagram(fe.graph, be.graph, fe.crossEdges(be)))
   })
 
-  it('buildCombinedDiagram — beGraph 빈 단독 폴백(feOnly spread)', () => {
-    const fe = makeCombinedFe()
+  it('buildCombinedDiagram — beGraph 빈 단독 폴백(feOnly spread, buildDiagrams(feGraph) 위임)', () => {
+    // feApiCallGraph()로 실제 ep_* 마커가 생기는 그래프를 fe 자리에 써서, feOnly 위임 경로가
+    // buildDiagrams와 같은 strip을 실제로 거치는지(허수가 아니게) 검증한다.
+    const fe = feApiCallGraph()
     const emptyBe = createIRGraph({ analyzerVersion: 'test', repoRoot: '/be', nodes: [], edges: [] })
-    assertNoLeak('combined beGraph 빈 폴백', buildCombinedDiagram(fe.graph, emptyBe, []))
+    const diagrams = buildCombinedDiagram(fe, emptyBe, [])
+    expect(diagrams.dbScreen).toContain('ep_')
+    assertNoLeak('combined beGraph 빈 폴백(flow 위임)', diagrams)
   })
 
-  it('buildCombinedDiagram — rendering 노드수 초과 fallback["..."] 분기(이전까지 무테스트였던 사각지대)', () => {
+  it('buildCombinedDiagram — rendering 노드수 초과 fallback["..."] 분기(이전까지 무테스트였던 사각지대) — 오늘은 구조적으로 마커 없음, 회귀 대비 고정', () => {
     const fe = makeCombinedFe()
     const be = makeCombinedBe()
     // matchedRouteCount(2) > nodeThreshold(1) → rendering이 fallback 메시지로 대체되지만
