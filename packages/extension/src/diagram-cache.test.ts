@@ -26,7 +26,7 @@ describe('readDiagramCache / writeDiagramCache — 캐시 파일 분리 (ARCH-1)
     projectName: 'demo',
     routeCount: 3,
     tableCount: 2,
-    diagrams: { rendering: 'graph LR', screenComponent: '', dbScreen: '', nodeMap: {} },
+    diagrams: { rendering: 'graph LR', screenComponent: '', dbScreen: '', nodeMap: {}, tab3Kind: 'erd' },
   }
 
   // v1.2.62: nodeMap이 없는 캐시 = v1.2.61 이전 산출물. analyzerVersion 범프를 빠뜨려도
@@ -36,6 +36,17 @@ describe('readDiagramCache / writeDiagramCache — 캐시 파일 분리 (ARCH-1)
     const cacheDir = path.join(dir, '.codebase-viz')
     await fs.mkdir(cacheDir, { recursive: true })
     const legacy = { ...sample, diagrams: { rendering: 'graph LR', screenComponent: '', dbScreen: '' } }
+    await fs.writeFile(path.join(cacheDir, 'cache-diagrams.json'), JSON.stringify(legacy))
+    expect(await readDiagramCache(dir)).toBeUndefined()
+  })
+
+  // v1.2.63 D0: tab3Kind 없는 캐시 = v1.2.62 이전 산출물. webview가 이 필드로 Tab3 렌더 종류를
+  // 분기하므로(ST3), 없는 채 로드되면 D0(react-router FE Tab3 (No data))가 조용히 재발한다.
+  it('tab3Kind 없는 구버전 diagrams 캐시는 무효 처리한다', async () => {
+    const dir = await makeTmpDir()
+    const cacheDir = path.join(dir, '.codebase-viz')
+    await fs.mkdir(cacheDir, { recursive: true })
+    const legacy = { ...sample, diagrams: { rendering: 'graph LR', screenComponent: '', dbScreen: '', nodeMap: {} } }
     await fs.writeFile(path.join(cacheDir, 'cache-diagrams.json'), JSON.stringify(legacy))
     expect(await readDiagramCache(dir)).toBeUndefined()
   })
