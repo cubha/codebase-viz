@@ -124,6 +124,65 @@ describe('nodeMap 커버리지 — 실제 buildDiagrams 출력 기준 (v1.2.61 �
   })
 })
 
+// react-router FE Tab3(buildFeApiCallDiagram) — endpoint 박스(`ep_*`)는 graph.nodes에 없는 합성
+// 노드라 v1.2.62까지 nodeMap에서 전량 빠져 클릭 무반응이었다(D5). v1.2.63에서 엣지 기반 마커로 해소.
+function feApiCallGraph(): IRGraph {
+  const routeA = createRouteNode({
+    id: makeNodeId('route', 'app/dash/page.tsx', 'page'),
+    path: '/dash', filePath: 'app/dash/page.tsx', routeFileKind: 'page',
+    dynamicSegmentType: 'static', isGroupRoute: false, renderingMode: 'CSR',
+    provenance: { ...PROV, file: 'app/dash/page.tsx' }, confidence: 'verified',
+  })
+  const comp = createComponentNode({
+    id: makeNodeId('component', 'components/Dash.tsx', 'Dash'),
+    name: 'Dash', filePath: 'components/Dash.tsx', runtime: 'client',
+    provenance: { ...PROV, file: 'components/Dash.tsx' }, confidence: 'verified',
+  })
+  const renders = createEdge({
+    id: makeEdgeId('renders', routeA.id, comp.id), from: routeA.id, to: comp.id,
+    kind: 'renders', provenance: PROV, confidence: 'verified',
+  })
+  const endpointId = makeNodeId('endpoint', 'virtual', 'GET:/api/dash')
+  const apiCall = createEdge({
+    id: makeEdgeId('api-call', comp.id, endpointId), from: comp.id, to: endpointId,
+    kind: 'api-call', apiCall: { method: 'GET', path: '/api/dash', library: 'axios' },
+    provenance: { file: 'components/Dash.tsx', line: 9, adapter: 'test', analyzerVersion: 'test' },
+    confidence: 'verified',
+  })
+  return createIRGraph({
+    analyzerVersion: 'test', repoRoot: '/repo',
+    metadata: { framework: 'react-router', hasSupabase: false, hasPrisma: false, hasDexie: false, hasFirebase: false },
+    nodes: [routeA, comp], edges: [renders, apiCall],
+  })
+}
+
+describe('nodeMap 커버리지 — FE Tab3 endpoint 박스(ep_*, v1.2.63 D5)', () => {
+  const diagrams = buildDiagrams(feApiCallGraph())
+  const nodeMap = diagrams.nodeMap ?? {}
+
+  it('ep_* endpoint 박스가 전부 nodeMap에 실린다', () => {
+    const epIds = declaredIds(diagrams.dbScreen).filter(id => id.startsWith('ep_'))
+    expect(epIds.length).toBeGreaterThan(0)
+    const missing = epIds.filter(id => nodeMap[id] === undefined)
+    expect(missing).toEqual([])
+  })
+
+  it('ep_* 엔트리는 호출 지점(file:line) provenance를 갖는다 — Evidence-First', () => {
+    const epIds = declaredIds(diagrams.dbScreen).filter(id => id.startsWith('ep_'))
+    for (const id of epIds) {
+      const entry = nodeMap[id]
+      expect(entry, id).toBeDefined()
+      expect(entry!.f).toBe('components/Dash.tsx')
+      expect(entry!.l).toBe(9)
+      expect(entry!.c).toBe('verified')
+    }
+  })
+
+  it('ep_* 마커는 렌더 텍스트에 남지 않는다(CLI .md 오염 방지)', () => {
+    expect(diagrams.dbScreen).not.toContain('%% nodemap:')
+  })
+})
+
 // BE(springboot) 경로 — 패키지 트리 박스(`pkg_*`)는 FE Tab1의 `T1_*`와 같은 집계 노드 클래스다.
 // v1.2.62 1차 수정에서 여기만 빠져 partner-mock 실측 Tab1 19개 중 12개가 클릭 불가였다.
 function beGraph(): IRGraph {

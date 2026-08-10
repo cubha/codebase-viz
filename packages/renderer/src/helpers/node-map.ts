@@ -1,4 +1,4 @@
-import type { IRGraph, IRNode, RouteNode } from '@codebase-viz/types'
+import type { IRGraph, IRNode, IREdge, RouteNode } from '@codebase-viz/types'
 import { sanitizeId } from './ids.js'
 
 // 폴더/패키지 박스는 하위 라우트 N개를 합친 집계 노드라 대응 소스 파일이 1:1로 없다. 딥링크가
@@ -72,7 +72,9 @@ function displayName(node: IRNode): string | undefined {
 }
 
 // verified/manual은 정적 증거, inferred는 휴리스틱 — 충돌 시 더 확실한 쪽을 남긴다.
-function entryConfidenceRank(c: NodeMapEntry['c']): number {
+// export: 대표 선정이 필요한 다른 빌더(fe/tab3-api.ts의 endpoint 대표 엣지 선정 등)가
+// 동일한 confidence 우선순위 규칙을 재사용하도록 한다 — 규칙이 두 곳에 따로 있으면 드리프트된다.
+export function entryConfidenceRank(c: NodeMapEntry['c']): number {
   if (c === 'verified') return 0
   if (c === 'manual') return 1
   return 2
@@ -89,6 +91,22 @@ function toEntry(node: IRNode, opts?: BuildNodeMapOptions): NodeMapEntry {
     f: node.provenance.file,
     l: node.provenance.line,
     c: node.confidence,
+    ...(inferenceHead !== undefined ? { i: inferenceHead } : {}),
+    ...(name !== undefined ? { n: name } : {}),
+    ...(opts?.root === 'pair' ? { r: 'pair' as const } : {}),
+  }
+}
+
+// 합성 endpoint 노드(FE Tab3 ep_*)처럼 graph.nodes에 없는 대상은 엣지 자체가 provenance/confidence를
+// 나른다 — IREdge에서 직접 엔트리를 만든다. apiCall이 있으면 "GET /api/x" 형태를 표시명(n)으로 삼아
+// T3 검색(D8)이 endpoint도 찾을 수 있게 한다.
+function toEntryFromEdge(edge: IREdge, opts?: BuildNodeMapOptions): NodeMapEntry {
+  const inferenceHead = edge.confidence === 'inferred' ? edge.inferenceChain[0] : undefined
+  const name = edge.apiCall !== undefined ? `${edge.apiCall.method} ${edge.apiCall.path}` : undefined
+  return {
+    f: edge.provenance.file,
+    l: edge.provenance.line,
+    c: edge.confidence,
     ...(inferenceHead !== undefined ? { i: inferenceHead } : {}),
     ...(name !== undefined ? { n: name } : {}),
     ...(opts?.root === 'pair' ? { r: 'pair' as const } : {}),
@@ -134,10 +152,14 @@ export function buildNodeMap(
   emittedTexts: string[],
   opts?: BuildNodeMapOptions,
 ): NodeMap {
-  if (graph.nodes.length === 0 || emittedTexts.length === 0) return {}
+  // FE Tab3 ep_* endpoint 마커는 graph.nodes가 아닌 graph.edges(api-call)만으로 해석되므로,
+  // 노드가 0개인 그래프라도 엣지가 있으면 조기 반환하지 않는다.
+  if ((graph.nodes.length === 0 && graph.edges.length === 0) || emittedTexts.length === 0) return {}
 
   const bySid = new Map<string, IRNode>()
   const byIrId = new Map<string, IRNode>()
+  const byEdgeId = new Map<string, IREdge>()
+  for (const edge of graph.edges) byEdgeId.set(edge.id, edge)
   for (const node of graph.nodes) {
     byIrId.set(node.id, node)
     const sid = sanitizeId(node.id)
@@ -167,7 +189,9 @@ export function buildNodeMap(
       const target = decodeMarkerTarget(m[2]!)
       if (target === undefined) continue
       const node = byIrId.get(target)
-      if (node !== undefined) map[m[1]!] = toEntry(node, opts)
+      if (node !== undefined) { map[m[1]!] = toEntry(node, opts); continue }
+      const edge = byEdgeId.get(target)
+      if (edge !== undefined) map[m[1]!] = toEntryFromEdge(edge, opts)
     }
   }
 

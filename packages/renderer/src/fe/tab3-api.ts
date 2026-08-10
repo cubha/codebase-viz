@@ -4,6 +4,7 @@ import type { NestedGroup } from '../url-grouper.js'
 import { groupRoutesByUrl } from '../url-grouper.js'
 import { sanitizeId, modeClass } from '../helpers/ids.js'
 import { RENDERING_INIT, CLASS_DEFS } from '../helpers/constants.js'
+import { nodeMapMarker, entryConfidenceRank } from '../helpers/node-map.js'
 import { groupSubgraphId, sectionLabel } from './labels.js'
 
 // 읽기 전용 lookup 묶음. T1 lookup table·T4 시퀀스 신규 빌더는 본 ctx에 필드 추가만으로 주입 가능.
@@ -11,6 +12,32 @@ export interface ApiCallCtx {
   routeToComp: Map<string, string>
   compById: Map<string, ComponentNode>
   compToApiCalls: Map<string, IREdge[]>
+  repEdgeByEndpointId: Map<string, IREdge>
+}
+
+// endpoint 박스(ep_*)는 graph.nodes에 없는 합성 노드라 nodeMap 마커는 IR 노드가 아닌 엣지를
+// 가리켜야 한다(node-map.ts toEntryFromEdge). 같은 endpoint를 여러 컴포넌트가 호출하면
+// route-tree 순회 순서에 따라 먼저 emit되는 쪽이 마커 대상이 되던 first-wins는 Evidence-First
+// 위반(inferred 호출이 verified보다 먼저 순회되면 inferred가 대표가 됨) — emit 전에 endpoint별
+// 대표 엣지를 순서 무관하게 사전 선정한다. 규칙은 pickRepresentativeRoute와 동일(verified 우선,
+// 동순위는 id 사전순).
+function pickRepresentativeApiCallEdges(edges: readonly IREdge[]): Map<string, IREdge> {
+  const byEndpoint = new Map<string, IREdge>()
+  for (const edge of edges) {
+    if (edge.apiCall === undefined) continue
+    const endpointId = `ep_${sanitizeId(`${edge.apiCall.method}_${edge.apiCall.path}`)}`
+    const existing = byEndpoint.get(endpointId)
+    if (existing === undefined) {
+      byEndpoint.set(endpointId, edge)
+      continue
+    }
+    const rank = entryConfidenceRank(edge.confidence)
+    const existingRank = entryConfidenceRank(existing.confidence)
+    if (rank < existingRank || (rank === existingRank && edge.id < existing.id)) {
+      byEndpoint.set(endpointId, edge)
+    }
+  }
+  return byEndpoint
 }
 
 // React Router Tab3 = Route별 API 호출 다이어그램.
@@ -38,7 +65,8 @@ export function buildFeApiCallDiagram(graph: IRGraph): string {
     list.push(e)
     compToApiCalls.set(e.from, list)
   }
-  const ctx: ApiCallCtx = { routeToComp, compById, compToApiCalls }
+  const repEdgeByEndpointId = pickRepresentativeApiCallEdges(apiCallEdges)
+  const ctx: ApiCallCtx = { routeToComp, compById, compToApiCalls, repEdgeByEndpointId }
 
   const lines: string[] = [RENDERING_INIT, 'graph LR', CLASS_DEFS]
   lines.push('  classDef apiAxios fill:#1a0d1a,stroke:#a855f7,color:#e9d5ff')
@@ -106,6 +134,8 @@ export function emitRouteApiCalls(
     const endpointId = `ep_${sanitizeId(`${method}_${apiPath}`)}`
     if (!endpointEmitted.has(endpointId)) {
       endpointEmitted.add(endpointId)
+      const repEdge = ctx.repEdgeByEndpointId.get(endpointId)
+      if (repEdge !== undefined) lines.push(nodeMapMarker(indent, endpointId, repEdge.id))
       const cls = library === 'fetch' ? 'apiFetch' : library === 'react-query' ? 'apiQuery' : 'apiAxios'
       const arrow = call.confidence === 'inferred' ? '⟿' : '→'
       lines.push(`${indent}${endpointId}["${method} ${apiPath} ${arrow} ${library}"]:::${cls}`)

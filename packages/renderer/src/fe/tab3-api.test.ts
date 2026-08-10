@@ -9,7 +9,6 @@ import {
   type IRGraph,
   type RouteNode,
   type ComponentNode,
-  type IREdge,
 } from '@codebase-viz/types'
 import { buildFeApiCallDiagram } from './tab3-api.js'
 import { buildNodeMap } from '../helpers/node-map.js'
