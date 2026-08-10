@@ -17,18 +17,26 @@ export function getSourceLabel(node: IRNode): string | undefined {
   return undefined
 }
 
+// Tab3 렌더 종류 판정. webview(viewer.html)가 dbScreen 텍스트를 erDiagram 파서로 재해석할지
+// 원문 그대로 렌더할지 결정하는 데도 쓰인다(DiagramSet.tab3Kind) — buildDbScreenDiagram의 분기와
+// 어긋나면 webview가 다시 침묵 실패하므로(D0) 판정 로직을 이 함수 하나로 단일화한다.
+//   1. BE 어댑터 → 현행 ER + Repository 합성
+//   2. react-router FE + tables===0 → 신규 FE API 호출 다이어그램 (axios/fetch/react-query) = 'flow'
+//   3. 그 외(Next.js+Supabase·Vite·Nuxt·SvelteKit·Vue SPA 등 FE+tables>0) → 현행 ER 다이어그램 = 'erd'
+export function resolveTab3Kind(graph: IRGraph): 'erd' | 'flow' {
+  const tableNodes = graph.nodes.filter(isTableNode)
+  if (graph.metadata?.adapterCategory !== 'BE' && tableNodes.length === 0) {
+    const infra = metadataToInfra(graph.metadata)
+    if (infra.hasReactRouter) return 'flow'
+  }
+  return 'erd'
+}
+
 export function buildDbScreenDiagram(graph: IRGraph): string {
   const tableNodes = graph.nodes.filter(isTableNode)
 
-  // Tab3 분기
-  //   1. BE 어댑터 → 현행 ER + Repository 합성 (이 함수 하단 'adapterCategory==='BE'' 블록 유지)
-  //   2. react-router FE + tables===0 → 신규 FE API 호출 다이어그램 (axios/fetch/react-query)
-  //   3. 그 외(Next.js+Supabase·Vite·Nuxt·SvelteKit·Vue SPA 등 FE+tables>0) → 현행 ER 다이어그램 (회귀 0)
-  if (graph.metadata?.adapterCategory !== 'BE' && tableNodes.length === 0) {
-    const infra = metadataToInfra(graph.metadata)
-    if (infra.hasReactRouter) {
-      return buildFeApiCallDiagram(graph)
-    }
+  if (resolveTab3Kind(graph) === 'flow') {
+    return buildFeApiCallDiagram(graph)
   }
 
   const queriesEdges = graph.edges.filter(e => e.kind === 'queries')

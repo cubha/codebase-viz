@@ -863,3 +863,34 @@ describe('buildDiagrams — nodeMap (Wave A T1/T2 사이드채널, v1.2.61)', ()
     expect(hit?.r).toBeUndefined()
   })
 })
+
+describe('buildDiagrams — tab3Kind (v1.2.63 D0, webview Tab3 렌더 종류 선언)', () => {
+  it('Next.js(테이블 보유)는 tab3Kind=erd', () => {
+    const table = createTableNode({
+      id: makeNodeId('table', 'schema.sql', 'posts'),
+      name: 'posts',
+      columns: [],
+      provenance: { file: 'schema.sql', line: 1, adapter: 'test@0.1', analyzerVersion: 'test' },
+      confidence: 'verified',
+    })
+    const graph = createIRGraph({
+      analyzerVersion: 'codebase-viz@0.1.0',
+      repoRoot: '/tmp/test',
+      metadata: { framework: 'nextjs-app-router', hasSupabase: true, hasPrisma: false, hasDexie: false, hasFirebase: false },
+      nodes: [table],
+      edges: [],
+    })
+    expect(buildDiagrams(graph).tab3Kind).toBe('erd')
+  })
+
+  it('react-router FE + 테이블 0개는 tab3Kind=flow', () => {
+    const graph = createIRGraph({
+      analyzerVersion: 'codebase-viz@0.1.0',
+      repoRoot: '/tmp/test',
+      metadata: { framework: 'react-router', hasSupabase: false, hasPrisma: false, hasDexie: false, hasFirebase: false },
+      nodes: [],
+      edges: [],
+    })
+    expect(buildDiagrams(graph).tab3Kind).toBe('flow')
+  })
+})

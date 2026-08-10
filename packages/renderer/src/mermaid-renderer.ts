@@ -30,7 +30,7 @@ import { buildFeFileTreeScreenDiagram } from './fe/tab2-file.js'
 import { buildFeDomainLayeredScreenDiagram, isPagesDomainEligible } from './fe/tab2-domain.js'
 import { buildRenderingDiagram } from './fe/tab1.js'
 import { buildBeArchitectureDiagram } from './be/tab2.js'
-import { buildDbScreenDiagram } from './erd/db-diagram.js'
+import { buildDbScreenDiagram, resolveTab3Kind } from './erd/db-diagram.js'
 
 function buildScreenComponentDiagram(graph: IRGraph): string {
   if (graph.metadata?.adapterCategory === 'BE') return buildBeArchitectureDiagram(graph)
@@ -153,6 +153,11 @@ export interface DiagramSet {
   // T1 딥링크·T2 hover 사이드채널(webview 전용). sanitizeId(node.id) → {file,line,confidence,...}.
   // renderMermaid(.md CLI 출력)는 이 필드를 emit하지 않는다 — DiagramSet은 webview 경로 전용 산출물.
   nodeMap?: NodeMap
+  // webview가 dbScreen을 erDiagram 파서로 재해석할지 원문 그대로 렌더할지 판정하는 선언(D0).
+  // resolveTab3Kind와 어긋나면 webview가 다시 침묵 실패하므로 buildDbScreenDiagram 호출 지점마다
+  // 반드시 같은 graph로 계산해 채운다. optional인 이유는 이 필드 없는 구캐시(v1.2.62 이전 산출물)를
+  // shape로 걸러야 해서(diagram-cache.ts isDiagramCache) — nodeMap과 동일한 선례.
+  tab3Kind?: 'erd' | 'flow'
 }
 
 export interface GroupingOptions {
@@ -310,12 +315,15 @@ export function buildCombinedDiagram(
   const beNodeMap = buildNodeMap(beGraph, emittedTexts, { root: 'pair' })
   const nodeMap: NodeMap = mergeNodeMaps(feNodeMap, beNodeMap)
 
+  const tab3Kind = resolveTab3Kind(combinedTableGraph)
+
   if (!shouldChunk(renderingText, threshold, matchedRouteCount, nodeThr)) {
     return {
       rendering: stripNodeMapMarkers(renderingText),
       screenComponent: stripNodeMapMarkers(screenComponent),
       dbScreen: stripNodeMapMarkers(dbScreen),
       nodeMap,
+      tab3Kind,
     }
   }
 
@@ -331,6 +339,7 @@ export function buildCombinedDiagram(
     screenComponent: stripNodeMapMarkers(screenComponent),
     dbScreen: stripNodeMapMarkers(dbScreen),
     nodeMap,
+    tab3Kind,
   }
 }
 
@@ -390,5 +399,6 @@ export function buildDiagrams(graph: IRGraph, opts?: BuildDiagramsOptions): Diag
     screenComponent: stripNodeMapMarkers(screenComponent),
     dbScreen: stripNodeMapMarkers(dbScreen),
     nodeMap,
+    tab3Kind: resolveTab3Kind(graph),
   }
 }

@@ -19,7 +19,6 @@ const BE_META: IRGraphMetadata = {
 
 function graphWithMeta(metadata: IRGraphMetadata) {
   return createIRGraph({
-    schemaVersion: '0.1',
     analyzerVersion: 'test',
     repoRoot: '/tmp/test',
     metadata,
@@ -46,7 +45,6 @@ describe('resolveTab3Kind — Tab3 렌더 종류 판정 단일화 (v1.2.63 D0)',
       confidence: 'verified',
     })
     const graph = createIRGraph({
-      schemaVersion: '0.1',
       analyzerVersion: 'test',
       repoRoot: '/tmp/test',
       metadata: RR_META,
@@ -68,7 +66,6 @@ describe('resolveTab3Kind — Tab3 렌더 종류 판정 단일화 (v1.2.63 D0)',
 
   it('metadata 없으면 erd(안전한 기본값)', () => {
     const graph = createIRGraph({
-      schemaVersion: '0.1',
       analyzerVersion: 'test',
       repoRoot: '/tmp/test',
       nodes: [],

@@ -169,6 +169,34 @@ describe('buildCombinedDiagram — A2 matched-only 필터', () => {
   })
 })
 
+describe('buildCombinedDiagram — tab3Kind (v1.2.63 D0)', () => {
+  it('BE 존재 결합 산출물은 tab3Kind=erd (combinedTableGraph가 BE metadata를 상속)', () => {
+    const matched = makeFeRoute('/matched', 'MatchedWidget')
+    const feGraph: IRGraph = createIRGraph({
+      analyzerVersion: 'test', repoRoot: '/fe', projectName: 'fe',
+      nodes: matched.nodes, edges: matched.edges,
+    })
+    const beMatchedRoute = makeBeRoute('/api/matched')
+    const beGraph: IRGraph = createIRGraph({
+      analyzerVersion: 'test', repoRoot: '/be', projectName: 'be', metadata: BE_META,
+      nodes: [beMatchedRoute], edges: [],
+    })
+    const remapped: IREdge[] = [makeCrossEdge(matched.comp.id, beMatchedRoute.id)]
+    expect(buildCombinedDiagram(feGraph, beGraph, remapped).tab3Kind).toBe('erd')
+  })
+
+  it('beGraph 빈 경우(FE 단독 폴백)에도 buildDiagrams의 tab3Kind를 그대로 상속한다', () => {
+    const rr = makeFeRoute('/solo', 'SoloWidget')
+    const feGraph: IRGraph = createIRGraph({
+      analyzerVersion: 'test', repoRoot: '/fe', projectName: 'fe',
+      metadata: { framework: 'react-router', hasSupabase: false, hasPrisma: false, hasDexie: false, hasFirebase: false },
+      nodes: rr.nodes, edges: rr.edges,
+    })
+    const emptyBeGraph: IRGraph = createIRGraph({ analyzerVersion: 'test', repoRoot: '/be', nodes: [], edges: [] })
+    expect(buildCombinedDiagram(feGraph, emptyBeGraph, []).tab3Kind).toBe('flow')
+  })
+})
+
 describe('buildCombinedDiagram — A2 Tab3 FE·BE 테이블 합집합', () => {
   it('BE 테이블만 넘기던 기존 결함을 고쳐 FE 테이블도 ERD에 포함한다', () => {
     const feTable = createTableNode({
