@@ -433,6 +433,28 @@ const DIAGRAMS = {
 // 구 harness/캐시는 이 필드가 없을 수 있으므로 조용히 {}로 degrade한다(기존 스펙 파손 방지).
 const NODE_MAP = injected.nodeMap || {};
 
+// v1.2.63 D0: Tab3(DB–Screen)를 예전엔 항상 erDiagram 파서(parseDbData)로 재해석했다 —
+// react-router FE의 Tab3(buildFeApiCallDiagram, graph LR)는 이 파서에 tables 0으로 잡혀
+// 통째로 "(No data)"가 되던 결함. 렌더러가 선언한 tab3Kind(DiagramSet, ST1)를 신뢰해 분기하고,
+// 캐시 가드(ST2)를 경유하지 않는 render-harness 등 구 경로만 텍스트 스니핑으로 폴백한다.
+function sniffTab3Kind(text) {
+  if (!text) return 'erd';
+  for (const raw of String(text).split('\n')) {
+    const line = raw.trim();
+    if (!line || line.startsWith('%%')) continue;
+    return line === 'erDiagram' ? 'erd' : 'flow';
+  }
+  return 'erd';
+}
+const TAB3_KIND = injected.tab3Kind || sniffTab3Kind(DIAGRAMS.d);
+if (TAB3_KIND === 'flow') {
+  // flow 모드는 테이블 개념이 없다 — View 토글바(FK/쿼리/액션 필터)와 테이블 사이드바는 의미가 없다.
+  const toggleBar = document.querySelector('.db-toggle-bar');
+  if (toggleBar) toggleBar.style.display = 'none';
+  const sidebar = document.querySelector('.db-sidebar');
+  if (sidebar) sidebar.style.display = 'none';
+}
+
 // ── Runtime ──────────────────────────────────────────────────────────────────
 mermaid.initialize({
   startOnLoad: false, securityLevel: 'loose', maxTextSize: 1000000, maxEdges: 2000,
@@ -770,7 +792,7 @@ function switchTab(t) {
 
 async function renderTab(t) {
   rendered[t] = true;
-  if (t === 'd') { await renderDbView(dbCurrentView); buildSidebar(DIAGRAMS.d); return; }
+  if (t === 'd') { await renderDbView(dbCurrentView); if (TAB3_KIND !== 'flow') buildSidebar(DIAGRAMS.d); return; }
   const inner = document.getElementById('i-'+t);
   if (!DIAGRAMS[t]) { inner.innerHTML = '<div class="loading-msg">' + tr('status.noData') + '</div>'; return; }
   try {
@@ -980,6 +1002,15 @@ async function renderDbView(view) {
   const inner = document.getElementById('i-d');
   inner.innerHTML = '<div class="loading-msg">' + tr('status.rendering') + '</div>';
   if (!DIAGRAMS.d) { inner.innerHTML = '<div class="loading-msg">' + tr('status.noDbData') + '</div>'; return; }
+  if (TAB3_KIND === 'flow') {
+    // FK/쿼리/액션 view는 erDiagram 전용 개념이라 무의미 — DIAGRAMS.d 원문을 그대로 렌더한다.
+    try {
+      await renderChunkedInto('d', inner, 'dbsvg_flow', DIAGRAMS.d);
+    } catch (e) {
+      inner.innerHTML = '<pre style="color:#fb923c;padding:20px;font-size:11px">' + esc(e.message) + '</pre>';
+    }
+    return;
+  }
   try {
     if (!dbGraphs) {
       const data = parseDbData(DIAGRAMS.d);
