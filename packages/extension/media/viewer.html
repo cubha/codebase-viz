@@ -1276,6 +1276,7 @@ window.addEventListener('message', function(event) {
 function getDiagramSource(t) {
   if (t === 'd') {
     if (!DIAGRAMS.d) return null;
+    if (TAB3_KIND === 'flow') return DIAGRAMS.d;
     if (!dbGraphs) {
       var data = parseDbData(DIAGRAMS.d);
       dbGraphs = {
@@ -1364,17 +1365,21 @@ function exportMd() {
   // DB-Screen: always use "all" view (shows FK + page queries + server actions)
   var dbDiagram = '';
   if (DIAGRAMS.d) {
-    if (!dbGraphs) {
-      var data = parseDbData(DIAGRAMS.d);
-      dbGraphs = {
-        fk:      buildDbGraph(data, true,  false, false),
-        routes:  buildDbGraph(data, false, true,  false),
-        actions: buildDbGraph(data, false, false, true),
-        all:     buildDbGraph(data, true,  true,  true),
-        _data:   data,
-      };
+    if (TAB3_KIND === 'flow') {
+      dbDiagram = DIAGRAMS.d;
+    } else {
+      if (!dbGraphs) {
+        var data = parseDbData(DIAGRAMS.d);
+        dbGraphs = {
+          fk:      buildDbGraph(data, true,  false, false),
+          routes:  buildDbGraph(data, false, true,  false),
+          actions: buildDbGraph(data, false, false, true),
+          all:     buildDbGraph(data, true,  true,  true),
+          _data:   data,
+        };
+      }
+      dbDiagram = dbGraphs.all || '';
     }
-    dbDiagram = dbGraphs.all || '';
   }
   var diagramMap = {r: DIAGRAMS.r, s: DIAGRAMS.s, d: dbDiagram};
   var sections = Object.entries(diagramMap)
