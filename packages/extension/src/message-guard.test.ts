@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import * as path from 'node:path'
+import type { NodeMap } from '@codebase-viz/renderer'
 import {
   isHttpsUrl,
   sanitizeExportFilename,
@@ -7,6 +8,7 @@ import {
   isAllowedSidebarMessageType,
   isValidOpenNodeMessage,
   resolveWithinRoot,
+  resolveOpenNodeTarget,
 } from './message-guard.js'
 
 describe('isHttpsUrl (ST2)', () => {
@@ -99,5 +101,67 @@ describe('resolveWithinRoot (Wave A ST4 — T1 딥링크 경로 이탈 차단)',
   })
   it('root 밖 절대경로가 섞여 들어와도 undefined를 반환한다', () => {
     expect(resolveWithinRoot(root, path.resolve('/etc/passwd'))).toBeUndefined()
+  })
+})
+
+// handleOpenNode(webview.ts)의 vscode 비의존 로직 전량 — nodeMap 조회·프로토타입 가드·pair root
+// 선택·1-based→0-based 라인 변환. 기존엔 이 조합이 vscode API에 묶여 있어 단위테스트가 불가능했고,
+// "webview가 클릭 메시지를 보낸다"까지만 검증되고 "확장이 올바른 파일:라인을 연다"는 미검증이었다.
+// vscode 호출(openTextDocument/showTextDocument) 자체만 webview.ts에 남긴다.
+describe('resolveOpenNodeTarget — 딥링크 점프 대상 해석 (v1.2.63 검증공백 해소)', () => {
+  const repoRoot = path.resolve('/repo')
+  const pairRoot = path.resolve('/pair-repo')
+  const nodeMap: NodeMap = {
+    route_blog: { f: 'src/app/blog/page.tsx', l: 12, c: 'verified' },
+    first_line: { f: 'src/index.ts', l: 1, c: 'verified' },
+    zero_line: { f: 'src/zero.ts', l: 0, c: 'inferred', i: 'guess' },
+    pair_ctrl: { f: 'src/main/java/A.java', l: 30, c: 'verified', r: 'pair' },
+    escapee: { f: '../../etc/passwd', l: 1, c: 'verified' },
+  }
+
+  it('nodeMap 히트 → 절대경로 + 0-based 라인을 반환한다', () => {
+    expect(resolveOpenNodeTarget(nodeMap, 'route_blog', repoRoot, undefined)).toEqual({
+      absPath: path.join(repoRoot, 'src/app/blog/page.tsx'),
+      line: 11,
+    })
+  })
+
+  it('1행은 0으로 변환된다(off-by-one 가드)', () => {
+    expect(resolveOpenNodeTarget(nodeMap, 'first_line', repoRoot, undefined)?.line).toBe(0)
+  })
+
+  it('l이 0/음수여도 line은 0 미만으로 내려가지 않는다', () => {
+    expect(resolveOpenNodeTarget(nodeMap, 'zero_line', repoRoot, undefined)?.line).toBe(0)
+  })
+
+  it("r:'pair' 엔트리는 pairRepoRoot 기준으로 해석한다", () => {
+    expect(resolveOpenNodeTarget(nodeMap, 'pair_ctrl', repoRoot, pairRoot)).toEqual({
+      absPath: path.join(pairRoot, 'src/main/java/A.java'),
+      line: 29,
+    })
+  })
+
+  it("r:'pair'인데 pairRepoRoot가 없으면 undefined(잘못된 root로 점프 금지)", () => {
+    expect(resolveOpenNodeTarget(nodeMap, 'pair_ctrl', repoRoot, undefined)).toBeUndefined()
+  })
+
+  it('nodeMap 미스(subgraph wrapper 등)는 undefined — 조용한 no-op', () => {
+    expect(resolveOpenNodeTarget(nodeMap, 'NOT_THERE', repoRoot, undefined)).toBeUndefined()
+  })
+
+  it('nodeMap 자체가 없으면 undefined', () => {
+    expect(resolveOpenNodeTarget(undefined, 'route_blog', repoRoot, undefined)).toBeUndefined()
+  })
+
+  // v1.2.61 security-auditor가 잡은 결함 — 웹뷰가 보낸 id는 신뢰 불가라 프로토타입 체인 키로
+  // "entry가 존재하는 것처럼" 보이게 만들 수 있었다. own-property 가드 회귀 방지.
+  it('프로토타입 체인 키(__proto__/constructor/toString)는 조회되지 않는다', () => {
+    for (const evil of ['__proto__', 'constructor', 'toString', 'hasOwnProperty']) {
+      expect(resolveOpenNodeTarget(nodeMap, evil, repoRoot, undefined), evil).toBeUndefined()
+    }
+  })
+
+  it('엔트리 경로가 root를 이탈하면 undefined(resolveWithinRoot 위임)', () => {
+    expect(resolveOpenNodeTarget(nodeMap, 'escapee', repoRoot, undefined)).toBeUndefined()
   })
 })
