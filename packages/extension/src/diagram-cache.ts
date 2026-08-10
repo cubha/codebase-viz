@@ -29,7 +29,11 @@ function isDiagramCache(value: unknown): value is DiagramCache {
     // nodeMap 사이드채널(T1 딥링크·T2 hover)이 없는 캐시는 v1.2.61 이전 산출물이다. shape로도
     // 걸러 둔다 — analyzerVersion 범프를 한 번이라도 빠뜨리면 기능이 조용히 죽는 구조였다.
     typeof (v.diagrams as Record<string, unknown>).nodeMap === 'object' &&
-    (v.diagrams as Record<string, unknown>).nodeMap !== null
+    (v.diagrams as Record<string, unknown>).nodeMap !== null &&
+    // tab3Kind(webview Tab3 erd/flow 분기 선언, v1.2.63 D0)가 없는 캐시는 v1.2.62 이전 산출물이다.
+    // 없는 채로 로드되면 viewer가 flow 산출물을 erDiagram 파서로 재해석해 D0가 재발한다.
+    ((v.diagrams as Record<string, unknown>).tab3Kind === 'erd' ||
+      (v.diagrams as Record<string, unknown>).tab3Kind === 'flow')
   )
 }
 
