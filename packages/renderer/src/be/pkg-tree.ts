@@ -49,19 +49,35 @@ export type PkgTreeNode = {
   files: Array<{ filePath: string; routes: RouteNode[] }>
 }
 
+// emitTreeNodes의 walk가 트리의 **모든** 노드마다 collectSubtreeRoutes/Files를 호출한다(대표
+// 라우트·대표 파일 판정용). 메모이즈 없이 매번 하위 전체를 새로 순회하면, 깊이 N짜리 선형 패키지
+// 체인(실제 Java 패키지에 흔한 형태)에서 총 비용이 O(N²)로 폭발한다 — 실측: 3000-깊이 체인
+// 18.3초(memoizeSubtree 없이) → 메모이즈 후 이하로 확인(D7). WeakMap은 노드별 결과를 한 번만
+// 계산해 재사용하므로 각 노드 O(자기 files+children)만 들어 총합이 O(N)이 된다. 빌드마다
+// PkgTreeNode를 새로 만들어(buildPkgTree) 재사용하지 않으므로 WeakMap이 빌드 간 캐시를 들고
+// 있을 위험(stale 캐시)도 없다.
+const subtreeRoutesCache = new WeakMap<PkgTreeNode, RouteNode[]>()
+const subtreeFilesCache = new WeakMap<PkgTreeNode, string[]>()
+
 // export: 메모이제이션이 실제로 캐시 히트하는지(참조 동일성) 직접 검증하려면 테스트가 이 함수를
 // 불러야 한다 — private로 감춰두면 emitTreeNodes 간접 호출로는 "결과가 맞다"만 보이고 "두 번째
 // 호출이 캐시를 탔다"는 증명 불가.
 export function collectSubtreeRoutes(node: PkgTreeNode): RouteNode[] {
+  const cached = subtreeRoutesCache.get(node)
+  if (cached !== undefined) return cached
   const out: RouteNode[] = []
   for (const f of node.files) out.push(...f.routes)
   for (const child of node.children.values()) out.push(...collectSubtreeRoutes(child))
+  subtreeRoutesCache.set(node, out)
   return out
 }
 
 export function collectSubtreeFiles(node: PkgTreeNode): string[] {
+  const cached = subtreeFilesCache.get(node)
+  if (cached !== undefined) return cached
   const out: string[] = node.files.map(f => f.filePath)
   for (const child of node.children.values()) out.push(...collectSubtreeFiles(child))
+  subtreeFilesCache.set(node, out)
   return out
 }
 
