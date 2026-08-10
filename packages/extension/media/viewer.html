@@ -276,6 +276,12 @@
     </div>
   </div>
   <div id="p-d" class="panel">
+    <div class="node-search" id="search-wrap-d" style="display:none">
+      <input type="text" class="search-input" id="search-d" data-t="d" autocomplete="off"
+        data-i18n-placeholder="search.placeholder" data-i18n-aria="search.ariaLabel"
+        placeholder="Search routes/components...">
+      <span class="search-count" id="count-d" role="status" aria-live="polite"></span>
+    </div>
     <div class="db-wrap">
       <div class="db-canvas-area">
         <div class="db-toggle-bar">
@@ -453,6 +459,10 @@ if (TAB3_KIND === 'flow') {
   if (toggleBar) toggleBar.style.display = 'none';
   const sidebar = document.querySelector('.db-sidebar');
   if (sidebar) sidebar.style.display = 'none';
+  // D8: Tab3 검색은 flow 모드(.node 존재하는 flowchart)에서만 의미가 있다 — erDiagram(Tab3 erd
+  // 모드)은 .node가 없어 Tab1/2와 같은 검색 메커니즘이 애초에 작동하지 않는다.
+  const searchWrap = document.getElementById('search-wrap-d');
+  if (searchWrap) searchWrap.style.display = 'flex';
 }
 
 // ── Runtime ──────────────────────────────────────────────────────────────────
@@ -792,7 +802,14 @@ function switchTab(t) {
 
 async function renderTab(t) {
   rendered[t] = true;
-  if (t === 'd') { await renderDbView(dbCurrentView); if (TAB3_KIND !== 'flow') buildSidebar(DIAGRAMS.d); return; }
+  if (t === 'd') {
+    await renderDbView(dbCurrentView);
+    if (TAB3_KIND !== 'flow') { buildSidebar(DIAGRAMS.d); return; }
+    // r/s와 동일 — 재렌더로 SVG가 새로 생기면 dim/highlight가 사라지므로 남은 검색어를 재적용한다.
+    const si = document.getElementById('search-d');
+    if (si && si.value.trim()) applyNodeSearch('d', si.value.trim());
+    return;
+  }
   const inner = document.getElementById('i-'+t);
   if (!DIAGRAMS[t]) { inner.innerHTML = '<div class="loading-msg">' + tr('status.noData') + '</div>'; return; }
   try {
