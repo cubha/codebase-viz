@@ -3,7 +3,9 @@ import {
   createIRGraph,
   createRouteNode,
   createComponentNode,
+  createEdge,
   makeNodeId,
+  makeEdgeId,
   type IRGraph,
 } from '@codebase-viz/types'
 import { sanitizeId } from './ids.js'
@@ -236,6 +238,26 @@ describe('nodeMapMarker — 신뢰 불가 IR id 주입 차단', () => {
     expect(stripped).not.toContain('EVIL_NODE')
     expect(stripped).not.toContain('%% nodemap:')
     expect(stripped).toContain('T1_evil["/evil"]')
+  })
+
+  it('마커가 IR 노드가 아닌 엣지 id를 가리키면 엣지의 provenance/confidence로 매핑한다 (v1.2.63 D5)', () => {
+    // FE Tab3 ep_* endpoint 박스는 graph.nodes에 등록되지 않은 합성 노드라 IR 노드 마커로는
+    // 표현 불가 — api-call 엣지(fetch/axios 호출 지점 file:line)를 가리키는 마커가 필요하다.
+    const compId = makeNodeId('component', 'src/components/Widget.tsx', 'Widget')
+    const endpointId = makeNodeId('endpoint', 'virtual', 'GET:/api/x')
+    const edge = createEdge({
+      id: makeEdgeId('api-call', compId, endpointId),
+      from: compId,
+      to: endpointId,
+      kind: 'api-call',
+      apiCall: { method: 'GET', path: '/api/x', library: 'axios' },
+      provenance: { file: 'src/components/Widget.tsx', line: 42, adapter: 'test@0.1', analyzerVersion: 'test' },
+      confidence: 'verified',
+    })
+    const graph = createIRGraph({ analyzerVersion: 'test', repoRoot: '/repo', nodes: [], edges: [edge] })
+    const text = `flowchart LR\n  %% nodemap:ep_x=${edge.id}\n  ep_x["GET /api/x"]`
+    const map = buildNodeMap(graph, [text])
+    expect(map.ep_x).toEqual({ f: 'src/components/Widget.tsx', l: 42, c: 'verified', n: 'GET /api/x' })
   })
 
   it('인코딩된 마커도 정상 왕복해 nodeMap에 실린다', () => {
