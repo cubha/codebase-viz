@@ -9,7 +9,7 @@ import {
   type IRGraph,
   type RouteNode,
 } from '@codebase-viz/types'
-import { buildDiagrams } from './mermaid-renderer.js'
+import { buildDiagrams, buildCombinedDiagram } from './mermaid-renderer.js'
 import { shouldChunk, CHUNK_SEPARATOR } from './_shared/wrap-fallback.js'
 
 // v1.2.61 회귀 방지 — 이 스펙이 존재하는 이유:
@@ -297,3 +297,102 @@ describe('청킹 임계는 마커를 제외한 렌더 텍스트 길이로 판정
     expect(shouldChunk(body, 100)).toBe(true)
   })
 })
+
+// D1(마커 in-band 프로토콜 규율 분산) 대응 — 정규식 자체는 node-map.ts가 이미 독점하지만, "그 정규식을
+// 부른 뒤 strip을 빠뜨린 반환 경로"는 정규식 하나로 못 잡는다. buildDiagrams/buildCombinedDiagram의
+// **모든** DiagramSet 반환 지점을 한곳에 모아 강제한다 — 새 반환 경로가 생기면 이 describe에 케이스를
+// 추가해야 한다는 신호를 남기기 위한 목적의 통합 가드(개별 파일에 흩어진 기존 leak 테스트는 유지).
+describe('마커 누출 가드 — 전체 DiagramSet 반환경로 통합 (v1.2.63 D1)', () => {
+  function assertNoLeak(label: string, diagrams: { rendering: string; screenComponent: string; dbScreen: string }) {
+    const all = diagrams.rendering + diagrams.screenComponent + diagrams.dbScreen
+    expect(all, label).not.toContain('%% nodemap:')
+  }
+
+  it('buildDiagrams — FE(비청킹)', () => {
+    assertNoLeak('FE 비청킹', buildDiagrams(sampleGraph()))
+  })
+
+  it('buildDiagrams — BE(비청킹)', () => {
+    assertNoLeak('BE 비청킹', buildDiagrams(beGraph()))
+  })
+
+  it('buildDiagrams — react-router FE Tab3(flow, ep_* 엣지 마커)', () => {
+    assertNoLeak('FE Tab3 flow', buildDiagrams(feApiCallGraph()))
+  })
+
+  it('buildDiagrams — 강제 청킹(FE·BE 둘 다)', () => {
+    assertNoLeak('FE 청킹', buildDiagrams(sampleGraph(), FORCE_CHUNK))
+    assertNoLeak('BE 청킹', buildDiagrams(beGraph(), FORCE_CHUNK))
+  })
+
+  // buildCombinedDiagram은 buildDiagrams와 별개의 stripNodeMapMarkers 호출 3곳(shouldChunk true/false
+  // 분기 + beGraph 빈 폴백)을 갖는다 — 각각을 강제로 태운다.
+  it('buildCombinedDiagram — 매칭 정상 경로(rendering 비청킹)', () => {
+    const fe = makeCombinedFe()
+    const be = makeCombinedBe()
+    assertNoLeak('combined 정상', buildCombinedDiagram(fe.graph, be.graph, fe.crossEdges(be)))
+  })
+
+  it('buildCombinedDiagram — beGraph 빈 단독 폴백(feOnly spread)', () => {
+    const fe = makeCombinedFe()
+    const emptyBe = createIRGraph({ analyzerVersion: 'test', repoRoot: '/be', nodes: [], edges: [] })
+    assertNoLeak('combined beGraph 빈 폴백', buildCombinedDiagram(fe.graph, emptyBe, []))
+  })
+
+  it('buildCombinedDiagram — rendering 노드수 초과 fallback["..."] 분기(이전까지 무테스트였던 사각지대)', () => {
+    const fe = makeCombinedFe()
+    const be = makeCombinedBe()
+    // matchedRouteCount(2) > nodeThreshold(1) → rendering이 fallback 메시지로 대체되지만
+    // screenComponent/dbScreen은 여전히 실제 렌더 텍스트라 마커 누출 위험은 그대로 남는다.
+    const diagrams = buildCombinedDiagram(fe.graph, be.graph, fe.crossEdges(be), { nodeThreshold: 1 })
+    expect(diagrams.rendering).toContain('fallback[')
+    assertNoLeak('combined rendering-fallback', diagrams)
+  })
+})
+
+// buildCombinedDiagram 케이스 전용 최소 FE/BE 픽스처 — combined-diagram.test.ts의 makeFeRoute/makeBeRoute
+// 패턴을 이 파일 안에서 재사용하기 위한 축약판(테스트 파일 간 import보다 로컬 자족이 이 스펙의 취지에 맞음).
+function makeCombinedFe() {
+  const routeId = makeNodeId('route', 'app/x/page.tsx', 'page')
+  const compId = makeNodeId('component', 'components/X.tsx', 'X')
+  const route = createRouteNode({
+    id: routeId, path: '/x', filePath: 'app/x/page.tsx', routeFileKind: 'page',
+    dynamicSegmentType: 'static', isGroupRoute: false, renderingMode: 'SSR',
+    provenance: { ...PROV, file: 'app/x/page.tsx' }, confidence: 'verified',
+  })
+  const comp = createComponentNode({
+    id: compId, name: 'X', filePath: 'components/X.tsx', runtime: 'server',
+    provenance: { ...PROV, file: 'components/X.tsx' }, confidence: 'verified',
+  })
+  const renders = createEdge({
+    id: makeEdgeId('renders', routeId, compId), from: routeId, to: compId,
+    kind: 'renders', provenance: PROV, confidence: 'verified',
+  })
+  const graph: IRGraph = createIRGraph({
+    analyzerVersion: 'test', repoRoot: '/fe', projectName: 'fe', nodes: [route, comp], edges: [renders],
+  })
+  return {
+    graph, compId,
+    crossEdges: (be: ReturnType<typeof makeCombinedBe>) => [
+      createEdge({
+        id: makeEdgeId('fe-be-call', compId, be.routeId), from: compId, to: be.routeId,
+        kind: 'fe-be-call', provenance: PROV, confidence: 'verified',
+      }),
+    ],
+  }
+}
+
+function makeCombinedBe() {
+  const routeId = makeNodeId('route', 'be/src/api/XController.java', 'endpoint')
+  const beRoute = createRouteNode({
+    id: routeId, path: '/api/x', filePath: 'be/src/api/XController.java', routeFileKind: 'page',
+    dynamicSegmentType: 'static', isGroupRoute: false, renderingMode: 'unknown',
+    provenance: { ...PROV, file: 'be/src/api/XController.java' }, confidence: 'verified',
+  })
+  const graph: IRGraph = createIRGraph({
+    analyzerVersion: 'test', repoRoot: '/be', projectName: 'be',
+    metadata: { framework: 'springboot', hasSupabase: false, hasPrisma: false, hasDexie: false, hasFirebase: false, adapterCategory: 'BE' },
+    nodes: [beRoute], edges: [],
+  })
+  return { graph, routeId }
+}
