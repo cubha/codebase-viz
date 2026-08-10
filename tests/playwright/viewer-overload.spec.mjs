@@ -82,8 +82,9 @@ test.describe('v1.1.52 결함 검증 — viewer.html Playwright', () => {
     }, dbData)
 
     await page.goto(VIEWER_URL)
-    // Tab3 (DB–Screen) 클릭: viewer.html은 data-t="d" 속성 사용
-    await page.locator('[data-t="d"]').click()
+    // Tab3 (DB–Screen) 클릭: viewer.html은 data-t="d" 속성 사용(탭 자체 + v1.2.63 D8 검색 input
+    // 둘 다 이 속성을 쓴다 — .tab로 스코프해야 유일하게 좁혀진다. 앱 코드의 switchTab()도 동일 패턴)
+    await page.locator('.tab[data-t="d"]').click()
     // mermaid 렌더링 대기
     await page.waitForTimeout(5000)
 

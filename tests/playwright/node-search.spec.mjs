@@ -237,8 +237,13 @@ test.describe('Wave A ST8 — T3 검색바 + dim 필터', () => {
     }
   })
 
-  test('Tab3(ERD)에는 검색바가 없다', async ({ page }) => {
+  // v1.2.63 D8: react-router FE Tab3(flow)에는 검색바가 생겼지만, erDiagram(테이블 기반) Tab3는
+  // 여전히 검색 대상이 아니다(.node가 없는 구조적 한계) — 엘리먼트 자체는 DOM에 존재하되(다른 탭과
+  // 마크업 구조를 통일) display:none으로 숨겨진다. "부재"가 아니라 "숨김"으로 검증을 갱신한다.
+  test('Tab3(ERD)에는 검색바가 보이지 않는다', async ({ page }) => {
     await loadHarness(page, { rendering: 'graph TD\n  a["a"]', screenComponent: '', dbScreen: 'erDiagram' })
-    await expect(page.locator('#p-d .search-input')).toHaveCount(0)
+    await page.locator('.tab[data-t="d"]').click()
+    await page.waitForTimeout(300)
+    await expect(page.locator('#search-wrap-d')).toBeHidden()
   })
 })

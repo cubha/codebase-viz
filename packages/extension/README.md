@@ -58,14 +58,18 @@ Frameworks not in this list (Express, Hono, Rails, Go, etc.) use **LLM primary**
 
 ---
 
-## ✨ What's new in v1.2.62
+## ✨ What's new in v1.2.63
 
-### Click-to-source and search, actually working
+### The Data Flow tab, actually working for React Router
 
-- **Node clicks now jump to the source — all of them.** In v1.2.61 clicking did nothing: the lookup table was keyed differently from the ids the diagram builders emit. Folder and package boxes, which summarize several routes, now jump to their representative route (the shallowest one). Across our 14 test fixtures, every clickable node resolves.
-- **Search no longer lights up unrelated nodes.** The old matcher accepted any query whose characters appeared *somewhere in order*, so `user` matched `customerMgmt`. It now matches on substrings, multi-word AND (order doesn't matter), and word-boundary abbreviations like `dsc` → `DecoSheetController`. On one sample project, searching `deco` went from 44 hits to 11.
-- **Matches stand out.** Matched nodes get a glow and a thicker outline; everything else fades to grayscale and edges recede. A live "N matches" count sits next to the search box.
-- **Stale caches are rejected.** Analyses cached by older versions no longer replay without the data these features need.
+- **Fixed: Data Flow tab showed "(No data)" for every React Router project.** It never rendered correctly in the extension since it was introduced — the viewer always parsed it as a database diagram, and an API-call diagram isn't one. Now it renders properly, including on MD/SVG export.
+- **Endpoint boxes are now clickable.** Clicking an API call (`GET /api/...`) jumps to the actual fetch/axios call site. When multiple components call the same endpoint, the click target and the on-screen label now always point to the same, most-certain call.
+- **Search now works on the Data Flow tab** for React Router projects.
+- Fixed a performance issue where deeply-nested Java package structures (common in large Spring Boot codebases) could make analysis noticeably slower than it should be.
+
+### v1.2.62 — Click-to-source and search, actually working
+
+- Node clicks now jump to the source for every clickable node (was broken since v1.2.61), search no longer lights up unrelated nodes, and matched nodes get a visible highlight.
 
 ### v1.2.61 — Click, hover, search introduced
 

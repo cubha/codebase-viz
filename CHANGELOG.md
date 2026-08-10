@@ -1,5 +1,28 @@
 # Changelog
 
+## [1.2.63] — 2026-08-10
+
+### Fixed — Wave A 완전종결: react-router FE Tab3(Data Flow) webview 렌더 결함 (D0, P0)
+
+- **react-router FE 프로젝트의 Tab3가 webview에서 항상 "(No data)"였던 결함 복구**: `viewer.html`의 `renderDbView()`가 Tab3(dbScreen) 텍스트를 항상 erDiagram 파서로 재해석했다 — react-router FE의 Tab3(`buildFeApiCallDiagram`, `graph LR` flowchart)를 이 파서에 넣으면 테이블 0개로 잡혀 통째로 빈 화면이 됐다. 렌더러가 산출물 종류(`DiagramSet.tab3Kind: 'erd'|'flow'`)를 명시 선언하고, webview는 flow면 원문을 그대로 렌더하도록 분기했다. **CLI `.md` 산출물에는 이미 정상 존재해 텍스트 검증만으론 발견되지 않았던 결함**이었다 — 이 원인 도입(v1.2.47) 이래 webview에서 한 번도 정상 렌더된 적이 없었다.
+  - MD/SVG export(온디맨드 렌더 경로)도 동일 결함이 있어 함께 수정 — Tab3를 화면에 띄우지 않고 바로 MD export하면 항상 빈 껍데기가 export됐다.
+  - `tab3Kind` 필드가 없는 구버전 캐시(v1.2.62 이전 산출물)는 shape 가드로 무효화해 필드 누락으로 인한 재발을 막았다(`nodeMap` 가드와 동일 기법).
+- **endpoint 박스(`ep_*`) 딥링크 복구**: endpoint는 `graph.nodes`에 없는 합성 노드라 nodeMap 마커로 표현할 IR 노드가 없었다 — `api-call` 엣지(실제 axios/fetch 호출 지점 file:line) 자체를 마커 대상으로 삼는 경로를 추가했다. 여러 컴포넌트가 같은 endpoint를 호출하면 대표 근거(verified 우선, 동순위는 id 사전순)를 순회 순서와 무관하게 사전 선정 — 화면 라벨과 클릭 시 점프 위치가 항상 같은 호출을 가리킨다.
+- **Tab3 검색 지원(flow 모드)**: Tab1/2에 있던 검색바가 Tab3(react-router FE)에도 추가됐다. erDiagram 모드(테이블 기반 Tab3)는 여전히 검색 대상이 아니다(`.node` 요소가 없는 구조적 한계).
+
+### Performance
+
+- **대형 BE 패키지 트리 분석 성능 개선**: 패키지 계층이 깊은(체인형) Spring Boot 프로젝트에서 Tab1/Tab2 렌더가 비정상적으로 느려질 수 있던 결함을 고쳤다. 대표 라우트·대표 파일 판정 로직이 트리의 모든 노드마다 하위 서브트리 전체를 매번 새로 순회해, 깊이 N짜리 선형 패키지 구조에서 총 비용이 제곱으로 늘었다(실측: 깊이 3000 체인 18.3초 → 메모이제이션 후 1초 미만).
+
+### Added — 검증 사각지대 보강
+
+- 마커 누출(`%% nodemap:`) 회귀 가드를 `buildDiagrams`/`buildCombinedDiagram`/`renderMermaid`(CLI 경로)의 전체 반환 지점에 통합 — 특히 `renderMermaid`(CLI `.md` 출력)와 `buildCombinedDiagram`의 노드수초과 fallback 분기는 이전까지 어떤 테스트도 강제 트리거한 적이 없던 사각지대였다.
+- webview 결함(D0류)은 렌더러 텍스트 검증만으로는 잡히지 않는다는 교훈 — 이번 검증은 `scripts/render-harness.mjs` + Playwright 스크린샷을 완료조건으로 삼았다.
+
+### Docs
+
+- `docs/analysis/ANALYSIS-v1262-requirements-verification-2026-08-08.md` §3-5(D5)에 정정 주석 추가 — 원 서술("라우트 박스는 딥링크되고 endpoint만 무반응")은 렌더러 텍스트 기준 관측이었고, webview 실물에서는 라우트 박스조차 렌더되지 않았다(D0).
+
 ## [1.2.62] — 2026-08-08
 
 ### Fixed — Wave A 실사용 결함 3건 (딥링크 전량 무반응 · 검색 오탐 · 대비 부족)

@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.2.63] — 2026-08-10
+
+### Fixed
+
+- **The Data Flow tab now actually renders for React Router projects.** It was silently showing "(No data)" for every React Router codebase since this project view was introduced — the viewer always tried to parse it as a database diagram, and API-call diagrams aren't one. Now it renders correctly, including on MD/SVG export.
+- **API endpoint boxes are now clickable.** Clicking an endpoint (`GET /api/...`) jumps to the actual fetch/axios call site. When multiple components call the same endpoint, the click target and the on-screen label now always agree with each other (both point to the same, most-certain call).
+- **Search now works on the Data Flow tab** for React Router projects, matching the existing search on the other two tabs.
+- Fixed a performance issue where deeply-nested Java package structures (common in large Spring Boot codebases) could make analysis noticeably slower than it should be.
+
 ## [1.2.61] — 2026-08-05
 
 ### Added
