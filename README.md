@@ -4,9 +4,9 @@
 
 Routes, components, and DB relationships — extracted statically from **13 frameworks**, optionally enriched by LLM, rendered as three live diagram tabs inside VS Code.
 
-> Marketplace: [`cubha.codebase-arch-viz`](https://marketplace.visualstudio.com/items?itemName=cubha.codebase-arch-viz) · Current release: **v1.2.63**
+> Marketplace: [`cubha.codebase-arch-viz`](https://marketplace.visualstudio.com/items?itemName=cubha.codebase-arch-viz) · Current release: **v1.2.64**
 >
-> **v1.2.63 highlights** — **Wave A 완전종결**. ① react-router FE 프로젝트의 Tab3(Data Flow)가 webview에서 항상 "(No data)"였던 결함(D0, P0) 복구 — MD/SVG export 포함 ② endpoint(`ep_*`) 박스 딥링크 복구, 여러 컴포넌트가 같은 endpoint를 호출해도 화면 라벨과 클릭 위치가 항상 일치 ③ Tab3(react-router FE)에 검색 지원 추가 ④ 깊은 패키지 체인 분석 성능 개선(실측 18.3초→1초 미만).
+> **v1.2.64** — 사용자 체감 변경 없음. v1.2.63(Wave A 완전종결 — Tab3 webview 렌더 결함·endpoint 딥링크·검색 지원)의 딥링크 클릭 실동작을 E2E로 재확인하고, VS Code API에 가려 단위테스트가 불가능했던 클릭 판정 로직을 순수 함수로 분리해 검증 공백을 닫았다.
 >
 > 이전 버전 이력은 [CHANGELOG](CHANGELOG.md) 참조.
 

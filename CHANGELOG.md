@@ -1,5 +1,20 @@
 # Changelog
 
+## [1.2.64] — 2026-08-11
+
+### Fixed — v1.2.63 실검증 후속 조치
+
+- **딥링크 클릭 실동작 E2E 확인**: v1.2.63의 D0/D5/D8을 render-harness + Playwright로 재검증 —
+  Wave A(T1/T2/T3) 무회귀, ep_* endpoint 클릭·hover 실동작(9/9), Tab3 검색 실동작, MD export
+  무결성 전부 실측 통과(23/23). 전 fixture(36개) 스윕으로 `tab3Kind` 선언/실물 불일치·캐시 가드가
+  신규 정상 캐시를 오탐 거부하는 회귀가 없음을 확인.
+- **`handleOpenNode` 판정 로직을 순수 함수로 추출**(`message-guard.ts::resolveOpenNodeTarget`):
+  webview 클릭 → 메시지 전송까지는 Playwright harness로 검증됐지만, 확장이 그 메시지를 받아
+  "올바른 파일:라인을 여는지"는 vscode API에 묶여 있어 단위테스트가 불가능한 검증 공백이었다.
+  nodeMap 조회(own-property 가드)·`r:'pair'` root 선택·경로 이탈 차단·1-based→0-based 라인
+  변환을 순수 함수로 분리해 9개 케이스로 고정(동작 변경 없음, 프로토타입 오염·off-by-one 가드
+  실효성을 실제로 깨뜨려 FAIL하는지 실증 후 원복).
+
 ## [1.2.63] — 2026-08-10
 
 ### Fixed — Wave A 완전종결: react-router FE Tab3(Data Flow) webview 렌더 결함 (D0, P0)

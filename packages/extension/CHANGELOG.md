@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.2.64] — 2026-08-11
+
+### Fixed
+
+- No user-facing changes. This release closes a test-coverage gap for the "click a node to jump to source" feature that shipped in v1.2.63 (the click-handling logic was previously only reachable through the VS Code API, so it had no direct test) and adds end-to-end confirmation that everything from v1.2.63 works together correctly.
+
 ## [1.2.63] — 2026-08-10
 
 ### Fixed

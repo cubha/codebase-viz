@@ -58,9 +58,11 @@ Frameworks not in this list (Express, Hono, Rails, Go, etc.) use **LLM primary**
 
 ---
 
-## ✨ What's new in v1.2.63
+## ✨ What's new in v1.2.64
 
-### The Data Flow tab, actually working for React Router
+No user-facing changes. This release closes a test-coverage gap for the click-to-source feature (the click-handling logic was only reachable through the VS Code API before, so it had no direct test) and confirms end-to-end that everything below still works together correctly.
+
+### v1.2.63 — The Data Flow tab, actually working for React Router
 
 - **Fixed: Data Flow tab showed "(No data)" for every React Router project.** It never rendered correctly in the extension since it was introduced — the viewer always parsed it as a database diagram, and an API-call diagram isn't one. Now it renders properly, including on MD/SVG export.
 - **Endpoint boxes are now clickable.** Clicking an API call (`GET /api/...`) jumps to the actual fetch/axios call site. When multiple components call the same endpoint, the click target and the on-screen label now always point to the same, most-certain call.
