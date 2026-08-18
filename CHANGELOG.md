@@ -1,5 +1,57 @@
 # Changelog
 
+## [1.2.65] — 2026-08-18
+
+### Fixed — react-router 딥링크 오점프 (provenance 3종 결함)
+
+딥링크 좌표의 원천은 `node.filePath`가 아니라 `provenance.file`/`.line`이다(`node-map.ts::toEntry`).
+react-router 어댑터가 이 값을 세 방식으로 틀리게 기록해, `routes.map(...)`으로 뿌린 라우트가
+페이지가 아니라 **router의 map 호출 지점**으로 점프했다(사용자 보고).
+
+- **ComponentNode.provenance가 router 파일을 가리키던 결함** — `route-parser.ts` 3곳(createBrowserRouter
+  분기·JSX 분기·하위 컴포넌트 분기). RR fixture 컴포넌트 노드 54/54 전부 `filePath ≠ provenance.file`
+  이었다(대조군 Next.js는 일치). 하위 컴포넌트 건은 자기 파일이 아닌 **자기를 import한 부모 페이지**를
+  가리켰고, 회귀 테스트를 추가하는 과정에서 발견됐다. `renders` 엣지의 provenance는 부모 파일이
+  맞으므로 그대로 뒀다 — import 문이 실제로 거기 있다.
+- **유령 좌표(file과 line이 서로 다른 파일에서 옴)** — `JsxRouteRaw`는 `line`만, `RouteEntry`는
+  `sourceFilePath`만 갖고 있어, 외부 모듈 1-hop 추적 시 file은 바깥 router / line은 외부 파일 기준으로
+  짝이 어긋났다. 실측: 기록된 `index.tsx:5`는 `return <div>404</div>`로 라우트와 무관했고, line 5의
+  실제 출처는 `appRouteElements.tsx`였다. `JsxRouteRaw.sourceFilePath`를 신설해 좌표 짝을 항상 같은
+  파일로 묶는다.
+- **map 붕괴** — `RouteEntry.declLine`/`declFilePath` 신설로 각 라우트가 자기 배열 원소를 가리킨다
+  (`appRoutes.ts:10`; map-prefix fixture는 5·6·14·15로 분리). 기존 `sourceFilePath`와 겸용하지 않은
+  이유: 후자는 "컴포넌트 resolve용 importMap 파일"이라는 별개 의미라 얽으면 두 용도가 드리프트한다.
+
+### Changed — 라우트 딥링크 해석 (react-router 한정)
+
+- `node-map.ts::buildRouteJumpTargets` — 라우트 노드의 딥링크를 `renders`로 연결된 페이지 컴포넌트
+  좌표로 치환한다. **f·l만 치환하고 n·c·i는 라우트 것을 유지** — 라벨은 라우트인데 툴팁 근거가
+  컴포넌트 것이면 라벨-마커 불일치가 된다(v1.2.63 ST4 선례). 마커 경로(폴더 박스 대표 라우트)도
+  동일 치환을 받아 탭별로 점프 지점이 갈리지 않는다.
+- **react-router로 범위를 좁힌 근거는 실측이다**: 전 어댑터 스윕 결과 vue-spa·angular는 좌표가 4/4
+  전부 바뀌어 잘 동작하던 링크가 조용히 재타겟되고, Next.js는 layout 라우트가 여러 컴포넌트를
+  renders해 대표 선정이 모호했다(다중타겟 1). file-based 어댑터는 `route.filePath`가 곧 페이지라
+  애초에 이 문제가 없다. IR의 provenance를 페이지 파일로 덮어쓰는 안은 "근거 위치"라는 의미가 깨져
+  Evidence-First와 충돌하므로 기각하고, 딥링크 계층에서만 치환했다.
+
+### Changed — 캐시 무효화
+
+- `ANALYZER_VERSION` `codebase-viz@1.2.63` → `@1.2.65`. 이번 변경은 **shape는 그대로 두고 내용만**
+  바꿔(provenance 좌표·nodeMap `f`/`l`) `isDiagramCache`의 shape 가드(nodeMap·tab3Kind 존재 확인)를
+  구조적으로 통과한다 — 이 상수 범프가 **유일한** 무효화 수단이다. 범프하지 않으면 사용자는 수정
+  이후에도 낡은 캐시로 map 지점에 계속 착지한다. (v1.2.46·v1.2.61에 이어 같은 함정의 3번째 반복.)
+- v1.2.64가 `@1.2.63`에 머문 것은 정상이다 — 그 릴리스는 산출물의 shape도 내용도 바꾸지 않았다.
+
+### Testing — 이 결함이 살아남은 이유
+
+- RR 라우트/컴포넌트 좌표를 단언하는 테스트가 **0건**이었다(`nodemap-coverage.test.ts`·`node-map.test.ts`
+  어디에도 없음). 수정 후 verify가 그냥 통과했다 — 통과가 곧 커버리지가 아니다.
+- 추가한 가드 전부를 "수정을 되돌리면 FAIL하는가"로 실험 검증했고, **1차 시도는 실제로 허수였다**:
+  대상 fixture가 JSX 분기를 타는데 createBrowserRouter 분기를 되돌려 그대로 통과했다. 분기별로 따로
+  되돌려 보고서야 두 분기가 각각 독립적으로 같은 결함을 갖고 있었음이 드러났다.
+- E2E(`node-deeplink-real-output.spec.mjs`)는 기존에 `nextjs-app-router`만 태워 RR 케이스를 구조적으로
+  못 잡았다 — RR map 케이스를 추가(되돌림 실험으로 확인). Playwright 43/43 PASS.
+
 ## [1.2.64] — 2026-08-11
 
 ### Fixed — v1.2.63 실검증 후속 조치

@@ -87,12 +87,43 @@ function confidenceRank(node: IRNode): number {
   return entryConfidenceRank(node.confidence)
 }
 
-function toEntry(node: IRNode, opts?: BuildNodeMapOptions): NodeMapEntry {
+// react-router는 라우트 선언이 전부 router 파일 한 곳에 몰려 있고, `routes.map(...)` 패턴이면
+// 라우트 수십 개가 map 호출 **한 줄**로 붕괴한다(file-based 어댑터는 route.filePath가 곧 페이지
+// 파일이라 이 문제가 없다). 그래서 라우트 박스 딥링크만 renders로 연결된 페이지 컴포넌트 좌표로
+// 돌린다. 바꾸는 건 **점프 좌표(f·l)뿐** — 표시명(n)·confidence(c)·근거(i)는 라우트 자신의 것을
+// 유지한다. 라벨은 라우트인데 툴팁 근거가 컴포넌트 것이면 라벨-마커 불일치가 된다(v1.2.63 ST4 선례).
+// 다른 어댑터로 넓히지 않는 근거(실측): vue-spa·angular는 현재 좌표가 4/4 전부 바뀌어 잘 동작하던
+// 링크가 조용히 재타겟되고, next는 layout 라우트가 여러 컴포넌트를 renders해 대표 선정이 모호하다.
+function buildRouteJumpTargets(graph: IRGraph): Map<string, IRNode> {
+  const targets = new Map<string, IRNode>()
+  if (graph.metadata?.framework !== 'react-router') return targets
+  const byId = new Map<string, IRNode>(graph.nodes.map(n => [n.id as string, n]))
+  for (const edge of graph.edges) {
+    if (edge.kind !== 'renders') continue
+    if (byId.get(edge.from)?.kind !== 'route') continue
+    const comp = byId.get(edge.to)
+    if (comp === undefined || comp.kind !== 'component') continue
+    const existing = targets.get(edge.from)
+    // 다중 타겟은 RR 전 fixture에서 실측 0이지만, 생기더라도 emit 순서에 의존하지 않도록
+    // bySid 충돌 해소와 같은 규칙(confidence 우선 → id 사전순)으로 결정론 고정한다.
+    if (
+      existing === undefined ||
+      confidenceRank(comp) < confidenceRank(existing) ||
+      (confidenceRank(comp) === confidenceRank(existing) && comp.id < existing.id)
+    ) {
+      targets.set(edge.from, comp)
+    }
+  }
+  return targets
+}
+
+function toEntry(node: IRNode, opts?: BuildNodeMapOptions, jumpTarget?: IRNode): NodeMapEntry {
   const name = displayName(node)
   const inferenceHead = node.confidence === 'inferred' ? node.inferenceChain[0] : undefined
+  const coord = jumpTarget ?? node
   return {
-    f: node.provenance.file,
-    l: node.provenance.line,
+    f: coord.provenance.file,
+    l: coord.provenance.line,
     c: node.confidence,
     ...(inferenceHead !== undefined ? { i: inferenceHead } : {}),
     ...(name !== undefined ? { n: name } : {}),
@@ -178,10 +209,12 @@ export function buildNodeMap(
     }
   }
 
+  const routeJumpTargets = buildRouteJumpTargets(graph)
+
   const map: NodeMap = {}
   for (const declId of collectDeclaredIds(emittedTexts)) {
     const node = resolveBySuffix(declId, bySid)
-    if (node !== undefined) map[declId] = toEntry(node, opts)
+    if (node !== undefined) map[declId] = toEntry(node, opts, routeJumpTargets.get(node.id))
   }
 
   // 마커는 빌더가 명시 선언한 대표 노드라 suffix 역해석보다 항상 우선한다.
@@ -192,7 +225,9 @@ export function buildNodeMap(
       const target = decodeMarkerTarget(m[2]!)
       if (target === undefined) continue
       const node = byIrId.get(target)
-      if (node !== undefined) { map[m[1]!] = toEntry(node, opts); continue }
+      // 마커 경로(폴더 박스·leaf 대표 라우트)도 같은 치환을 받아야 한다 — 안 그러면 같은 라우트가
+      // Tab1 폴더 박스에선 router로, Tab2 leaf에선 페이지로 가는 탭별 불일치가 생긴다.
+      if (node !== undefined) { map[m[1]!] = toEntry(node, opts, routeJumpTargets.get(node.id)); continue }
       const edge = byEdgeId.get(target)
       if (edge !== undefined) map[m[1]!] = toEntryFromEdge(edge, opts)
     }

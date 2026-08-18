@@ -43,6 +43,11 @@ interface RouteEntry {
   // v1.2.49: spread(`...routes`)로 외부 파일 배열에서 inline된 entry는 그 파일 경로를 보존.
   // 컴포넌트 resolve 시 현재 sourceFile이 아닌 이 파일의 importMap을 사용해야 정확하다.
   sourceFilePath?: string
+  // 이 라우트를 선언한 객체 리터럴(`{ path: 'code', component: Code }`)의 좌표. map으로 뿌려진
+  // 라우트가 전부 map 호출 한 줄로 붕괴하는 것을 막는다. sourceFilePath와 분리한 이유: 그쪽은
+  // "컴포넌트 resolve에 쓸 importMap의 파일"이라는 별개 의미라 겸용하면 두 용도가 얽힌다.
+  declLine?: number
+  declFilePath?: string
 }
 
 interface FlatRouteItem {
@@ -51,6 +56,8 @@ interface FlatRouteItem {
   elementComponent?: string
   lazyModuleSpec?: string
   sourceFilePath?: string
+  declLine?: number
+  declFilePath?: string
 }
 
 // v1.2.44 A0-4 (F-Route-3): callback `<paramName.propName/>` 패턴에서 추출한 propName을
@@ -99,7 +106,11 @@ function extractRoutesFromArray(arrayNode: import('ts-morph').Node, extraCompone
     const routePath = evalPathExpression(pathInit, obj.getSourceFile(), spreadCtx)
     if (routePath === undefined) continue
 
-    const entry: RouteEntry = { path: routePath }
+    const entry: RouteEntry = {
+      path: routePath,
+      declLine: obj.getStartLineNumber(),
+      declFilePath: obj.getSourceFile().getFilePath(),
+    }
 
     // Extract element JSX component name
     const elementProp = obj.getProperty('element')
@@ -212,6 +223,8 @@ function flattenRoutesEnriched(entries: RouteEntry[], parentPath = ''): FlatRout
     if (entry.elementComponent !== undefined) item.elementComponent = entry.elementComponent
     if (entry.lazyModuleSpec !== undefined) item.lazyModuleSpec = entry.lazyModuleSpec
     if (entry.sourceFilePath !== undefined) item.sourceFilePath = entry.sourceFilePath
+    if (entry.declLine !== undefined) item.declLine = entry.declLine
+    if (entry.declFilePath !== undefined) item.declFilePath = entry.declFilePath
     result.push(item)
     if (entry.children !== undefined && entry.children.length > 0) {
       result.push(...flattenRoutesEnriched(entry.children, normalized))
@@ -274,6 +287,12 @@ interface JsxRouteRaw {
   // parseReactRouterFull JSX 분기는 이 필드가 있으면 현재 sourceFile importMap 대신 이것을 우선 사용한다.
   elementComponentAbsBase?: string
   line: number
+  // `line`이 어느 파일 기준인지. 1-hop 추적(외부 모듈의 JSX 배열·`X.map(...)`)에서 line은 그
+  // 외부 파일 기준으로 매겨지는데, emit 지점은 바깥 router 파일 경로를 쓰고 있어 **file과 line이
+  // 서로 다른 파일에서 온 유령 좌표**가 만들어졌다(실측: 기록된 index.tsx:5는 `return <div>404</div>`,
+  // line 5의 실제 출처는 appRouteElements.tsx). 좌표 짝을 항상 같은 파일로 묶기 위해 line을 만든
+  // 노드의 소스 파일을 함께 나른다. 미설정이면 현재 router 파일(기존 동작).
+  sourceFilePath?: string
   inferenceChain?: string[]
 }
 
@@ -601,7 +620,8 @@ function resolveIdentifierToJsxChildren(
                   const raw: JsxRouteRaw = {
                     routePath: pathPrefix + e.path,
                     elementComponent: e.elementComponent,
-                    line: call.getStartLineNumber(),
+                    line: e.declLine ?? call.getStartLineNumber(),
+                    sourceFilePath: e.declFilePath ?? call.getSourceFile().getFilePath(),
                     inferenceChain: pathPrefix
                       ? [`${target.getText()}${sourceTag} 배열의 path 프로퍼티를 정적 평가, prefix '${pathPrefix}' 추출`]
                       : [`${target.getText()}${sourceTag} 배열의 path 프로퍼티를 정적 평가`],
@@ -729,7 +749,8 @@ function resolveIdentifierToJsxChildren(
                 const raw: JsxRouteRaw = {
                   routePath: pathPrefix + e.path,
                   elementComponent: e.elementComponent,
-                  line: call.getStartLineNumber(),
+                  line: e.declLine ?? call.getStartLineNumber(),
+                  sourceFilePath: e.declFilePath ?? call.getSourceFile().getFilePath(),
                   inferenceChain: pathPrefix
                     ? [`${target.getText()}${sourceTag} 배열의 path 프로퍼티를 정적 평가, prefix '${pathPrefix}' 추출`]
                     : [`${target.getText()}${sourceTag} 배열의 path 프로퍼티를 정적 평가`],
@@ -824,7 +845,9 @@ function extractJsxRouteChildren(
       continue
     }
 
-    results.push({ routePath, elementComponent, line })
+    // line을 만든 JSX 노드 자신의 파일 — ctx가 아니라 노드에서 뽑아야 1-hop 추적으로 외부 파일
+    // 요소가 섞여 들어와도 짝이 어긋나지 않는다.
+    results.push({ routePath, elementComponent, line, sourceFilePath: child.getSourceFile().getFilePath() })
 
     if (nested.length > 0) {
       results.push(...extractJsxRouteChildren(nested, routePath, ctx))
@@ -944,9 +967,13 @@ export async function parseReactRouterFull(
 
       for (const flat of enrichedFlat) {
         const { urlPath, dynamicSegmentType, elementComponent, lazyModuleSpec } = flat
+        // 배열 원소 자신의 좌표가 있으면 그걸 쓴다 — 없으면 종전대로 createBrowserRouter 호출 지점.
+        const flatRelPath = flat.declFilePath !== undefined
+          ? path.relative(repoRoot, flat.declFilePath).replace(/\\/g, '/')
+          : relPath
         const provenance: Provenance = {
-          file: relPath,
-          line: callExpr.getStartLineNumber(),
+          file: flatRelPath,
+          line: flat.declLine ?? callExpr.getStartLineNumber(),
           adapter: 'react-router@0.1',
           analyzerVersion,
         }
@@ -998,7 +1025,10 @@ export async function parseReactRouterFull(
                   name: elementComponent,
                   filePath: compRelPath,
                   runtime: 'client',
-                  provenance: { file: relPath, line: callExpr.getStartLineNumber(), adapter: 'react-router@0.1', analyzerVersion },
+                  // provenance = 이 노드의 근거가 있는 곳 = 컴포넌트 자기 파일. router 파일을 적으면
+                  // filePath와 서로 다른 파일을 가리켜, provenance로 좌표를 만드는 딥링크(T1)가
+                  // 컴포넌트가 아니라 router(그리고 map 케이스에선 map 호출 지점)로 점프한다.
+                  provenance: { file: compRelPath, line: 1, adapter: 'react-router@0.1', analyzerVersion },
                   confidence: 'verified',
                 })
                 componentNodes.push(compNode)
@@ -1030,7 +1060,10 @@ export async function parseReactRouterFull(
                         name: subName,
                         filePath: subRelPath,
                         runtime: 'client',
-                        provenance: { file: compRelPath, line: 1, adapter: 'react-router@0.1', analyzerVersion },
+                        // 자기 파일(subRelPath) — compRelPath는 이 컴포넌트를 import한 **부모 페이지**라
+                        // 딥링크가 하위 컴포넌트가 아니라 부모로 점프한다(결함 A의 세 번째 발생 지점).
+                        // 아래 renders 엣지는 반대로 compRelPath가 맞다 — import 문이 부모에 있다.
+                        provenance: { file: subRelPath, line: 1, adapter: 'react-router@0.1', analyzerVersion },
                         confidence: 'verified',
                       })
                       componentNodes.push(subNode)
@@ -1122,8 +1155,13 @@ export async function parseReactRouterFull(
         const rawItems = extractJsxRouteChildren(jsxEl.getJsxChildren(), parentPath, ctx)
         for (const item of rawItems) {
           const { urlPath, dynamicSegmentType } = normalizePath(item.routePath)
+          // item.line은 그 요소를 실제로 담고 있는 파일 기준이다 — relPath(바깥 router 파일)와
+          // 짝지으면 유령 좌표가 된다(JsxRouteRaw.sourceFilePath 주석 참조).
+          const itemRelPath = item.sourceFilePath !== undefined
+            ? path.relative(repoRoot, item.sourceFilePath).replace(/\\/g, '/')
+            : relPath
           const provenance: Provenance = {
-            file: relPath,
+            file: itemRelPath,
             line: item.line,
             adapter: 'react-router@0.1',
             analyzerVersion,
@@ -1175,7 +1213,8 @@ export async function parseReactRouterFull(
                     name: item.elementComponent,
                     filePath: compRelPath,
                     runtime: 'client',
-                    provenance: { file: relPath, line: item.line, adapter: 'react-router@0.1', analyzerVersion },
+                    // createBrowserRouter 분기와 동일 — provenance는 컴포넌트 자기 파일(위 주석 참조).
+                    provenance: { file: compRelPath, line: 1, adapter: 'react-router@0.1', analyzerVersion },
                     confidence: 'verified',
                   })
                   componentNodes.push(compNode)
@@ -1385,8 +1424,13 @@ export async function parseReactRoutes(
         const rawItems = extractJsxRouteChildren(jsxEl.getJsxChildren(), parentPath, ctx)
         for (const item of rawItems) {
           const { urlPath, dynamicSegmentType } = normalizePath(item.routePath)
+          // item.line은 그 요소를 실제로 담고 있는 파일 기준이다 — relPath(바깥 router 파일)와
+          // 짝지으면 유령 좌표가 된다(JsxRouteRaw.sourceFilePath 주석 참조).
+          const itemRelPath = item.sourceFilePath !== undefined
+            ? path.relative(repoRoot, item.sourceFilePath).replace(/\\/g, '/')
+            : relPath
           const provenance: Provenance = {
-            file: relPath,
+            file: itemRelPath,
             line: item.line,
             adapter: 'react-router@0.1',
             analyzerVersion,

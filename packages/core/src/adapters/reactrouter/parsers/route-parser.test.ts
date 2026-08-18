@@ -509,3 +509,58 @@ describe('parseReactRouterFull — createBrowserRouter + @/ alias + as rename (m
     }
   })
 })
+
+// 딥링크(T1)는 filePath가 아니라 provenance로 좌표를 만든다(renderer/helpers/node-map.ts).
+// 그래서 provenance가 틀리면 클릭이 엉뚱한 곳으로 간다 — 아래 두 결함은 이 단언이 없어서 살아남았다.
+describe('provenance 정확도 — 딥링크 좌표의 원천', () => {
+  const MAP_IMPORT = path.resolve(process.cwd(), 'fixtures/mini-react-router-map-import-app')
+  const MAP_PREFIX = path.resolve(process.cwd(), 'fixtures/mini-react-router-map-prefix')
+
+  it('ComponentNode의 provenance.file은 router 파일이 아니라 컴포넌트 자기 파일이다', async () => {
+    const { componentNodes } = await parseReactRouterFull(MAP_IMPORT, 'test@0.1')
+    expect(componentNodes.length).toBeGreaterThan(0)
+    for (const c of componentNodes) {
+      expect(c.provenance.file).toBe(c.filePath)
+    }
+  })
+
+  // 위 단언은 JSX(<Routes>) 분기만 지난다 — createBrowserRouter 분기는 별도 코드 경로라
+  // 같은 결함을 따로 갖고 있었고, 되돌려도 통과하는 무커버리지 상태였다(실험으로 확인).
+  it('createBrowserRouter 분기의 ComponentNode도 자기 파일을 가리킨다', async () => {
+    const { componentNodes } = await parseReactRouterFull(FIXTURE, 'test@0.1')
+    expect(componentNodes.length).toBeGreaterThan(0)
+    for (const c of componentNodes) {
+      expect(c.provenance.file).toBe(c.filePath)
+    }
+  })
+
+  it('map으로 뿌려진 라우트는 map 호출 지점이 아니라 각 배열 원소의 선언 라인을 가리킨다', async () => {
+    const { routeNodes } = await parseReactRouterFull(MAP_IMPORT, 'test@0.1')
+    const code = routeNodes.find(r => r.path === '/code')
+    const message = routeNodes.find(r => r.path === '/message')
+    // appRoutes.ts의 `{ path: 'code', component: Code }` / `{ path: 'message', ... }`
+    expect(code?.provenance.file).toBe('src/router/appRoutes.ts')
+    expect(message?.provenance.file).toBe('src/router/appRoutes.ts')
+    // 라우트마다 서로 다른 줄 — 한 줄로 붕괴하지 않는다.
+    expect(code?.provenance.line).not.toBe(message?.provenance.line)
+  })
+
+  it('외부 파일 map에서 온 라우트의 file과 line은 같은 파일에서 온다(유령 좌표 금지)', async () => {
+    // 이전 동작: file은 바깥 router(index.tsx), line은 appRouteElements.tsx 기준 →
+    // index.tsx:5는 `return <div>404</div>`로 라우트와 무관한 지점이었다.
+    const { routeNodes } = await parseReactRouterFull(MAP_IMPORT, 'test@0.1')
+    const mapped = routeNodes.filter(r => r.path !== '/*')
+    expect(mapped.length).toBeGreaterThan(0)
+    for (const r of mapped) {
+      expect(r.provenance.file).not.toBe('src/router/index.tsx')
+    }
+  })
+
+  it('같은 파일 map도 라우트별 선언 라인으로 분리된다', async () => {
+    const { routeNodes } = await parseReactRouterFull(MAP_PREFIX, 'test@0.1')
+    const dashboard = routeNodes.find(r => r.path === '/dashboard')
+    const settings = routeNodes.find(r => r.path === '/settings')
+    expect(dashboard?.provenance.line).toBe(5)
+    expect(settings?.provenance.line).toBe(6)
+  })
+})
