@@ -272,3 +272,100 @@ describe('nodeMapMarker — 신뢰 불가 IR id 주입 차단', () => {
     expect(map.T1_x).toMatchObject({ f: 'app/(marketing)/[slug] x/page.tsx', n: '/x' })
   })
 })
+
+// react-router는 라우트 선언이 전부 router 파일 한 곳에 몰리고, `routes.map(...)`이면 라우트
+// 수십 개가 map 호출 한 줄로 붕괴한다 — 딥링크가 페이지가 아니라 router의 map 지점으로 점프하던
+// 실사용 결함. 이 동작은 그동안 단언하는 테스트가 **하나도 없어** 조용히 살아남았다.
+describe('buildNodeMap — react-router 라우트 점프 타겟 치환', () => {
+  const RR_META = {
+    framework: 'react-router', hasSupabase: false, hasPrisma: false, hasDexie: false, hasFirebase: false,
+  } as const
+
+  function rrRoute(urlPath: string, declFile: string, declLine: number) {
+    return createRouteNode({
+      id: makeNodeId('route', 'src/router.tsx', urlPath),
+      path: urlPath,
+      filePath: 'src/router.tsx',
+      routeFileKind: 'page',
+      dynamicSegmentType: 'static',
+      isGroupRoute: false,
+      renderingMode: 'CSR',
+      provenance: { file: declFile, line: declLine, adapter: 'react-router@0.1', analyzerVersion: 'test' },
+      confidence: 'verified',
+    })
+  }
+
+  function page(name: string, filePath: string) {
+    return createComponentNode({
+      id: makeNodeId('component', filePath, name),
+      name,
+      filePath,
+      runtime: 'client',
+      provenance: { file: filePath, line: 1, adapter: 'react-router@0.1', analyzerVersion: 'test' },
+      confidence: 'verified',
+    })
+  }
+
+  function rrGraph(nodes: IRGraph['nodes'], edges: IRGraph['edges']): IRGraph {
+    return createIRGraph({ analyzerVersion: 'test', repoRoot: '/repo', metadata: RR_META, nodes, edges })
+  }
+
+  it('renders로 연결된 페이지 컴포넌트 좌표로 점프하되 표시명·confidence는 라우트 것을 유지한다', () => {
+    const route = rrRoute('/code', 'src/router/appRoutes.ts', 10)
+    const comp = page('Code', 'src/pages/Code.tsx')
+    const renders = createEdge({
+      id: makeEdgeId('renders', route.id, comp.id),
+      from: route.id, to: comp.id, kind: 'renders',
+      provenance: { file: 'src/router.tsx', line: 5, adapter: 'react-router@0.1', analyzerVersion: 'test' },
+      confidence: 'verified',
+    })
+    const sid = sanitizeId(route.id)
+    const map = buildNodeMap(rrGraph([route, comp], [renders]), [`graph TD\n  ${sid}["code"]`])
+    // 좌표는 페이지 파일 — router/map 지점이 아니다.
+    expect(map[sid]?.f).toBe('src/pages/Code.tsx')
+    expect(map[sid]?.l).toBe(1)
+    // 라벨-마커 불일치 방지: 표시명은 여전히 라우트 경로.
+    expect(map[sid]?.n).toBe('/code')
+  })
+
+  it('마커 경로(폴더 박스 대표 라우트)도 같은 치환을 받는다 — 탭별로 점프 지점이 갈리면 안 된다', () => {
+    const route = rrRoute('/code', 'src/router/appRoutes.ts', 10)
+    const comp = page('Code', 'src/pages/Code.tsx')
+    const renders = createEdge({
+      id: makeEdgeId('renders', route.id, comp.id),
+      from: route.id, to: comp.id, kind: 'renders',
+      provenance: { file: 'src/router.tsx', line: 5, adapter: 'react-router@0.1', analyzerVersion: 'test' },
+      confidence: 'verified',
+    })
+    const text = `graph TD\n${nodeMapMarker('  ', 'T1_code', route.id)}\n  T1_code["code"]`
+    const map = buildNodeMap(rrGraph([route, comp], [renders]), [text])
+    expect(map['T1_code']?.f).toBe('src/pages/Code.tsx')
+  })
+
+  it('renders 연결이 없으면 라우트 자신의 선언 좌표로 폴백한다', () => {
+    const route = rrRoute('/dashboard', 'src/Router.tsx', 5)
+    const sid = sanitizeId(route.id)
+    const map = buildNodeMap(rrGraph([route], []), [`graph TD\n  ${sid}["dashboard"]`])
+    expect(map[sid]?.f).toBe('src/Router.tsx')
+    expect(map[sid]?.l).toBe(5)
+  })
+
+  it('react-router가 아닌 어댑터는 치환하지 않는다 — vue-spa·angular는 실측상 좌표가 전부 바뀐다', () => {
+    const route = rrRoute('/code', 'src/router.ts', 3)
+    const comp = page('Code', 'src/pages/Code.vue')
+    const renders = createEdge({
+      id: makeEdgeId('renders', route.id, comp.id),
+      from: route.id, to: comp.id, kind: 'renders',
+      provenance: { file: 'src/router.ts', line: 3, adapter: 'vue-spa@0.1', analyzerVersion: 'test' },
+      confidence: 'verified',
+    })
+    const sid = sanitizeId(route.id)
+    const graph = createIRGraph({
+      analyzerVersion: 'test', repoRoot: '/repo',
+      metadata: { framework: 'vue-spa', hasSupabase: false, hasPrisma: false, hasDexie: false, hasFirebase: false },
+      nodes: [route, comp], edges: [renders],
+    })
+    const map = buildNodeMap(graph, [`graph TD\n  ${sid}["code"]`])
+    expect(map[sid]?.f).toBe('src/router.ts')
+  })
+})

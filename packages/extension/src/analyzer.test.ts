@@ -81,6 +81,21 @@ describe('loadCachedGraph / saveCachedGraph — 캐시 무효화 (C1)', () => {
     expect(await loadCachedGraph(dir)).toBeNull()
   })
 
+  // RR 딥링크 수정은 캐시 **shape를 안 바꾸고 내용만** 바꿨다(provenance 좌표·nodeMap f/l).
+  // shape 가드는 이런 변경을 구조적으로 못 걸러내므로 ANALYZER_VERSION 범프가 유일한 무효화
+  // 수단이다 — 그 규율이 지켜지는지(=직전 릴리스 캐시가 거부되는지) 고정한다.
+  it('직전 릴리스(v1.2.63) 캐시는 거부된다 — 내용만 바뀐 변경의 유일한 무효화 수단', async () => {
+    const dir = await makeTmpDir()
+    const cacheDir = path.join(dir, '.codebase-viz')
+    await fs.mkdir(cacheDir, { recursive: true })
+    await fs.writeFile(
+      path.join(cacheDir, 'cache-graph.json'),
+      JSON.stringify({ analyzerVersion: 'codebase-viz@1.2.63', graph: { nodes: [], edges: [] } }),
+      'utf8',
+    )
+    expect(await loadCachedGraph(dir)).toBeNull()
+  })
+
   it('ARCH-1 shape 가드: extension의 diagram cache 형태(savedAt/diagrams)는 무시하고 null 반환', async () => {
     const dir = await makeTmpDir()
     const cacheDir = path.join(dir, '.codebase-viz')

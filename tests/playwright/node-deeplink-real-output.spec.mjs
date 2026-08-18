@@ -79,6 +79,44 @@ function realDiagrams() {
   return buildDiagrams(graph)
 }
 
+// react-router: 라우트 5개가 전부 router 파일의 map 호출 한 줄(:15)에서 선언되고, 각자
+// renders로 자기 페이지 컴포넌트에 연결된 형태 — 사용자 실사례의 최소 재현.
+function rrMapDiagrams() {
+  const RR = { file: 'src/router.tsx', line: 15, adapter: 'react-router@0.1', analyzerVersion: 'test' }
+  const names = ['Home', 'Code', 'Message', 'Profile', 'Settings']
+  const nodes = []
+  const edges = []
+  for (const n of names) {
+    const urlPath = '/' + n.toLowerCase()
+    const r = createRouteNode({
+      id: makeNodeId('route', 'src/router.tsx', urlPath),
+      path: urlPath,
+      filePath: 'src/router.tsx',
+      routeFileKind: 'page',
+      dynamicSegmentType: 'static',
+      isGroupRoute: false,
+      renderingMode: 'CSR',
+      provenance: { ...RR },
+      confidence: 'verified',
+    })
+    const c = component(n, `src/pages/${n}.tsx`)
+    nodes.push(r, c)
+    edges.push(createEdge({
+      id: makeEdgeId('renders', r.id, c.id),
+      from: r.id, to: c.id, kind: 'renders',
+      provenance: { ...RR }, confidence: 'verified',
+    }))
+  }
+  const graph = createIRGraph({
+    analyzerVersion: 'test',
+    repoRoot: '/repo',
+    nodes,
+    edges,
+    metadata: { framework: 'react-router' },
+  })
+  return buildDiagrams(graph)
+}
+
 function buildHarness() {
   const template = fs.readFileSync(VIEWER_PATH, 'utf8')
   const withLocalMermaid = template.replace(
@@ -154,6 +192,28 @@ test.describe('v1.2.62 — 실제 buildDiagrams 산출물 딥링크', () => {
     await page.locator(`#i-s svg [id="${stats.prefixed[0].domId}"]`).click()
     const posted = await page.evaluate(() => window.__posted)
     expect(posted).toEqual([{ type: 'openNode', id: stats.prefixed[0].sid }])
+  })
+
+  // react-router `routes.map(...)` — 사용자 보고 케이스. 라우트 선언이 전부 router 파일의 map 호출
+  // 한 줄에 몰려 있어, 딥링크가 페이지가 아니라 map 지점으로 점프하던 결함의 E2E 가드.
+  test('RR map 라우트 박스를 클릭하면 router의 map 지점이 아니라 페이지 파일로 해석된다', async ({ page }) => {
+    const diagrams = rrMapDiagrams()
+    await load(page, diagrams)
+
+    const clickable = await page.evaluate(() => {
+      const re = /-flowchart-(.+)-\d+$/
+      return [...document.querySelectorAll('#i-r svg .node')]
+        .map(el => ({ domId: el.id, sid: (re.exec(el.id) || [])[1] }))
+        .filter(x => x.sid && window.__CODEBASE_VIZ_DIAGRAMS__.nodeMap[x.sid])
+    })
+    expect(clickable.length, 'RR Tab1에 클릭 가능한 노드가 없다').toBeGreaterThan(0)
+
+    await page.locator(`#i-r svg [id="${clickable[0].domId}"]`).click()
+    const posted = await page.evaluate(() => window.__posted)
+    const entry = diagrams.nodeMap[posted[0].id]
+    // 점프 좌표는 페이지 파일 — router 파일(선언이 몰려 있는 곳)이면 결함 재발.
+    expect(entry.f).toMatch(/^src\/pages\//)
+    expect(entry.f).not.toBe('src/router.tsx')
   })
 
   test('실제 산출물에도 nodeMap 마커가 남지 않는다', async () => {

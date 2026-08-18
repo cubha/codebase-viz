@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.2.65] — 2026-08-18
+
+### Fixed
+
+- **Clicking a route in a React Router project now opens the page file it renders.** Routes declared through a `routes.map(...)` loop all pointed at a single line — the `map()` call in the router — instead of the page behind each route. Clicking any of them landed you in the same spot.
+- **Component nodes carried the router's location instead of their own.** A component living in `src/pages/Code.tsx` deep-linked into `src/router.tsx`. Fixed in all three places the React Router parser creates components, including nested child components (which pointed at the parent that imported them).
+- **Routes that can't be traced to a page** now point at their own entry in the route array (e.g. `appRoutes.ts:10`) instead of collapsing onto the `map()` line. Routes pulled in from another file no longer produce a location that mixes one file's path with another file's line number.
+- Upgrading re-runs the analysis automatically — the previous cache would otherwise keep replaying the old, incorrect jump targets.
+
 ## [1.2.64] — 2026-08-11
 
 ### Fixed
@@ -14,6 +23,12 @@
 - **API endpoint boxes are now clickable.** Clicking an endpoint (`GET /api/...`) jumps to the actual fetch/axios call site. When multiple components call the same endpoint, the click target and the on-screen label now always agree with each other (both point to the same, most-certain call).
 - **Search now works on the Data Flow tab** for React Router projects, matching the existing search on the other two tabs.
 - Fixed a performance issue where deeply-nested Java package structures (common in large Spring Boot codebases) could make analysis noticeably slower than it should be.
+
+## [1.2.62] — 2026-08-08
+
+### Fixed
+
+- Node clicks jump to the source for every clickable node again (broken since v1.2.61), search no longer lights up unrelated nodes, and matched nodes get a visible highlight.
 
 ## [1.2.61] — 2026-08-05
 
