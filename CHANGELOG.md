@@ -1,5 +1,52 @@
 # Changelog
 
+## [1.2.66] — 2026-08-28
+
+### Added — Sequence 탭 (FE↔BE 페어 분석 전용, Wave B T4)
+
+FE 컴포넌트 → BE 엔드포인트 → Controller → Service/Repository → Table 호출 흐름을 시간순
+mermaid `sequenceDiagram`으로 그리는 4번째 탭. 기존 3탭 어디에도 없던 축(시간순 흐름)이라
+같은 데이터를 문법만 바꿔 다시 그리는 T5(classDiagram)와 구분된다.
+
+- **입력은 이미 계산된 것만 소비** — `buildCombinedDiagram`의 `drawableEdges`(matched-only
+  `fe-be-call`)를 그대로 받는다. 신규 매칭·임계 계산 없음(v1.2.49 freeze 재발 방지).
+- **Evidence-First 유지** — 화살표 모양이 근거 강도다. `verified`는 실선(`->>`),
+  `inferred`는 점선(`-->>`). 노드/엣지의 provenance·confidence를 그대로 계승하며 신규 추정 0.
+  IR(`packages/types/src/ir.ts`) 확장 없음 — 신규 `EdgeKind`·노드 kind 0건.
+- **딥링크 무배선 상속** — participant 별칭을 접두사 없는 `sanitizeId(node.id)`로 두면
+  `buildNodeMap`의 텍스트 스캔에 자동 편입된다.
+- **단일 프로젝트에서는 탭이 뜨지 않는다** — `buildDiagrams`는 `sequence`를 채우지 않고,
+  webview는 새 `META.isPair`로 "단일모드라 원래 없음"과 "페어인데 데이터 없음"을 구분한다.
+  CLI(`renderMermaid`) `.md` 산출물에도 노출되지 않는다.
+- `sequence`는 `isDiagramCache` 필수 shape에 넣지 않았다 — 넣으면 기존 pair 캐시가 전량
+  무효화된다(nodeMap·tab3Kind 도입 때 실제로 겪은 실패).
+- i18n `tab.sequence` 4로케일(ko/en/ja/zh-cn).
+
+### Fixed — 시퀀스 다이어그램 가독성 2건 (실측 기반)
+
+- **참가자 박스 상하 중복 + 저대비** (사용자 보고) — mermaid 기본값 `mirrorActors:true`가 박스를
+  위아래로 복제해 흐름이 가운데 좁은 띠에 몰렸고, init 지시자를 안 주면 기본 회색 화살표가 이 앱의
+  어두운 배경에 묻혔다. 다른 탭과 동일한 컨벤션으로 `SEQUENCE_INIT`(다크 themeVariables +
+  `mirrorActors:false` + `showSequenceNumbers:true`)을 신설했다.
+- **대형 입력 판독불가** — 청킹 없이 emit하면 100 라우트(참가자 501)에서 fit 배율이 1/60로 떨어져
+  탭이 사실상 백지였다(실렌더 확인). `sequenceDiagram`은 폭이 O(participant)인 1차원 레이아웃이라
+  flowchart의 노드 예산(50)을 쓸 수 없다. 청크당 participant ≤ 12로 분할하고 기존 행 그리드
+  렌더러에 태운다(viewer 변경 0 — `splitChunks`·`ROW_ST`가 이미 탭 범용). 체인은 청크 경계에서
+  쪼개지 않으며, 청크마다 `SEQUENCE_INIT`을 재부착한다(첫 청크에만 붙이면 2번째 행부터 기본
+  테마로 되돌아간다). 20~1200 crossEdge 전 구간 회귀 가드를 stress test로 기계 강제.
+
+### Notes
+
+- `ANALYZER_VERSION`은 범프하지 않았다. `sequence`는 옵셔널이고 `isDiagramCache` 필수 shape에도
+  없어 구캐시가 유효하게 로드된다(재분석하면 채워진다). 청킹은 내용만 바뀐 변경이지만 청킹 안 된
+  sequence를 emit한 빌드가 릴리스된 적이 없어 무효화할 캐시 자체가 존재하지 않는다.
+- 릴리스 전 보안 검토(Critical 0) 후속 조치: `scripts/render-harness.mjs`(개발 전용, vsix 미포함)를
+  loopback 바인딩 + 경로 클램프로 고정 · `escapeSequenceLabel`의 라인 종결자 블랙리스트를
+  U+2028/U+2029까지 확장(현재 벤더 mermaid에선 실측상 무해하나 파서 버전 의존 제거) ·
+  메시지 라인 이스케이프 회귀 테스트 추가(기존 테스트는 participant 선언 줄만 검증했다).
+- 범위 밖(후속): 시퀀스 탭 검색·클릭 딥링크·hover(mermaid `.actor` 구조가 `.node` 셀렉터에
+  안 걸림) · 동일 BE 라우트의 DI 체인이 FE 호출자마다 반복 emit되는 증폭.
+
 ## [1.2.65] — 2026-08-18
 
 ### Fixed — react-router 딥링크 오점프 (provenance 3종 결함)

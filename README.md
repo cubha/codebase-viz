@@ -2,9 +2,11 @@
 
 **VS Code extension that visualizes codebase architecture as interactive Mermaid diagrams.**
 
-Routes, components, and DB relationships — extracted statically from **13 frameworks**, optionally enriched by LLM, rendered as three live diagram tabs inside VS Code.
+Routes, components, and DB relationships — extracted statically from **13 frameworks**, optionally enriched by LLM, rendered as live diagram tabs inside VS Code.
 
-> Marketplace: [`cubha.codebase-arch-viz`](https://marketplace.visualstudio.com/items?itemName=cubha.codebase-arch-viz) · Current release: **v1.2.65**
+> Marketplace: [`cubha.codebase-arch-viz`](https://marketplace.visualstudio.com/items?itemName=cubha.codebase-arch-viz) · Current release: **v1.2.66**
+>
+> **v1.2.66** — **Sequence 탭 신설(FE↔BE 페어 분석 전용)**. FE 컴포넌트 → BE 엔드포인트 → Controller → Service/Repository → Table 호출 흐름을 시간순 시퀀스 다이어그램으로 그린다. 매칭된 cross-edge만 대상이고(신규 추정 0), `verified`는 실선·`inferred`는 점선으로 근거 강도를 유지한다. 대형 입력은 참가자 12명 단위로 자동 분할되어 행 그리드로 렌더된다. 단일 프로젝트 분석에서는 탭이 뜨지 않는다.
 >
 > **v1.2.65** — react-router 딥링크 오점프 수정. `routes.map(...)`으로 뿌린 라우트가 페이지가 아니라 router의 map 호출 지점으로 점프하던 결함(provenance 3곳 오기록 + file/line이 서로 다른 파일에서 오던 유령 좌표)을 바로잡고, 라우트 딥링크를 `renders`로 연결된 페이지 컴포넌트 좌표로 해석하도록 했다(react-router 한정 — 타 어댑터 회귀 0 실측). 캐시는 `ANALYZER_VERSION` 범프로 자동 무효화된다.
 >
@@ -21,6 +23,7 @@ Open a project in VS Code → click **Analyze**. Codebase Viz produces:
 | **Rendering Architecture** | Route hierarchy with URL-based hierarchical grouping, SSR / CSR / ISR / SSG labels, HTTP method badges |
 | **Screen–Component** | Route → component import graph, runtime tags (client / shared / server) |
 | **DB–Screen** | Table schema (Supabase, Prisma, Drizzle, TypeORM, Django ORM, SQLAlchemy, JPA, **Flyway DDL**) + 4-toggle view: **All** · **FK relations** (ERD with TH/TD distinction) · **Page queries** (route → table flow graph) · **Server actions** (action → table flow graph) |
+| **Sequence** *(paired analysis only)* | Request flow over time: FE component → BE endpoint → Controller → Service / Repository → Table. Solid arrows = `verified`, dashed = `inferred`. Auto-split into rows at 12 participants per chunk |
 
 Results are cached in `.codebase-viz/cache.json`. Re-analyze on demand.
 
@@ -31,7 +34,7 @@ When multiple workspace folders are open (e.g. a Next.js frontend + Spring Boot 
 1. Click **Analyze** → select the main (FE) project
 2. A second prompt appears — select the paired BE project (or **Skip** for single-project mode)
 
-Codebase Viz statically extracts `fetch()` / `axios.*` call URLs from the FE codebase and matches them against BE route definitions. The **Rendering Architecture tab is replaced** with a combined diagram: matched routes appear as **dashed cross-edges**, and only the FE/BE routes that actually participate in a match are shown (unmatched routes stay visible in their own project's standalone view instead of cluttering the combined one). Screen–Component stays FE-only; DB–Screen merges FE + BE tables into one ERD.
+Codebase Viz statically extracts `fetch()` / `axios.*` call URLs from the FE codebase and matches them against BE route definitions. The **Rendering Architecture tab is replaced** with a combined diagram: matched routes appear as **dashed cross-edges**, and only the FE/BE routes that actually participate in a match are shown (unmatched routes stay visible in their own project's standalone view instead of cluttering the combined one). Screen–Component stays FE-only; DB–Screen merges FE + BE tables into one ERD. A fourth **Sequence** tab appears (paired analysis only) showing each matched call as a time-ordered flow down through the BE dependency chain to the table it queries.
 
 | | Without LLM | With LLM (BYOK) |
 |---|---|---|

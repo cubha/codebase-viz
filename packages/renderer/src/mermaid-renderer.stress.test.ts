@@ -7,10 +7,14 @@ import { describe, it, expect } from 'vitest'
 import {
   createIRGraph,
   createRouteNode,
+  createComponentNode,
+  createTableNode,
+  createEdge,
   makeNodeId,
+  makeEdgeId,
   type RouteNode,
 } from '@codebase-viz/types'
-import { buildDiagrams } from './mermaid-renderer.js'
+import { buildDiagrams, buildCombinedDiagram } from './mermaid-renderer.js'
 import { CHUNK_SEPARATOR } from './_shared/wrap-fallback.js'
 
 function r(p: string): RouteNode {
@@ -323,5 +327,121 @@ describe('mermaid-renderer — Tab1 폴더 개요 >300 routes 회귀 가드 + �
       sum += parseInt(m![1]!, 10)
     }
     expect(sum).toBe(routes.length)
+  })
+})
+
+
+// T4 후속(2026-08-28): 시퀀스 탭 대형 입력 회귀 가드.
+// 실측 결함 — 청킹 없이 emit하면 100 라우트(참가자 501)에서 fit 배율이 1/60로 떨어져 화면이
+// 사실상 백지가 됐다(render-harness 스크린샷). sequenceDiagram은 폭이 O(participant)인 1차원
+// 레이아웃이라 flowchart의 노드 budget(50)을 그대로 쓸 수 없다. 여기서 강제하는 불변식은
+// **청크당 participant 수**이지 청크 수가 아니다 — 청크 수는 설계상 O(crossEdges)이고, 400 청크까지
+// row-grid 렌더가 3초 내에 끝나는 것을 실측으로 확인했다(freeze 없음).
+describe('mermaid-renderer — 시퀀스 탭 대형 입력 청킹 (T4 후속)', () => {
+  const PROV = { file: 'x', line: 1, adapter: 'stress', analyzerVersion: 's' } as const
+  const V = { confidence: 'verified' } as const
+
+  function buildPair(nRoutes: number, feCallersPerRoute: number) {
+    const feNodes = [], feEdges = [], beNodes = [], beEdges = [], cross = []
+    const tableId = makeNodeId('table', 'schema.sql', 'users')
+    beNodes.push(createTableNode({ id: tableId, name: 'users', columns: [], provenance: PROV, ...V }))
+
+    for (let i = 0; i < nRoutes; i++) {
+      const p = `/api/v1/mod${i % 20}/res${i}`
+      const routeId = makeNodeId('route', `src/C${i}.java`, p)
+      beNodes.push(createRouteNode({
+        id: routeId, path: p, filePath: `src/C${i}.java`, routeFileKind: 'page',
+        dynamicSegmentType: 'static', isGroupRoute: false, renderingMode: 'SSR',
+        provenance: PROV, ...V,
+      }))
+      const ctrlId = makeNodeId('component', `src/C${i}.java`, `C${i}`)
+      const svcId = makeNodeId('component', `src/S${i}.java`, `S${i}`)
+      const repoId = makeNodeId('component', `src/R${i}.java`, `R${i}`)
+      for (const [id, name, file] of [[ctrlId, `C${i}`, `src/C${i}.java`], [svcId, `S${i}`, `src/S${i}.java`], [repoId, `R${i}`, `src/R${i}.java`]] as const) {
+        beNodes.push(createComponentNode({ id, name, filePath: file, runtime: 'server', provenance: PROV, ...V }))
+      }
+      beEdges.push(createEdge({ id: makeEdgeId('handles', routeId, ctrlId), from: routeId, to: ctrlId, kind: 'handles', provenance: PROV, ...V }))
+      beEdges.push(createEdge({ id: makeEdgeId('calls', ctrlId, svcId), from: ctrlId, to: svcId, kind: 'calls', provenance: PROV, ...V }))
+      beEdges.push(createEdge({ id: makeEdgeId('calls', svcId, repoId), from: svcId, to: repoId, kind: 'calls', provenance: PROV, ...V }))
+      beEdges.push(createEdge({ id: makeEdgeId('queries', repoId, tableId), from: repoId, to: tableId, kind: 'queries', provenance: PROV, ...V }))
+
+      for (let k = 0; k < feCallersPerRoute; k++) {
+        const feRouteId = makeNodeId('route', `src/pages/p${i}_${k}.tsx`, `/p${i}/${k}`)
+        feNodes.push(createRouteNode({
+          id: feRouteId, path: `/p${i}/${k}`, filePath: `src/pages/p${i}_${k}.tsx`, routeFileKind: 'page',
+          dynamicSegmentType: 'static', isGroupRoute: false, renderingMode: 'CSR', provenance: PROV, ...V,
+        }))
+        const feCompId = makeNodeId('component', `src/w/W${i}_${k}.tsx`, `W${i}_${k}`)
+        feNodes.push(createComponentNode({ id: feCompId, name: `W${i}_${k}`, filePath: `src/w/W${i}_${k}.tsx`, runtime: 'client', provenance: PROV, ...V }))
+        feEdges.push(createEdge({ id: makeEdgeId('renders', feRouteId, feCompId), from: feRouteId, to: feCompId, kind: 'renders', provenance: PROV, ...V }))
+        cross.push(createEdge({ id: makeEdgeId('fe-be-call', feCompId, routeId), from: feCompId, to: routeId, kind: 'fe-be-call', provenance: PROV, ...V }))
+      }
+    }
+    return {
+      fe: createIRGraph({ analyzerVersion: 's', repoRoot: '/fe', projectName: 'fe', nodes: feNodes, edges: feEdges }),
+      be: createIRGraph({
+        analyzerVersion: 's', repoRoot: '/be', projectName: 'be', nodes: beNodes, edges: beEdges,
+        metadata: { framework: 'springboot', hasSupabase: false, hasPrisma: false, hasDexie: false, hasFirebase: false, adapterCategory: 'BE' },
+      }),
+      cross,
+    }
+  }
+
+  function seqChunks(nRoutes: number, feCallersPerRoute: number): string[] {
+    const g = buildPair(nRoutes, feCallersPerRoute)
+    const { sequence } = buildCombinedDiagram(g.fe, g.be, g.cross)
+    expect(sequence, 'matched crossEdge가 있는데 sequence가 비었다').toBeDefined()
+    return sequence!.split(`\n${CHUNK_SEPARATOR}\n`)
+  }
+
+  function participantCount(chunk: string): number {
+    return chunk.split('\n').filter(l => l.trim().startsWith('participant ')).length
+  }
+
+  it('100 라우트(참가자 500+): 청크당 participant ≤ 12 — 백지 회귀 가드', () => {
+    for (const chunk of seqChunks(100, 1)) {
+      expect(participantCount(chunk)).toBeLessThanOrEqual(12)
+    }
+  })
+
+  it('1200 crossEdge(FE 3중 호출)에서도 청크당 participant 상한 유지', () => {
+    for (const chunk of seqChunks(400, 3)) {
+      expect(participantCount(chunk)).toBeLessThanOrEqual(12)
+    }
+  })
+
+  it('모든 청크가 SEQUENCE_INIT을 갖는다 — 2번째 행부터 기본 테마로 되돌아가는 결함 차단', () => {
+    const chunks = seqChunks(100, 1)
+    expect(chunks.length).toBeGreaterThan(1)
+    for (const chunk of chunks) {
+      const body = chunk.replace(/^%% chunk:\d+\/\d+\n/, '')
+      const lines = body.split('\n')
+      expect(lines[0]).toMatch(/^%%\{init:/)
+      expect(lines[0]).toContain("'mirrorActors':false")
+      expect(lines[1]).toBe('sequenceDiagram')
+    }
+  })
+
+  it('체인은 청크 경계에서 쪼개지지 않는다 — 모든 메시지의 양끝이 같은 청크에 선언돼 있다', () => {
+    for (const chunk of seqChunks(100, 1)) {
+      const body = chunk.replace(/^%% chunk:\d+\/\d+\n/, '')
+      const declared = new Set(
+        body.split('\n').filter(l => l.trim().startsWith('participant '))
+          .map(l => l.trim().split(' ')[1]!),
+      )
+      for (const line of body.split('\n')) {
+        const m = line.trim().match(/^(\S+?)(?:->>|-->>)(\S+?):/)
+        if (m === null) continue
+        expect(declared.has(m[1]!), `미선언 participant: ${m[1]}`).toBe(true)
+        expect(declared.has(m[2]!), `미선언 participant: ${m[2]}`).toBe(true)
+      }
+    }
+  })
+
+  it('누락 0: 전체 청크의 fe-be-call 메시지 수 = drawableEdges 수', () => {
+    const g = buildPair(100, 1)
+    const { sequence } = buildCombinedDiagram(g.fe, g.be, g.cross)
+    const feBeMsgs = sequence!.split('\n').filter(l => /^\s+component_src_w_W\d+_\d+_tsx_W\d+_\d+->>/.test(l))
+    expect(feBeMsgs.length).toBe(g.cross.length)
   })
 })

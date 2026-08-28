@@ -22,10 +22,16 @@ function extractMermaid(mdPath) {
   return m ? m[1] : ''
 }
 
+// T4: sequence.md는 CLI가 emit하지 않는 페어(FE+BE) 전용 산출물이라 옵셔널 — 없으면 기존
+// 3탭(single-project .md 산출물) 검증과 바이트 단위로 동일하게 동작한다.
+const sequenceMd = path.join(inputDir, 'sequence.md')
+const hasSequence = fs.existsSync(sequenceMd)
+
 const diagrams = {
   rendering: extractMermaid(path.join(inputDir, 'rendering.md')),
   screenComponent: extractMermaid(path.join(inputDir, 'screen-component.md')),
   dbScreen: extractMermaid(path.join(inputDir, 'db-screen.md')),
+  ...(hasSequence ? { sequence: extractMermaid(sequenceMd) } : {}),
 }
 
 const EN_DICT = {
@@ -35,7 +41,7 @@ const EN_DICT = {
   'db.view.label': 'View', 'db.view.all': 'All', 'db.view.fk': 'FK Relations',
   'db.view.routes': 'Page Queries', 'db.view.actions': 'Server Actions',
   'db.sidebar.tables': 'Tables',
-  'tab.rendering': 'Rendering Architecture', 'tab.screenComponent': 'Screen–Component', 'tab.dbScreen': 'DB–Screen',
+  'tab.rendering': 'Rendering Architecture', 'tab.screenComponent': 'Screen–Component', 'tab.dbScreen': 'DB–Screen', 'tab.sequence': 'Sequence',
   'status.rendering': 'Rendering...', 'status.loading': 'Loading...', 'status.noTables': 'No tables',
   'status.noData': 'No data', 'status.noDbData': 'No DB data', 'status.analyzing': 'analyzing...',
   'alert.noDiagram': 'No diagram data.', 'alert.svgFailed': 'SVG generation failed',
@@ -48,7 +54,7 @@ const HARNESS_DIR = path.join('/tmp', 'render-harness')
 fs.mkdirSync(HARNESS_DIR, { recursive: true })
 fs.copyFileSync(MERMAID_LOCAL, path.join(HARNESS_DIR, 'mermaid.min.js'))
 
-const meta = { projectName: path.basename(inputDir), routeCount: 21, tableCount: 12, cachedAt: Date.now() }
+const meta = { projectName: path.basename(inputDir), routeCount: 21, tableCount: 12, cachedAt: Date.now(), isPair: hasSequence }
 const seed = `<script>
   window.__CODEBASE_VIZ_META__ = ${JSON.stringify(meta)};
   window.__CODEBASE_VIZ_DIAGRAMS__ = ${JSON.stringify(diagrams)};
@@ -62,14 +68,19 @@ fs.writeFileSync(path.join(HARNESS_DIR, 'viewer.html'), html)
 const MIME = { '.html': 'text/html', '.js': 'text/javascript', '.mjs': 'text/javascript', '.css': 'text/css' }
 const server = http.createServer((req, res) => {
   const url = req.url === '/' ? '/viewer.html' : req.url.split('?')[0]
-  const f = path.join(HARNESS_DIR, url)
-  if (!fs.existsSync(f)) { res.statusCode = 404; res.end('not found'); return }
+  // req.url은 Node가 `..`를 정규화하지 않은 raw 값이고 path.join은 베이스로 클램프하지 않는다 —
+  // `GET /../../etc/passwd`가 HARNESS_DIR 밖 파일을 그대로 응답한다. resolve 후 접두사 검사로 가둔다.
+  const f = path.resolve(HARNESS_DIR, '.' + url)
+  if (f !== HARNESS_DIR && !f.startsWith(HARNESS_DIR + path.sep)) { res.statusCode = 403; res.end('forbidden'); return }
+  if (!fs.existsSync(f) || !fs.statSync(f).isFile()) { res.statusCode = 404; res.end('not found'); return }
   res.setHeader('Content-Type', MIME[path.extname(f)] ?? 'application/octet-stream')
   res.end(fs.readFileSync(f))
 })
-await new Promise((r) => server.listen(0, r))
+// host를 생략하면 Node가 모든 인터페이스(0.0.0.0/::)에 바인딩한다 — 같은 네트워크의 다른 호스트가
+// harness 실행 중 접근할 수 있다. 이 서버는 로컬 Playwright 전용이라 loopback으로 못박는다.
+await new Promise((r) => server.listen(0, '127.0.0.1', r))
 const port = server.address().port
-console.log('[server] http://localhost:' + port)
+console.log('[server] http://127.0.0.1:' + port)
 
 const browser = await chromium.launch({ headless: true })
 const ctx = await browser.newContext({ viewport: { width: 1600, height: 1000 } })
@@ -80,10 +91,12 @@ const consoleAll = []
 page.on('console', (msg) => { consoleAll.push(`[${msg.type()}] ${msg.text()}`); if (msg.type() === 'error') consoleErrors.push(msg.text()) })
 page.on('pageerror', (err) => consoleErrors.push('PAGEERROR: ' + err.message))
 
-await page.goto('http://localhost:' + port + '/viewer.html')
+await page.goto('http://127.0.0.1:' + port + '/viewer.html')
 await page.waitForTimeout(5000)
 
-for (const [tab, key] of [['r', 'tab1-rendering'], ['s', 'tab2-screen'], ['d', 'tab3-db']]) {
+const tabs = [['r', 'tab1-rendering'], ['s', 'tab2-screen'], ['d', 'tab3-db']]
+if (hasSequence) tabs.push(['q', 'tab4-sequence'])
+for (const [tab, key] of tabs) {
   await page.click(`.tab[data-t="${tab}"]`)
   await page.waitForTimeout(3000)
   const shot = `${outPrefix}-${key}.png`

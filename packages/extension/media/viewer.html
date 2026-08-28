@@ -43,6 +43,7 @@
     .tab[data-t="r"] .tab-pip { background: var(--blue); }
     .tab[data-t="s"] .tab-pip { background: var(--green); }
     .tab[data-t="d"] .tab-pip { background: var(--amber); }
+    .tab[data-t="q"] .tab-pip { background: #a78bfa; }
     .panels { position: relative; z-index: 5; height: calc(100vh - 52px - 44px); }
     .panel { position: absolute; inset: 0; opacity: 0; pointer-events: none; transition: opacity .22s; }
     .panel.active { opacity: 1; pointer-events: auto; }
@@ -227,6 +228,7 @@
   <div class="tab active" data-t="r" data-action="switchTab" data-arg="r"><span class="tab-pip"></span><span data-i18n="tab.rendering">Rendering Architecture</span></div>
   <div class="tab" data-t="s" data-action="switchTab" data-arg="s"><span class="tab-pip"></span><span data-i18n="tab.screenComponent">Screen–Component</span></div>
   <div class="tab" data-t="d" data-action="switchTab" data-arg="d"><span class="tab-pip"></span><span data-i18n="tab.dbScreen">DB–Screen</span></div>
+  <div class="tab" id="tab-q" data-t="q" data-action="switchTab" data-arg="q" style="display:none"><span class="tab-pip"></span><span data-i18n="tab.sequence">Sequence</span></div>
 </div>
 
 <div class="panels">
@@ -314,6 +316,15 @@
         <div class="sidebar-label" data-i18n="db.sidebar.tables">Tables</div>
         <div id="sidebar-tables"><div class="loading-msg" data-i18n="status.loading">로딩 중...</div></div>
       </div>
+    </div>
+  </div>
+  <div id="p-q" class="panel">
+    <div class="canvas-wrap" id="w-q"><div class="canvas-inner" id="i-q"><div class="loading-msg" data-i18n="status.rendering">렌더링 중...</div></div></div>
+    <div id="cnav-q" class="chunk-nav" style="display:none"><span class="cn-label"></span></div>
+    <div class="zoom-ctrl">
+      <button class="z-btn" data-action="zm" data-arg-t="q" data-arg-f="1.2">+</button>
+      <button class="z-btn" data-action="zm" data-arg-t="q" data-arg-f="0.833">−</button>
+      <button class="z-btn" data-action="rz" data-arg="q" style="font-size:11px">⌂</button>
     </div>
   </div>
 </div>
@@ -434,7 +445,15 @@ const DIAGRAMS = {
   r: injected.rendering      || '',
   s: injected.screenComponent || '',
   d: injected.dbScreen       || '',
+  q: injected.sequence       || '',
 };
+// T4: 페어(FE+BE) 분석일 때만 탭 노출. sequence 필드 유무만으론 "단일모드"와 "페어인데 매칭
+// 0건/구버전 캐시"를 구분 못하므로(둘 다 필드 부재) META.isPair(분석 시점 신호)로 판정한다.
+// isPair=true인데 DIAGRAMS.q가 비어있으면 renderTab의 기존 "no data" 분기가 그대로 처리한다.
+if (meta.isPair) {
+  const tabQ = document.getElementById('tab-q');
+  if (tabQ) tabQ.style.display = '';
+}
 // Wave A T1/T2 사이드채널(옵셔널) — renderer/src/helpers/node-map.ts가 만든 sanitizedId → {f,l,c,i,n,r}.
 // 구 harness/캐시는 이 필드가 없을 수 있으므로 조용히 {}로 degrade한다(기존 스펙 파손 방지).
 const NODE_MAP = injected.nodeMap || {};
@@ -602,9 +621,9 @@ function scaleRowSvgs(wrap, inner) {
   fitRowSvgsInitial(t, inner);
 }
 
-const rendered = {r:false,s:false,d:false};
-const ST = {r:{s:1,x:0,y:0}, s:{s:1,x:0,y:0}, d:{s:1,x:0,y:0}};
-const ROW_ST = {r:[], s:[], d:[]};
+const rendered = {r:false,s:false,d:false,q:false};
+const ST = {r:{s:1,x:0,y:0}, s:{s:1,x:0,y:0}, d:{s:1,x:0,y:0}, q:{s:1,x:0,y:0}};
+const ROW_ST = {r:[], s:[], d:[], q:[]};
 const drag = {t:null,rowIdx:null,sx:0,sy:0,ox:0,oy:0};
 var dbCurrentView = 'all';
 var dbGraphs = null;

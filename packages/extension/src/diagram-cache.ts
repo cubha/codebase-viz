@@ -17,6 +17,8 @@ export interface DiagramCache {
 // graph 캐시가 analyzerVersion 불일치로 상시 미스됐다. cache-diagrams.json으로 분리한다.
 const LEGACY_CACHE_FILE = 'cache.json'
 
+// T4(Wave B): DiagramSet.sequence는 여기서 의도적으로 검사하지 않는다 — 옵셔널 필드라 구캐시가
+// 없이도 유효하게 로드돼야 한다(analyzer-version.ts의 ANALYZER_VERSION 비범프 결정과 짝).
 function isDiagramCache(value: unknown): value is DiagramCache {
   if (typeof value !== 'object' || value === null) return false
   const v = value as Record<string, unknown>
