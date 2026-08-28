@@ -31,6 +31,7 @@ import { buildFeDomainLayeredScreenDiagram, isPagesDomainEligible } from './fe/t
 import { buildRenderingDiagram } from './fe/tab1.js'
 import { buildBeArchitectureDiagram } from './be/tab2.js'
 import { buildDbScreenDiagram, resolveTab3Kind } from './erd/db-diagram.js'
+import { buildSequenceDiagram } from './sequence/sequence-diagram.js'
 
 function buildScreenComponentDiagram(graph: IRGraph): string {
   if (graph.metadata?.adapterCategory === 'BE') return buildBeArchitectureDiagram(graph)
@@ -153,6 +154,11 @@ export interface DiagramSet {
   // T1 딥링크·T2 hover 사이드채널(webview 전용). sanitizeId(node.id) → {file,line,confidence,...}.
   // renderMermaid(.md CLI 출력)는 이 필드를 emit하지 않는다 — DiagramSet은 webview 경로 전용 산출물.
   nodeMap?: NodeMap
+  // Wave B T4: 페어 분석(FE+BE) 전용 sequenceDiagram. buildDiagrams(단일모드)는 항상 undefined —
+  // CLI(.md) 미노출. buildCombinedDiagram에서도 drawableEdges(matched fe-be-call)가 0건이면
+  // undefined — 빈 다이어그램 대신 필드 자체를 비운다(Less is More). isDiagramCache 필수 shape에는
+  // 넣지 않는다(구버전 캐시 전량 무효화 방지 — nodeMap·tab3Kind와 동일한 선례).
+  sequence?: string
   // webview가 dbScreen을 erDiagram 파서로 재해석할지 원문 그대로 렌더할지 판정하는 선언(D0).
   // resolveTab3Kind와 어긋나면 webview가 다시 침묵 실패하므로 buildDbScreenDiagram 호출 지점마다
   // 반드시 같은 graph로 계산해 채운다. optional인 이유는 이 필드 없는 구캐시(v1.2.62 이전 산출물)를
@@ -264,6 +270,9 @@ export function buildCombinedDiagram(
   const feRoutes = feGraph.nodes.filter(isRouteNode).filter(r => r.routeFileKind === 'page' && matchedFeRouteIds.has(r.id))
   const beRoutes = beGraph.nodes.filter(isRouteNode).filter(r => r.routeFileKind === 'page' && matchedBeRouteIds.has(r.id))
 
+  // T4: 신규 임계 계산 없이 이미 정해진 drawableEdges를 그대로 소비(v1.2.49 freeze 재발 방지).
+  const sequence = drawableEdges.length > 0 ? buildSequenceDiagram(feGraph, beGraph, drawableEdges) : undefined
+
   const lines: string[] = [RENDERING_INIT, 'graph TD', CLASS_DEFS]
 
   // FE subgraph
@@ -310,7 +319,7 @@ export function buildCombinedDiagram(
   // T1/T2 사이드채널: FE·BE 각자의 노드를 자기 그래프 기준으로 매핑 후 병합. BE 쪽만 r:'pair'로
   // 표시해 확장이 pairRepoRoot로 경로를 해석하게 한다. 충돌 시 더 확실한 confidence가 이기고
   // (Evidence-First), 동순위면 FE가 이긴다 — mergeNodeMaps가 buildNodeMap과 동일 규칙 적용.
-  const emittedTexts = [renderingText, screenComponent, dbScreen]
+  const emittedTexts = [renderingText, screenComponent, dbScreen, ...(sequence !== undefined ? [sequence] : [])]
   const feNodeMap = buildNodeMap(feGraph, emittedTexts)
   const beNodeMap = buildNodeMap(beGraph, emittedTexts, { root: 'pair' })
   const nodeMap: NodeMap = mergeNodeMaps(feNodeMap, beNodeMap)
@@ -324,6 +333,7 @@ export function buildCombinedDiagram(
       dbScreen: stripNodeMapMarkers(dbScreen),
       nodeMap,
       tab3Kind,
+      ...(sequence !== undefined ? { sequence: stripNodeMapMarkers(sequence) } : {}),
     }
   }
 
@@ -340,6 +350,7 @@ export function buildCombinedDiagram(
     dbScreen: stripNodeMapMarkers(dbScreen),
     nodeMap,
     tab3Kind,
+    ...(sequence !== undefined ? { sequence: stripNodeMapMarkers(sequence) } : {}),
   }
 }
 

@@ -197,7 +197,11 @@ export class CodebaseVizPanel {
       template = undefined
     }
 
-    const { projectName, routeCount, tableCount, diagrams, cachedAt } = params
+    const { projectName, routeCount, tableCount, diagrams, cachedAt, pairRepoRoot } = params
+    // T4: 페어(FE+BE) 분석 여부 — diagrams.sequence 유무만으론 "원래 단일모드"와 "페어인데 구버전
+    // 캐시/매칭 0건"을 구분 못한다(둘 다 필드가 없다). pairRepoRoot는 분석 시점에 실제로 페어
+    // 폴더가 지정됐는지를 나타내는 별개의 신호라 여기서 명시적으로 내려준다.
+    const isPair = pairRepoRoot !== undefined
     const cspSource = webview.cspSource
     const setting = vscode.workspace.getConfiguration('codebaseViz').get<string>('language', 'auto')
     const locale = resolveLocale(setting, vscode.env.language)
@@ -211,7 +215,7 @@ export class CodebaseVizPanel {
       `<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'nonce-${nonce}' ${cspSource}; style-src 'unsafe-inline'; font-src data:; img-src ${cspSource} data: blob:;">`,
       `<script nonce="${nonce}">`,
       `window.__CODEBASE_VIZ_DIAGRAMS__ = ${safeJson(diagrams)};`,
-      `window.__CODEBASE_VIZ_META__ = ${safeJson({ projectName, routeCount, tableCount, cachedAt })};`,
+      `window.__CODEBASE_VIZ_META__ = ${safeJson({ projectName, routeCount, tableCount, cachedAt, isPair })};`,
       `window.__CODEBASE_VIZ_I18N__ = ${safeJson(dict)};`,
       `</script>`,
     ].join('\n')

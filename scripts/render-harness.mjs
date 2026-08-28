@@ -22,10 +22,16 @@ function extractMermaid(mdPath) {
   return m ? m[1] : ''
 }
 
+// T4: sequence.md는 CLI가 emit하지 않는 페어(FE+BE) 전용 산출물이라 옵셔널 — 없으면 기존
+// 3탭(single-project .md 산출물) 검증과 바이트 단위로 동일하게 동작한다.
+const sequenceMd = path.join(inputDir, 'sequence.md')
+const hasSequence = fs.existsSync(sequenceMd)
+
 const diagrams = {
   rendering: extractMermaid(path.join(inputDir, 'rendering.md')),
   screenComponent: extractMermaid(path.join(inputDir, 'screen-component.md')),
   dbScreen: extractMermaid(path.join(inputDir, 'db-screen.md')),
+  ...(hasSequence ? { sequence: extractMermaid(sequenceMd) } : {}),
 }
 
 const EN_DICT = {
@@ -35,7 +41,7 @@ const EN_DICT = {
   'db.view.label': 'View', 'db.view.all': 'All', 'db.view.fk': 'FK Relations',
   'db.view.routes': 'Page Queries', 'db.view.actions': 'Server Actions',
   'db.sidebar.tables': 'Tables',
-  'tab.rendering': 'Rendering Architecture', 'tab.screenComponent': 'Screen–Component', 'tab.dbScreen': 'DB–Screen',
+  'tab.rendering': 'Rendering Architecture', 'tab.screenComponent': 'Screen–Component', 'tab.dbScreen': 'DB–Screen', 'tab.sequence': 'Sequence',
   'status.rendering': 'Rendering...', 'status.loading': 'Loading...', 'status.noTables': 'No tables',
   'status.noData': 'No data', 'status.noDbData': 'No DB data', 'status.analyzing': 'analyzing...',
   'alert.noDiagram': 'No diagram data.', 'alert.svgFailed': 'SVG generation failed',
@@ -48,7 +54,7 @@ const HARNESS_DIR = path.join('/tmp', 'render-harness')
 fs.mkdirSync(HARNESS_DIR, { recursive: true })
 fs.copyFileSync(MERMAID_LOCAL, path.join(HARNESS_DIR, 'mermaid.min.js'))
 
-const meta = { projectName: path.basename(inputDir), routeCount: 21, tableCount: 12, cachedAt: Date.now() }
+const meta = { projectName: path.basename(inputDir), routeCount: 21, tableCount: 12, cachedAt: Date.now(), isPair: hasSequence }
 const seed = `<script>
   window.__CODEBASE_VIZ_META__ = ${JSON.stringify(meta)};
   window.__CODEBASE_VIZ_DIAGRAMS__ = ${JSON.stringify(diagrams)};
@@ -83,7 +89,9 @@ page.on('pageerror', (err) => consoleErrors.push('PAGEERROR: ' + err.message))
 await page.goto('http://localhost:' + port + '/viewer.html')
 await page.waitForTimeout(5000)
 
-for (const [tab, key] of [['r', 'tab1-rendering'], ['s', 'tab2-screen'], ['d', 'tab3-db']]) {
+const tabs = [['r', 'tab1-rendering'], ['s', 'tab2-screen'], ['d', 'tab3-db']]
+if (hasSequence) tabs.push(['q', 'tab4-sequence'])
+for (const [tab, key] of tabs) {
   await page.click(`.tab[data-t="${tab}"]`)
   await page.waitForTimeout(3000)
   const shot = `${outPrefix}-${key}.png`

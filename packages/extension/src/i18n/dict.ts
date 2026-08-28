@@ -1,5 +1,8 @@
 // 다국어 사전. ko가 source, en은 fallback. ja/zh-cn은 1차 번역.
-// 추가 키는 알파벳 순으로 정렬해 유지.
+// 키 배치 규칙: `// viewer.html — <영역>` 주석으로 그룹을 나누고, **그룹 내부는 UI 표시 순**으로
+// 둔다(legend는 범례 순, tab.*는 탭 순, db.view.*는 토글바 순). 그래야 viewer.html을 나란히 놓고
+// 대조할 수 있다. 이전 주석은 "알파벳 순"이라고 적혀 있었으나 어느 그룹도 그런 적이 없다 —
+// 산문과 데이터가 어긋난 쪽이 산문이라, 4로케일을 재정렬하는 대신 규칙을 실제에 맞췄다.
 
 export type Locale = 'ko' | 'en' | 'ja' | 'zh-cn'
 
@@ -28,6 +31,7 @@ const KO: Dict = {
   'tab.rendering': 'Rendering Architecture',
   'tab.screenComponent': 'Screen–Component',
   'tab.dbScreen': '데이터 흐름',
+  'tab.sequence': '시퀀스',
   // viewer.html — status
   'status.rendering': '렌더링 중...',
   'status.loading': '로딩 중...',
@@ -121,6 +125,7 @@ const EN: Dict = {
   'tab.rendering': 'Rendering Architecture',
   'tab.screenComponent': 'Screen–Component',
   'tab.dbScreen': 'Data Flow',
+  'tab.sequence': 'Sequence',
   'status.rendering': 'Rendering...',
   'status.loading': 'Loading...',
   'status.noTables': 'No tables',
@@ -204,6 +209,7 @@ const JA: Dict = {
   'tab.rendering': 'Rendering Architecture',
   'tab.screenComponent': 'Screen–Component',
   'tab.dbScreen': 'データフロー',
+  'tab.sequence': 'シーケンス',
   'status.rendering': 'レンダリング中...',
   'status.loading': '読み込み中...',
   'status.noTables': 'テーブルなし',
@@ -287,6 +293,7 @@ const ZH_CN: Dict = {
   'tab.rendering': 'Rendering Architecture',
   'tab.screenComponent': 'Screen–Component',
   'tab.dbScreen': '数据流',
+  'tab.sequence': '时序图',
   'status.rendering': '渲染中...',
   'status.loading': '加载中...',
   'status.noTables': '无表',

@@ -450,3 +450,62 @@ describe('buildCombinedDiagram — nodeMap FE/BE 병합 (Wave A T1/T2, v1.2.61)'
     expect(diagrams.nodeMap?.[sid as string]?.r).toBe('pair')
   })
 })
+
+describe('buildCombinedDiagram — sequence 필드 (Wave B T4)', () => {
+  it('drawableEdges(matched fe-be-call)가 있으면 sequenceDiagram을 채운다', () => {
+    const matched = makeFeRoute('/matched', 'MatchedWidget')
+    const feGraph: IRGraph = createIRGraph({
+      analyzerVersion: 'test', repoRoot: '/fe', projectName: 'fe',
+      nodes: matched.nodes, edges: matched.edges,
+    })
+    const beRoute = makeBeRoute('/api/matched')
+    const ctrlId = makeNodeId('component', 'src/main/java/MatchedController.java', 'MatchedController')
+    const ctrl = createComponentNode({
+      id: ctrlId, name: 'MatchedController', filePath: 'src/main/java/MatchedController.java',
+      runtime: 'server', provenance: PROV, confidence: 'verified',
+    })
+    const handlesEdge = createEdge({
+      id: makeEdgeId('handles', beRoute.id, ctrlId), from: beRoute.id, to: ctrlId,
+      kind: 'handles', provenance: PROV, confidence: 'verified',
+    })
+    const beGraph: IRGraph = createIRGraph({
+      analyzerVersion: 'test', repoRoot: '/be', projectName: 'be', metadata: BE_META,
+      nodes: [beRoute, ctrl], edges: [handlesEdge],
+    })
+    const crossEdge = makeCrossEdge(matched.comp.id, beRoute.id)
+
+    const diagrams = buildCombinedDiagram(feGraph, beGraph, [crossEdge])
+    expect(diagrams.sequence).toBeDefined()
+    expect(diagrams.sequence?.split('\n')[1]).toBe('sequenceDiagram')
+    expect(diagrams.sequence).toContain('MatchedController')
+  })
+
+  it('drawableEdges가 0건(매칭 없음)이면 sequence는 undefined다', () => {
+    const unmatched = makeFeRoute('/unmatched', 'UnmatchedWidget')
+    const feGraph: IRGraph = createIRGraph({
+      analyzerVersion: 'test', repoRoot: '/fe', projectName: 'fe',
+      nodes: unmatched.nodes, edges: unmatched.edges,
+    })
+    const beRoute = makeBeRoute('/api/other')
+    const beGraph: IRGraph = createIRGraph({
+      analyzerVersion: 'test', repoRoot: '/be', projectName: 'be', metadata: BE_META,
+      nodes: [beRoute], edges: [],
+    })
+    const diagrams = buildCombinedDiagram(feGraph, beGraph, [])
+    expect(diagrams.sequence).toBeUndefined()
+  })
+
+  it('beGraph가 비어 FE 단독 폴백일 때도 sequence는 undefined다', () => {
+    const matched = makeFeRoute('/matched', 'MatchedWidget')
+    const feGraph: IRGraph = createIRGraph({
+      analyzerVersion: 'test', repoRoot: '/fe', projectName: 'fe',
+      nodes: matched.nodes, edges: matched.edges,
+    })
+    const beGraph: IRGraph = createIRGraph({
+      analyzerVersion: 'test', repoRoot: '/be', projectName: 'be', metadata: BE_META,
+      nodes: [], edges: [],
+    })
+    const diagrams = buildCombinedDiagram(feGraph, beGraph, [])
+    expect(diagrams.sequence).toBeUndefined()
+  })
+})

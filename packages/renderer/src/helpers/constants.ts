@@ -35,3 +35,11 @@ export const CLASS_DEFS = [
 ].join('\n')
 
 export const DB_DIAGRAM_INIT = `%%{init:{'theme':'base','themeVariables':{'background':'#060810','primaryColor':'#2a4055','primaryTextColor':'#f8fafc','primaryBorderColor':'#1e4060','lineColor':'#f59e0b','secondaryColor':'#0f172a','tertiaryColor':'#1a0a20','attributeBackgroundColorEven':'#ffffff','attributeBackgroundColorOdd':'#f1f5f9','textColor':'#1e293b','nodeBorder':'#1e4060','clusterBkg':'#0a0e1a','fontFamily':'JetBrains Mono','fontSize':'14'}}}%%`
+
+// T4 시퀀스 탭 전용 init — mermaid sequenceDiagram 기본값은 (a) themeVariables가 flowchart/erDiagram과
+// 이름 체계가 달라(actorBkg/signalColor/labelBoxBkgColor 등) 다른 탭의 *_INIT을 재사용할 수 없고,
+// (b) `mirrorActors:true`가 기본이라 참가자 박스가 위/아래로 중복 배치돼 가운데 화살표·라벨이
+// 좁은 띠에 몰리고, init을 아예 안 주면 mermaid 기본 회색 화살표/라벨이 이 앱의 어두운 배경에
+// 묻힌다(사용자 실측 지적). `mirrorActors:false`로 하단 중복 제거 + `showSequenceNumbers:true`로
+// 체인이 길어질 때 순서 추적 가능하게 함(candidate B, 사용자 선택).
+export const SEQUENCE_INIT = `%%{init:{'theme':'base','themeVariables':{'background':'#060810','actorBkg':'#0c1a30','actorTextColor':'#e2e8f0','actorBorder':'#1e3a5f','actorLineColor':'#334155','signalColor':'#7dd3fc','signalTextColor':'#e2e8f0','labelBoxBkgColor':'#0c1a30','labelBoxBorderColor':'#1e3a5f','labelTextColor':'#e2e8f0','loopTextColor':'#94a3b8','noteBkgColor':'#1a1a0d','noteBorderColor':'#ca8a04','noteTextColor':'#fde047','activationBkgColor':'#0d9488','activationBorderColor':'#5eead4','sequenceNumberColor':'#060810','fontFamily':'JetBrains Mono','fontSize':'14'},'sequence':{'mirrorActors':false,'showSequenceNumbers':true}}}%%`

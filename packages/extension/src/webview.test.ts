@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
+import * as path from 'node:path'
 import * as vscode from 'vscode'
 import { CodebaseVizPanel } from './webview.js'
 import { makeUri, resetVscodeMock } from './test-support/vscode-mock.js'
@@ -107,6 +108,37 @@ describe('CodebaseVizPanel.updateGraph / showCached', () => {
     })
     await panel.updateGraph(graph, EMPTY_DIAGRAMS)
     expect(created.webview.html.length).toBeGreaterThan(0)
+  })
+})
+
+describe('CodebaseVizPanel META.isPair (Wave B T4)', () => {
+  // 실제 media/viewer.html 템플릿을 읽게 하려고 extensionUri를 이 패키지 루트로 지정한다
+  // (가짜 경로면 fs.readFile 실패 → buildFallbackHtml로 폴백해 META 주입 자체를 검증 못한다).
+  const REAL_EXT_URI = makeUri(path.resolve(__dirname, '..')) as unknown as vscode.Uri
+
+  it('pairRepoRoot가 지정된 분석이면 META.isPair=true를 주입한다', async () => {
+    const panel = CodebaseVizPanel.createOrShow(REAL_EXT_URI)
+    const created = vscode.window.createWebviewPanel.mock.results[0]?.value
+    await panel.updateGraph(makeGraph(), EMPTY_DIAGRAMS, '/pair-be-repo')
+    expect(created.webview.html).toMatch(/__CODEBASE_VIZ_META__\s*=\s*\{[^}]*"isPair":true/)
+  })
+
+  it('pairRepoRoot 없는 단일모드 분석이면 META.isPair=false를 주입한다', async () => {
+    const panel = CodebaseVizPanel.createOrShow(REAL_EXT_URI)
+    const created = vscode.window.createWebviewPanel.mock.results[0]?.value
+    await panel.updateGraph(makeGraph(), EMPTY_DIAGRAMS)
+    expect(created.webview.html).toMatch(/__CODEBASE_VIZ_META__\s*=\s*\{[^}]*"isPair":false/)
+  })
+
+  it('showCached도 pairRepoRoot를 넘기면 META.isPair=true를 주입한다', async () => {
+    const panel = CodebaseVizPanel.createOrShow(REAL_EXT_URI)
+    const created = vscode.window.createWebviewPanel.mock.results[0]?.value
+    await panel.showCached(
+      { projectName: 'demo', routeCount: 0, tableCount: 0, diagrams: EMPTY_DIAGRAMS, savedAt: 0 },
+      '/repo',
+      '/pair-be-repo',
+    )
+    expect(created.webview.html).toMatch(/__CODEBASE_VIZ_META__\s*=\s*\{[^}]*"isPair":true/)
   })
 })
 

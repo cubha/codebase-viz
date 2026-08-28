@@ -14,3 +14,10 @@ export function escapeMd(s: string): string {
 export function escapePlainLabel(s: string): string {
   return s.replace(/[\r\n]+/g, ' ').replace(/"/g, "'")
 }
+
+// sequenceDiagram `participant X as Label`·`A->>B: message` 라인용. `:`가 참가자 alias 구분자·
+// 메시지 구분자로 쓰여 escapePlainLabel(개행·`"`만 방어)로는 불충분 — 원본 `:`가 라벨에 남으면
+// "participant sid as My: Label"처럼 파서가 라벨을 조기 절단한다.
+export function escapeSequenceLabel(s: string): string {
+  return s.replace(/[\r\n]+/g, ' ').replace(/:/g, ' -').replace(/"/g, "'")
+}

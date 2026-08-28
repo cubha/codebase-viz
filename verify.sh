@@ -3,9 +3,24 @@ set -euo pipefail
 
 cd "$(dirname "$0")"
 
+# ── 실행 모드 (게이트 계층화 — ~/.claude/skills/_shared/impl-handoff.md §3-1) ──
+VERIFY_MODE="full"
+case "${1:-}" in
+  --ts-only)  VERIFY_MODE="ts-only" ;;
+  --no-build) VERIFY_MODE="no-build" ;;
+  --full|"")  VERIFY_MODE="full" ;;
+  *) echo "⚠️  알 수 없는 플래그 '$1' — full 로 실행합니다" ;;
+esac
+
 echo "=== [1/4] TypeScript build ==="
 pnpm run typecheck
 echo "✅ tsc --build PASS"
+
+if [ "$VERIFY_MODE" = "ts-only" ]; then
+  echo ""
+  echo "=== ts-only 모드: 타입체크만 수행하고 종료 ==="
+  exit 0
+fi
 
 echo ""
 echo "=== [2/4] oxlint (correctness) ==="
@@ -49,5 +64,8 @@ echo ""
 echo "=== [4/4] contributes ID 매칭 (package.json ↔ src) ==="
 node scripts/check-contributes-ids.mjs
 
+# NOTE: 이 프로젝트는 [1/4] typecheck 이 곧 `tsc --build` 라 별도 번들러 스텝이 없다.
+#       따라서 --no-build 는 full 과 동일하게 동작한다 (스킵할 빌드 스텝이 없음).
+#       실질 절감이 있는 계층은 --ts-only 뿐이다.
 echo ""
-echo "✅ verify.sh ALL PASS"
+echo "✅ verify.sh ALL PASS (mode=$VERIFY_MODE)"

@@ -9,4 +9,16 @@
 // provenance 좌표 · nodeMap 라우트 엔트리의 f·l). isDiagramCache의 shape 가드는 nodeMap·tab3Kind
 // 존재만 보므로 구캐시를 걸러내지 못한다 — 이 상수 범프가 **유일한** 무효화 수단이다. 안 하면
 // 사용자는 고친 뒤에도 낡은 캐시로 map 지점에 계속 착지한다.
+// T4(Wave B): DiagramSet.sequence 필드 신설은 **의도적으로 이 규율의 예외**다 — nodeMap·tab3Kind처럼
+// 범프하면 그 순간 존재하는 모든 pair 캐시(sequence 없이 저장된 것 포함해 단일모드 캐시까지)가
+// 전량 무효화된다. sequence는 옵셔널이고 isDiagramCache 필수 shape에도 넣지 않았으므로, 구캐시는
+// 그냥 그 필드가 없는 채로 유효하게 로드되고 새 Sequence 탭은 "no data"로 정직하게 빈 채 뜬다
+// (webview.ts META.isPair가 "페어 분석이었다"는 사실 자체는 계속 정확히 알려준다). 재분석해야
+// sequence가 채워진다 — 이건 버그가 아니라 없던 다이어그램을 그리려면 당연히 재계산이 필요하다는
+// 뜻이라, 전체 무효화라는 더 비싼 대가를 치를 이유가 없다.
+// T4 후속(청킹): sequence를 participant 예산으로 청킹한 변경은 **내용만 바뀐 변경**이라 원래는
+// v1.2.65 선례대로 범프가 유일한 무효화 수단이다. 여기선 범프하지 않는데, 이유는 규율의 예외가
+// 아니라 **모집단이 없어서**다 — 청킹 안 된 sequence를 emit한 빌드는 한 번도 릴리스된 적이 없고
+// (T4 전체가 이 릴리스에 처음 나간다) 그런 텍스트를 담은 캐시는 존재할 수 없다. 다음에 sequence
+// **내용**이 바뀌면 그때는 위 v1.2.65 규칙이 그대로 적용된다.
 export const ANALYZER_VERSION = 'codebase-viz@1.2.65'
