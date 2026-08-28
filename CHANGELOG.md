@@ -40,6 +40,10 @@ mermaid `sequenceDiagram`으로 그리는 4번째 탭. 기존 3탭 어디에도 
 - `ANALYZER_VERSION`은 범프하지 않았다. `sequence`는 옵셔널이고 `isDiagramCache` 필수 shape에도
   없어 구캐시가 유효하게 로드된다(재분석하면 채워진다). 청킹은 내용만 바뀐 변경이지만 청킹 안 된
   sequence를 emit한 빌드가 릴리스된 적이 없어 무효화할 캐시 자체가 존재하지 않는다.
+- 릴리스 전 보안 검토(Critical 0) 후속 조치: `scripts/render-harness.mjs`(개발 전용, vsix 미포함)를
+  loopback 바인딩 + 경로 클램프로 고정 · `escapeSequenceLabel`의 라인 종결자 블랙리스트를
+  U+2028/U+2029까지 확장(현재 벤더 mermaid에선 실측상 무해하나 파서 버전 의존 제거) ·
+  메시지 라인 이스케이프 회귀 테스트 추가(기존 테스트는 participant 선언 줄만 검증했다).
 - 범위 밖(후속): 시퀀스 탭 검색·클릭 딥링크·hover(mermaid `.actor` 구조가 `.node` 셀렉터에
   안 걸림) · 동일 BE 라우트의 DI 체인이 FE 호출자마다 반복 emit되는 증폭.
 

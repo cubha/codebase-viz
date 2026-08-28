@@ -19,5 +19,7 @@ export function escapePlainLabel(s: string): string {
 // 메시지 구분자로 쓰여 escapePlainLabel(개행·`"`만 방어)로는 불충분 — 원본 `:`가 라벨에 남으면
 // "participant sid as My: Label"처럼 파서가 라벨을 조기 절단한다.
 export function escapeSequenceLabel(s: string): string {
-  return s.replace(/[\r\n]+/g, ' ').replace(/:/g, ' -').replace(/"/g, "'")
+  // U+2028/U+2029도 라인 종결자다 — 현재 벤더 mermaid는 이를 statement 구분자로 렉싱하지 않아
+  // 실측상 무해하지만(보안 검토에서 실렌더로 확인), 블랙리스트가 파서 버전에 의존하지 않도록 넓혀 둔다.
+  return s.replace(/[\r\n\u2028\u2029]+/g, ' ').replace(/:/g, ' -').replace(/"/g, "'")
 }

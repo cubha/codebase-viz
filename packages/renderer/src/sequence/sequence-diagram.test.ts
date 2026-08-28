@@ -147,6 +147,34 @@ describe('buildSequenceDiagram — FE→BE→Controller→Service→Repository�
     expect(participantLine).not.toMatch(/Evil:/)
   })
 
+  it('메시지 라인도 이스케이프된다 — 콜론·개행·U+2028이 statement를 쪼개지 않는다', () => {
+    // v1.2.60에서 mermaid 라벨 이스케이프 누락이 실제로 발견된 전례가 있고, 기존 테스트는
+    // participant 선언 줄만 봤다(보안 검토 지적). 메시지 줄은 `A->>B: label` 구조라
+    // 라벨의 `:`가 남으면 파서가 라벨을 조기 절단한다.
+    const evilCtrl = createComponentNode({
+      id: ctrlId, name: 'Ctrl: A\nrect rgb(255,0,0)\u2028link A: javascript -x',
+      filePath: 'src/main/java/UserController.java',
+      runtime: 'server', provenance: PROV, ...verified(),
+    })
+    const evilBeGraph: IRGraph = {
+      ...beGraph,
+      nodes: beGraph.nodes.map(n => (n.id === ctrlId ? evilCtrl : n)),
+    }
+    const out = buildSequenceDiagram(feGraph, evilBeGraph, [crossEdge])
+    const routeSid = sanitizeId(beRouteId)
+    const ctrlSid = sanitizeId(ctrlId)
+    const msgLine = out.split('\n').find(l => l.trim().startsWith(`${routeSid}->>${ctrlSid}:`))
+    expect(msgLine).toBeDefined()
+    // 라벨 부분(첫 `:` 이후)에 원본 구분자·라인 종결자가 남아 있으면 안 된다.
+    const label = msgLine!.slice(msgLine!.indexOf(':') + 1)
+    expect(label).not.toMatch(/[:\r\n\u2028\u2029]/)
+    // 페이로드가 자기 statement로 새어나가지 않았는지 — 어떤 줄도 mermaid 지시어로 시작하면 안 된다
+    // (participant 선언 줄과 메시지 줄 안에 문자열로 들어 있는 것은 정상).
+    for (const line of out.split('\n')) {
+      expect(line.trim()).not.toMatch(/^(rect |link |note |activate |loop )/)
+    }
+  })
+
   it('동일 노드가 여러 체인에서 재등장해도 participant 선언은 한 번만 한다', () => {
     const otherFeCompId = makeNodeId('component', 'src/widgets/OtherWidget.tsx', 'OtherWidget')
     const otherFeComp = createComponentNode({
