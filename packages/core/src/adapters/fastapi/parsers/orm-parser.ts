@@ -6,6 +6,7 @@ import {
   type TableNode,
   type ColumnDef,
   type Provenance,
+  ORM_CLASS_PREFIX,
 } from '@codebase-viz/types'
 import { createPythonParser } from '../../_shared/tree-sitter-loader.js'
 import {
@@ -143,7 +144,7 @@ export async function parseSqlAlchemyModels(
           columns,
           provenance,
           confidence: 'inferred',
-          inferenceChain: [`sqlalchemy: Base subclass ${className} in ${relPath}`],
+          inferenceChain: [`sqlalchemy: Base subclass ${className} in ${relPath}`, `${ORM_CLASS_PREFIX}${className}`],
         }),
       )
     }

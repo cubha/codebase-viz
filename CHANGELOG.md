@@ -1,5 +1,44 @@
 # Changelog
 
+## [1.2.67] — 2026-09-02
+
+### Added — Tab3 ERD에 ORM 클래스명 병기 (Wave B T5, 재정의)
+
+레거시 스키마에서 `TB_HODS401`·`TWO_WINS_COM_WHOT_DTL` 같은 테이블명만 보이면 코드의 어느 엔티티인지
+역추론할 수 없다. ORM 클래스명이 테이블명과 **실제로 다를 때만** 다이어그램 노드와 사이드바 카드에
+함께 표시한다(`TB_HODS401` ⌗ `DecoSheet`).
+
+- **IR 확장 0** — 클래스명은 이미 4개 ORM 파서(JPA·Django·SQLAlchemy·Flask-SQLAlchemy)가
+  `inferenceChain`에 기록하고 있었다. `TableNode`에 필드를 추가하지 않았다.
+- **산문 파싱 금지, 센티넬 완전일치** — `inferenceChain`의 사람이 읽는 문장은 어댑터마다 포맷이 달라
+  정규식으로 긁으면 문구 변경만으로 조용히 깨진다. 생산측이 `orm-class:<ClassName>` 원소를 하나 더
+  싣고, 소비측은 접두사 완전일치로만 읽는다(`readOrmClassName`). 4개 어댑터에 포맷 계약 테스트를
+  신설했다 — 도입 전 이 파일들의 `inferenceChain` 단언은 0건이었다.
+- **무정보 배지는 만들지 않는다** — `User`↔`users`, `AuditLog`↔`audit_logs`처럼 대소문자·복수형·
+  snake_case로 서로 유도되는 이름은 표시하지 않는다(`isInformativeOrmClass`). fixture 실측상
+  `@Entity` 36개 중 유도 불가능한 것은 9개뿐이라, 이 게이트가 없으면 대부분의 행이 노이즈가 된다.
+  클래스 개념이 없는 스택(Supabase·Flyway·MyBatis 등)은 센티넬 자체가 없어 자동으로 걸러진다.
+- **Evidence-First** — 배지 출처가 `confidence: 'inferred'` 노드라 단정 표현을 피한다. 다이어그램
+  라벨은 italic·감광 종속 표기, 사이드바는 `title`로 "엔티티 선언에서 추론"임을 밝힌다. i18n 4로케일.
+- 기존 `%% table:` 마커 경로를 재사용해 viewer 배선을 최소화했다.
+
+### Changed
+
+- `ANALYZER_VERSION` → `codebase-viz@1.2.67`. `inferenceChain` 배열 내용이 바뀌는 **그래프 내용
+  변경**이라 구캐시로는 배지가 조용히 안 뜬다 — v1.2.66(T4) 때의 비범프 예외는 "그 산출물을 emit한
+  빌드가 릴리스된 적 없음"이 근거였고, 이번엔 해당하지 않는다. 업그레이드 후 첫 분석은 재계산된다.
+
+### Notes
+
+- 릴리스 전 보안 검토(Critical 0) 후속: 다이어그램 라벨의 클래스명에도 `esc()`를 적용해 사이드바와
+  방어 계층을 통일했다. renderer의 `sanitizeId` + viewer 정규식 `\w+`로 이미 안전하지만, v1.2.60에
+  정확히 이 패턴으로 사고가 난 전례가 있고 현재 안전이 업스트림 불변식 하나에 의존한다.
+- 범위 밖(별건 기록): Tab3 ERD의 hover·클릭 딥링크가 동작하지 않는 결함(`resolveBySuffix`가
+  declId에서 접두사를 벗기는 방향인데 ERD declId가 IR sid보다 짧다) · TypeORM/Drizzle이 클래스/변수명을
+  쥐고도 안 싣는 것 · Prisma `@@map` 미처리 · 대형 ERD fit 가독성(UX-2).
+- **T5 원안(ORM Entity+FK를 `classDiagram`으로)은 영구 폐기**했다. 실물 산출 대조 결과 ERD와
+  엔티티 4·필드 16·관계선 4가 완전히 동일해 문법만 바꾼 재렌더였다(Less is More 위반).
+
 ## [1.2.66] — 2026-08-28
 
 ### Added — Sequence 탭 (FE↔BE 페어 분석 전용, Wave B T4)

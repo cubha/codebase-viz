@@ -4,7 +4,9 @@
 
 Routes, components, and DB relationships — extracted statically from **13 frameworks**, optionally enriched by LLM, rendered as live diagram tabs inside VS Code.
 
-> Marketplace: [`cubha.codebase-arch-viz`](https://marketplace.visualstudio.com/items?itemName=cubha.codebase-arch-viz) · Current release: **v1.2.66**
+> Marketplace: [`cubha.codebase-arch-viz`](https://marketplace.visualstudio.com/items?itemName=cubha.codebase-arch-viz) · Current release: **v1.2.67**
+>
+> **v1.2.67** — **Tab3에 ORM 클래스명 병기**. `@Entity`·`models.Model`·SQLAlchemy 클래스명이 실제 테이블명과 다를 때(`DecoSheet` ↔ `TB_HODS401`) 다이어그램 노드와 사이드바 카드에 함께 보여준다. 클래스명이 없거나 규칙으로 유도 가능한 경우(`User` ↔ `users`)는 표시하지 않는다 — 노이즈보다 침묵이 낫다. IR 확장 0.
 >
 > **v1.2.66** — **Sequence 탭 신설(FE↔BE 페어 분석 전용)**. FE 컴포넌트 → BE 엔드포인트 → Controller → Service/Repository → Table 호출 흐름을 시간순 시퀀스 다이어그램으로 그린다. 매칭된 cross-edge만 대상이고(신규 추정 0), `verified`는 실선·`inferred`는 점선으로 근거 강도를 유지한다. 대형 입력은 참가자 12명 단위로 자동 분할되어 행 그리드로 렌더된다. 단일 프로젝트 분석에서는 탭이 뜨지 않는다.
 >
@@ -23,6 +25,7 @@ Open a project in VS Code → click **Analyze**. Codebase Viz produces:
 | **Rendering Architecture** | Route hierarchy with URL-based hierarchical grouping, SSR / CSR / ISR / SSG labels, HTTP method badges |
 | **Screen–Component** | Route → component import graph, runtime tags (client / shared / server) |
 | **DB–Screen** | Table schema (Supabase, Prisma, Drizzle, TypeORM, Django ORM, SQLAlchemy, JPA, **Flyway DDL**) + 4-toggle view: **All** · **FK relations** (ERD with TH/TD distinction) · **Page queries** (route → table flow graph) · **Server actions** (action → table flow graph) |
+| **DB–Screen** *(ORM badge)* | Entity class names shown alongside table names when they differ (JPA / Django / SQLAlchemy / Flask-SQLAlchemy) |
 | **Sequence** *(paired analysis only)* | Request flow over time: FE component → BE endpoint → Controller → Service / Repository → Table. Solid arrows = `verified`, dashed = `inferred`. Auto-split into rows at 12 participants per chunk |
 
 Results are cached in `.codebase-viz/cache.json`. Re-analyze on demand.

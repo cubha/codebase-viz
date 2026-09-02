@@ -6,6 +6,7 @@ import {
   type TableNode,
   type ColumnDef,
   type Provenance,
+  ORM_CLASS_PREFIX,
 } from '@codebase-viz/types'
 import { createJavaParser } from '../../_shared/tree-sitter-loader.js'
 import { findJavaFiles } from '../../_shared/file-finder.js'
@@ -265,7 +266,7 @@ export async function parseJpaEntities(
             columns,
             provenance,
             confidence: 'inferred',
-            inferenceChain: [`jpa: @Entity class ${className} in ${relPath}`],
+            inferenceChain: [`jpa: @Entity class ${className} in ${relPath}`, `${ORM_CLASS_PREFIX}${className}`],
           }),
         )
         return
