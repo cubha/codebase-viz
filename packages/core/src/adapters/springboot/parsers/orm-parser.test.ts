@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { parseJpaEntities } from './orm-parser.js'
+import { ORM_CLASS_PREFIX, readOrmClassName } from '@codebase-viz/types'
 import * as fs from 'node:fs/promises'
 import * as os from 'node:os'
 import * as path from 'node:path'
@@ -432,5 +433,51 @@ public class User {
     const names = (tables[0]?.columns ?? []).map(c => c.name)
     expect(names).not.toContain('posts')
     expect(names).not.toContain('posts_id')
+  })
+})
+
+// T5: `orm-class:` 센티넬 포맷 계약 고정. 이 단언이 없으면 파서가 inferenceChain 문구를 바꿔도
+// verify.sh가 초록불인 채 Tab3 클래스명 배지만 조용히 사라진다(도입 전 이 파일의 inferenceChain
+// 단언은 0건이었다). 소비측은 readOrmClassName()으로만 읽으므로 여기서 계약을 지킨다.
+describe('parseJpaEntities — orm-class 센티넬 (T5)', () => {
+  it('클래스명이 테이블명과 달라도 readOrmClassName으로 클래스명을 복원할 수 있다', async () => {
+    await writeFile('src/main/java/com/x/DecoSheet.java', `package com.x;
+import jakarta.persistence.*;
+
+@Entity
+@Table(name = "TB_HODS401")
+public class DecoSheet {
+    @Id
+    private String reqNo;
+}
+`)
+    const tables = await parseJpaEntities(tmpDir, 'test')
+    const t = tables.find(x => x.name === 'TB_HODS401')
+    expect(t, 'TB_HODS401 테이블 노드 없음').toBeDefined()
+    expect(readOrmClassName(t!)).toBe('DecoSheet')
+    expect(t!.name).toBe('TB_HODS401')
+  })
+
+  it('센티넬은 사람이 읽는 기존 문장을 대체하지 않고 함께 실린다', async () => {
+    await writeFile('src/main/java/com/x/DecoSheet.java', `package com.x;
+import jakarta.persistence.*;
+
+@Entity
+@Table(name = "TB_HODS401")
+public class DecoSheet {
+    @Id
+    private String reqNo;
+}
+`)
+    const tables = await parseJpaEntities(tmpDir, 'test')
+    const t = tables.find(x => x.name === 'TB_HODS401')!
+    expect(t.confidence).toBe('inferred')
+    const chain = t.confidence === 'inferred' ? t.inferenceChain : []
+    expect(chain.some(e => e.startsWith(ORM_CLASS_PREFIX))).toBe(true)
+    expect(chain.some(e => !e.startsWith(ORM_CLASS_PREFIX) && e.includes('DecoSheet'))).toBe(true)
+    // 순서 계약: 센티넬은 **뒤에** 붙어야 한다. node-map.ts가 `inferenceChain[0]`을 그대로 hover
+    // 툴팁에 싣기 때문에, 센티넬이 앞에 오면 사용자에게 `orm-class:DecoSheet`가 노출된다
+    // (scope-critic 지적 — 이전엔 구현 관례일 뿐 코드로 강제되지 않았다).
+    expect(chain[0]!.startsWith(ORM_CLASS_PREFIX)).toBe(false)
   })
 })

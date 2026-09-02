@@ -21,4 +21,9 @@
 // 아니라 **모집단이 없어서**다 — 청킹 안 된 sequence를 emit한 빌드는 한 번도 릴리스된 적이 없고
 // (T4 전체가 이 릴리스에 처음 나간다) 그런 텍스트를 담은 캐시는 존재할 수 없다. 다음에 sequence
 // **내용**이 바뀌면 그때는 위 v1.2.65 규칙이 그대로 적용된다.
-export const ANALYZER_VERSION = 'codebase-viz@1.2.65'
+// T5(2026-09-02): 4개 ORM 파서가 TableNode의 `inferenceChain`에 `orm-class:` 센티넬 원소를 추가한다 —
+// **그래프 내용 자체가 바뀌는 변경**이라 v1.2.65 규칙이 그대로 적용된다. T4 sequence 때와 달리 여기선
+// 예외가 성립하지 않는다: 센티넬 없는 캐시가 **이미 현장에 존재**하고(v1.2.66까지 배포됨), 그 캐시로는
+// Tab3 클래스명 배지가 조용히 안 뜬다. shape 가드(isDiagramCache)는 IRGraph 내부 배열 내용을 보지
+// 않으므로 이 상수 범프가 유일한 무효화 수단이다.
+export const ANALYZER_VERSION = 'codebase-viz@1.2.67'

@@ -2758,13 +2758,13 @@ graph TD
 exports[`Phase XI — fixture baseline snapshots (P1) > mini-spring-partner-mock-app > Tab3 db-screen diagram 1`] = `
 "%%{init:{'theme':'base','themeVariables':{'background':'#060810','primaryColor':'#2a4055','primaryTextColor':'#f8fafc','primaryBorderColor':'#1e4060','lineColor':'#f59e0b','secondaryColor':'#0f172a','tertiaryColor':'#1a0a20','attributeBackgroundColorEven':'#ffffff','attributeBackgroundColorOdd':'#f1f5f9','textColor':'#1e293b','nodeBorder':'#1e4060','clusterBkg':'#0a0e1a','fontFamily':'JetBrains Mono','fontSize':'14'}}}%%
 erDiagram
-%% table:TWA_CONTRACT_MST path:src/main/java/com/wina/agency/contractMgmt/domain/Contract.java
-%% table:TWA_USER_MST path:src/main/java/com/wina/agency/userMgmt/domain/User.java
-%% table:TWO_MOLD_CUTING_NRM path:src/main/java/com/wina/headoffice/materialMgmt/cuttingPlanInfoMgmt/domain/CuttingPlan.java
-%% table:TWO_POWCD path:src/main/java/com/wina/headoffice/partnerBaseInfo/procCodeMgmt/domain/ProcCode.java
-%% table:TB_HODS401 path:src/main/java/com/wina/partner/matMgmt/decoSheet/domain/DecoSheet.java
-%% table:TWE_ORD_H path:src/main/java/com/wina/partner/ordProdPlanMgmt/prodOrdSpec/domain/ProdOrdSpec.java
-%% table:TWO_WINS_COM_WHOT_DTL path:src/main/java/com/wina/partner/perfMgmt/transStmt/domain/TransStmt.java
+%% table:TWA_CONTRACT_MST path:src/main/java/com/wina/agency/contractMgmt/domain/Contract.java class:Contract
+%% table:TWA_USER_MST path:src/main/java/com/wina/agency/userMgmt/domain/User.java class:User
+%% table:TWO_MOLD_CUTING_NRM path:src/main/java/com/wina/headoffice/materialMgmt/cuttingPlanInfoMgmt/domain/CuttingPlan.java class:CuttingPlan
+%% table:TWO_POWCD path:src/main/java/com/wina/headoffice/partnerBaseInfo/procCodeMgmt/domain/ProcCode.java class:ProcCode
+%% table:TB_HODS401 path:src/main/java/com/wina/partner/matMgmt/decoSheet/domain/DecoSheet.java class:DecoSheet
+%% table:TWE_ORD_H path:src/main/java/com/wina/partner/ordProdPlanMgmt/prodOrdSpec/domain/ProdOrdSpec.java class:ProdOrdSpec
+%% table:TWO_WINS_COM_WHOT_DTL path:src/main/java/com/wina/partner/perfMgmt/transStmt/domain/TransStmt.java class:TransStmt
 %% table:TB_HODS408 path:src/main/resources/mapper/decoSheet.xml
 %% table:TWE_ORD_I path:src/main/resources/mapper/prodOrdSpec.xml
 %% table:TWE_WRY_SN path:src/main/resources/mapper/prodOrdSpec.xml

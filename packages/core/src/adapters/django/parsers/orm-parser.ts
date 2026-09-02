@@ -6,6 +6,7 @@ import {
   type TableNode,
   type ColumnDef,
   type Provenance,
+  ORM_CLASS_PREFIX,
 } from '@codebase-viz/types'
 import { createPythonParser } from '../../_shared/tree-sitter-loader.js'
 import { walkDir, PY_EXCLUDE_DIRS } from '../../_shared/file-finder.js'
@@ -218,7 +219,7 @@ export async function parseDjangoOrmModels(
           columns,
           provenance,
           confidence: 'inferred',
-          inferenceChain: [`django: models.Model subclass ${className} in ${relPath}`],
+          inferenceChain: [`django: models.Model subclass ${className} in ${relPath}`, `${ORM_CLASS_PREFIX}${className}`],
         }),
       )
     }

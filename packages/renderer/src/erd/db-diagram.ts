@@ -1,5 +1,5 @@
 import type { IRGraph, IRNode } from '@codebase-viz/types'
-import { isTableNode, isRouteNode, isComponentNode } from '@codebase-viz/types'
+import { isTableNode, isRouteNode, isComponentNode, readOrmClassName } from '@codebase-viz/types'
 import { sanitizeId } from '../helpers/ids.js'
 import { DB_DIAGRAM_INIT } from '../helpers/constants.js'
 import { metadataToInfra } from '../fe/infra.js'
@@ -32,6 +32,19 @@ export function resolveTab3Kind(graph: IRGraph): 'erd' | 'flow' {
   return 'erd'
 }
 
+// T5: 클래스명 배지를 실을 가치가 있는지 판정한다.
+// 문자열 완전일치만 거르면 `users ⌗ User`·`posts ⌗ Post` 같은 **무정보 배지가 대부분의 행에** 붙는다
+// (fixture 실측: @Entity 36개 중 규칙으로 유도 불가능한 것은 9개뿐, 나머지 27개는 대소문자·복수형·
+// snake_case 변환으로 서로 유도된다). Less is More의 "Noise is worse than silence"가 정확히 이 경우다.
+// 그래서 대소문자·`_`·후행 복수 `s`를 정규화해 같아지면 싣지 않는다 — `DecoSheet↔TB_HODS401`,
+// `CuttingPlan↔TWO_MOLD_CUTING_NRM`처럼 **실제로 못 알아보는 매핑만** 남는다.
+// 클래스 개념이 없는 스택(supabase·flyway·mybatis 등)은 애초에 센티넬이 없어 여기 오기 전에 걸러진다.
+export function isInformativeOrmClass(ormClass: string | undefined, tableName: string): boolean {
+  if (ormClass === undefined || ormClass === '') return false
+  const norm = (v: string): string => v.toLowerCase().replace(/_/g, '').replace(/s$/, '')
+  return norm(ormClass) !== norm(tableName)
+}
+
 export function buildDbScreenDiagram(graph: IRGraph): string {
   const tableNodes = graph.nodes.filter(isTableNode)
 
@@ -56,7 +69,9 @@ export function buildDbScreenDiagram(graph: IRGraph): string {
   for (const t of tableNodes) {
     const file = t.provenance.file
     if (file !== undefined && file !== '') {
-      lines.push(`%% table:${sanitizeId(t.name)} path:${file}`)
+      const ormClass = readOrmClassName(t)
+      const classField = isInformativeOrmClass(ormClass, t.name) ? ` class:${sanitizeId(ormClass!)}` : ''
+      lines.push(`%% table:${sanitizeId(t.name)} path:${file}${classField}`)
     }
   }
 

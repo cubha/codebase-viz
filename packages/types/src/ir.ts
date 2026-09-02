@@ -230,6 +230,27 @@ export function createIRGraph(
   }
 }
 
+// ─── ORM 클래스명 센티넬 ──────────────────────────────────────────────────────
+// ORM 파서(JPA·Django·SQLAlchemy·Flask)는 클래스명과 실제 테이블명을 분리 계산하지만 TableNode에는
+// 테이블명만 남는다. 클래스명은 `inferenceChain`에 **구조화된 센티넬 원소**로 함께 싣는다.
+//
+// 왜 산문을 파싱하지 않는가: `inferenceChain`의 사람이 읽는 문장은 어댑터마다 포맷이 다르고
+// (`jpa:` / `django:` / `sqlalchemy:` / `flask-sqlalchemy:`) 타입에도 테스트에도 포맷 계약이 없어,
+// 정규식으로 긁으면 문구만 바뀌어도 게이트가 초록불인 채 조용히 깨진다. 기계 판독의 기존 유일
+// 선례(`mermaid-renderer.ts`의 `'dynamic-segment-match'`)도 **원소 전체 완전일치**다.
+// 이 규약은 IR 타입을 넓히지 않는다 — TableNode 필드는 그대로다.
+export const ORM_CLASS_PREFIX = 'orm-class:'
+
+export function readOrmClassName(node: IRNode): string | undefined {
+  if (node.confidence !== 'inferred') return undefined
+  for (const entry of node.inferenceChain) {
+    if (!entry.startsWith(ORM_CLASS_PREFIX)) continue
+    const name = entry.slice(ORM_CLASS_PREFIX.length)
+    if (name !== '') return name
+  }
+  return undefined
+}
+
 // ─── Type guards ──────────────────────────────────────────────────────────────
 export function isRouteNode(node: IRNode): node is RouteNode {
   return node.kind === 'route'

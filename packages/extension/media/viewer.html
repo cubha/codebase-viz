@@ -109,6 +109,11 @@
       font-size: 11px; font-weight: 600; color: var(--green);
       display: flex; align-items: center; gap: 6px; }
     .table-head-icon { font-size: 9px; color: var(--text-muted); }
+    /* T5: ORM 클래스명 배지 — 테이블명이 주(主), 클래스명은 보조라 muted 톤으로 종속 표시. */
+    /* T5: 다이어그램 노드 라벨 안의 클래스명 주석. 테이블명이 주(主)라는 위계를 유지한다. */
+    .orm-anno { font-size: 10px; opacity: .72; font-style: italic; }
+    .orm-class { margin-left: 6px; font-size: 9px; color: var(--text-muted);
+      border: 1px solid var(--border-sub); border-radius: 3px; padding: 0 4px; font-weight: 400; }
     .col-row { padding: 4px 12px; font-size: 10px;
       display: flex; justify-content: space-between; align-items: center;
       border-bottom: 1px solid var(--border-sub); }
@@ -860,7 +865,15 @@ function getDomain(name) {
   return '📦 Other';
 }
 
+// T5: `%% table:... class:X` 마커에서 뽑은 테이블명 → ORM 클래스명. 마커가 없는 스택
+// (supabase·flyway·mybatis 등)과 클래스명==테이블명인 경우는 애초에 emit되지 않아 비어 있다.
+let ORM_CLASS_BY_TABLE = {};
+
 function parseDbData(erd) {
+  // 매 파싱마다 초기화한다. 누적시키면 한 webview에서 다른 그래프를 파싱했을 때 이전 테이블명의
+  // 클래스명이 남아 **다른 테이블에 남의 클래스명이 붙는다**(탭 전환 시 `if (!dbGraphs)` 가드로
+  // parseDbData가 재호출되지 않는 경로가 있어 구조적으로 도달 가능 — scope-critic 지적).
+  ORM_CLASS_BY_TABLE = {};
   const lines = erd.split('\n');
   const tables = {}, proxies = new Set();
   const tableMetaMap = {};
@@ -868,8 +881,8 @@ function parseDbData(erd) {
   for (const raw of lines) {
     const line = raw.trim();
     if (line.startsWith('%%')) {
-      const dm = line.match(/^%%\s+table:(\w+)(?:\s+schema:(\S+))?(?:\s+path:(\S+))?/);
-      if (dm && (dm[2] || dm[3])) { tableMetaMap[dm[1]] = {schema: dm[2] || undefined, filePath: dm[3] || undefined}; }
+      const dm = line.match(/^%%\s+table:(\w+)(?:\s+schema:(\S+))?(?:\s+path:(\S+))?(?:\s+class:(\w+))?/);
+      if (dm && (dm[2] || dm[3] || dm[4])) { tableMetaMap[dm[1]] = {schema: dm[2] || undefined, filePath: dm[3] || undefined, className: dm[4] || undefined}; }
       continue;
     }
     if (!line || line === 'erDiagram') continue;
@@ -882,7 +895,10 @@ function parseDbData(erd) {
     }
   }
   for (const [name, meta] of Object.entries(tableMetaMap)) {
-    if (tables[name]) { tables[name].schema = meta.schema; tables[name].filePath = meta.filePath; }
+    if (tables[name]) { tables[name].schema = meta.schema; tables[name].filePath = meta.filePath; tables[name].className = meta.className; }
+    // T5: 다이어그램 라벨 생성은 buildSingleDbGraph가 테이블 '이름'만 받으므로, 클래스명은 여기서
+    // 모듈 스코프 맵에 실어 전달한다(함수 시그니처 4단 스레딩 회피 — 이 파일의 기존 상태 관리 방식).
+    if (meta.className) ORM_CLASS_BY_TABLE[name] = meta.className;
   }
   for (const [k,v] of Object.entries(tables)) {
     if (v.columns.length===1 && v.columns[0].type==='string' && v.columns[0].name==='name') { proxies.add(k); delete tables[k]; }
@@ -1002,7 +1018,13 @@ function buildSingleDbGraph(groupEntries, sgPrefix, fkEdges, routeEdges, actionE
   for (const [label, names] of groupEntries) {
     const id = sgPrefix === 'DG' ? 'DG'+dgIdx++ : sgPrefix+sanitizeSgId(label);
     lines.push('  subgraph '+id+'["'+label+'"]');
-    lines.push(...emitInnerRowsViewer('    ', id, names, n => n+'["'+n+'"]:::tbl'));
+    lines.push(...emitInnerRowsViewer('    ', id, names, n => {
+      const oc = ORM_CLASS_BY_TABLE[n];
+      // 클래스명은 confidence:'inferred' 노드에서 온 **추론값**이라, 테이블명과 같은 위계로 쓰면
+      // 단정문이 된다(Evidence-First). muted/italic 종속 표기 + title로 추론임을 밝힌다.
+      const anno = oc ? '<br/><span class=\'orm-anno\' title=\''+esc(tr('db.ormClass'))+'\'>⌗ '+oc+'</span>' : '';
+      return n+'["'+n+anno+'"]:::tbl';
+    }));
     lines.push('  end');
   }
   const routeSrcs = [], actionSrcs = [];
@@ -1220,11 +1242,17 @@ document.addEventListener('wheel', e => {
 function buildSidebar(erDiagram) {
   if (!erDiagram) { document.getElementById('sidebar-tables').innerHTML = '<div style="color:var(--text-muted);font-size:11px;padding:8px">No DB data</div>'; return; }
   const lines = erDiagram.split('\n');
-  const tables = {}, proxies = new Set();
+  const tables = {}, proxies = new Set(), sidebarOrmClass = {};
   let current = null;
   for (const raw of lines) {
     const line = raw.trim();
-    if (!line || line.startsWith('%%') || line === 'erDiagram') continue;
+    if (line.startsWith('%%')) {
+      // T5: 이 루프는 `%%` 줄을 건너뛰므로 클래스명 마커를 여기서 따로 줍는다.
+      const cm2 = line.match(/^%%\s+table:(\w+)(?:\s+\S+)*?\s+class:(\w+)/);
+      if (cm2) sidebarOrmClass[cm2[1]] = cm2[2];
+      continue;
+    }
+    if (!line || line === 'erDiagram') continue;
     const em = line.match(/^(\w+)\s*\{/);
     if (em) { current = em[1]; if (!tables[current]) tables[current] = {columns:[],fkOut:[],usedBy:[]}; continue; }
     if (line === '}') { current = null; continue; }
@@ -1270,7 +1298,11 @@ function buildSidebar(erDiagram) {
           const pre = u.kind==='route'?'⬡ ':u.kind==='action'?'⚡ ':'';
           return '<div class="ref-row"><span class="'+cls+'">'+pre+esc(u.name)+'</span></div>';
         }).join('')+'</div>' : '';
-    return '<div class="table-card"><div class="table-head"><span class="table-head-icon">◈</span>'+esc(name)+'</div>'+cols+fkHtml+usedHtml+'</div>';
+    // T5: ORM 클래스명 배지. 출처가 confidence:'inferred' 노드라 단정 표현을 피하고 title로
+    // 추론 결과임을 밝힌다(Evidence-First). 클래스명이 없거나 테이블명과 같으면 emit 자체가 없다.
+    const ormCls = sidebarOrmClass[name];
+    const ormHtml = ormCls ? '<span class="orm-class" title="'+esc(tr('db.ormClass'))+'">⌗ '+esc(ormCls)+'</span>' : '';
+    return '<div class="table-card"><div class="table-head"><span class="table-head-icon">◈</span>'+esc(name)+ormHtml+'</div>'+cols+fkHtml+usedHtml+'</div>';
   }).join('');
 }
 
