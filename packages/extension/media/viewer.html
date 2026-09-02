@@ -1022,7 +1022,10 @@ function buildSingleDbGraph(groupEntries, sgPrefix, fkEdges, routeEdges, actionE
       const oc = ORM_CLASS_BY_TABLE[n];
       // 클래스명은 confidence:'inferred' 노드에서 온 **추론값**이라, 테이블명과 같은 위계로 쓰면
       // 단정문이 된다(Evidence-First). muted/italic 종속 표기 + title로 추론임을 밝힌다.
-      const anno = oc ? '<br/><span class=\'orm-anno\' title=\''+esc(tr('db.ormClass'))+'\'>⌗ '+oc+'</span>' : '';
+      // esc(oc)는 현재 중복 방어다(renderer가 sanitizeId, 여기 정규식이 `\w+`). 그래도 붙인다 —
+      // v1.2.60에 정확히 이 패턴(mermaid 라벨 이스케이프 누락)으로 사고가 났고, 지금의 안전은
+      // 업스트림 불변식 하나에 전적으로 의존한다. 사이드바(esc 적용)와 비대칭이던 것도 해소.
+      const anno = oc ? '<br/><span class=\'orm-anno\' title=\''+esc(tr('db.ormClass'))+'\'>⌗ '+esc(oc)+'</span>' : '';
       return n+'["'+n+anno+'"]:::tbl';
     }));
     lines.push('  end');

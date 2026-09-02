@@ -30,6 +30,9 @@
 
 ### Notes
 
+- 릴리스 전 보안 검토(Critical 0) 후속: 다이어그램 라벨의 클래스명에도 `esc()`를 적용해 사이드바와
+  방어 계층을 통일했다. renderer의 `sanitizeId` + viewer 정규식 `\w+`로 이미 안전하지만, v1.2.60에
+  정확히 이 패턴으로 사고가 난 전례가 있고 현재 안전이 업스트림 불변식 하나에 의존한다.
 - 범위 밖(별건 기록): Tab3 ERD의 hover·클릭 딥링크가 동작하지 않는 결함(`resolveBySuffix`가
   declId에서 접두사를 벗기는 방향인데 ERD declId가 IR sid보다 짧다) · TypeORM/Drizzle이 클래스/변수명을
   쥐고도 안 싣는 것 · Prisma `@@map` 미처리 · 대형 ERD fit 가독성(UX-2).
