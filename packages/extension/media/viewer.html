@@ -483,8 +483,8 @@ if (TAB3_KIND === 'flow') {
   if (toggleBar) toggleBar.style.display = 'none';
   const sidebar = document.querySelector('.db-sidebar');
   if (sidebar) sidebar.style.display = 'none';
-  // D8: Tab3 검색은 flow 모드(.node 존재하는 flowchart)에서만 의미가 있다 — erDiagram(Tab3 erd
-  // 모드)은 .node가 없어 Tab1/2와 같은 검색 메커니즘이 애초에 작동하지 않는다.
+  // D8: Tab3 검색은 flow 모드에서만 노출한다. erd 모드도 화면은 buildSingleDbGraph가 재생성한
+  // flowchart라 .node는 있지만, 검색 UX는 테이블 사이드바가 맡는다(검색 활성화는 별도 결정 대상).
   const searchWrap = document.getElementById('search-wrap-d');
   if (searchWrap) searchWrap.style.display = 'flex';
 }
@@ -653,7 +653,8 @@ const NODE_ID_RE = /-flowchart-(.+)-\d+$/;
 document.addEventListener('click', e => {
   const nodeEl = e.target.closest('.node');
   if (!nodeEl) return;
-  // Tab3(ERD)는 erDiagram이라 .node 클래스가 없음 — 이 리스너는 자연히 Tab1/Tab2에만 적용된다.
+  // Tab3도 대상이다: erd 모드는 buildSingleDbGraph가 테이블명을 id로 쓰는 flowchart를 재생성하고,
+  // renderer가 그 선언 id마다 nodemap 마커를 실어(v1.2.68) NODE_MAP으로 해석된다.
   if (didDragSinceMousedown(e)) return;
   const m = NODE_ID_RE.exec(nodeEl.id || '');
   if (!m) return;
@@ -714,8 +715,8 @@ document.addEventListener('mouseout', e => {
   hideNodeTooltip();
 });
 
-// Wave A T3(검색) — Tab1/Tab2(flowchart)에만 적용. Tab3(ERD)는 erDiagram이라 .node가 없어
-// 이 로직이 자연히 적용되지 않는다(별도 분기 불필요). ST1 nodeMap의 표시명(n)을 우선 쓰고,
+// Wave A T3(검색) — Tab1/Tab2와 Tab3 flow 모드에 적용(Tab3 erd 모드는 검색바를 노출하지 않는다 —
+// 위 D8 분기). ST1 nodeMap의 표시명(n)을 우선 쓰고,
 // 없으면(미매핑 노드) 렌더된 라벨 텍스트로 폴백 — 검색 대상에서 조용히 빠지지 않게 한다.
 // nodeMap의 표시명(라우트 경로·컴포넌트명)과 렌더된 라벨을 **둘 다** 검색 대상으로 삼는다.
 // Tab1 폴더 박스는 라벨이 '📁 /matMgmt · 2 routes'인데 nodeMap 표시명은 대표 라우트 경로라,

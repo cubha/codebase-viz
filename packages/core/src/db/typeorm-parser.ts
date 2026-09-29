@@ -4,6 +4,7 @@ import { Project, SyntaxKind } from 'ts-morph'
 import {
   createTableNode,
   makeNodeId,
+  ORM_CLASS_PREFIX,
   type TableNode,
   type ColumnDef,
   type Provenance,
@@ -90,6 +91,18 @@ export async function parseTypeOrmEntities(
   })
   for (const f of entityFiles) project.addSourceFileAtPath(f)
 
+  // 관계 데코레이터는 대상 **클래스**를 가리키지만 ERD의 FK 선은 **테이블명**끼리 잇는다 —
+  // 클래스명을 그대로 두면 `@Entity('users') class User`처럼 이름이 다른 순간 FK 선이 조용히 드롭된다.
+  // JPA 파서(classToTableMap)와 같은 선행 패스.
+  const classToTable = new Map<string, string>()
+  for (const sourceFile of project.getSourceFiles()) {
+    for (const cls of sourceFile.getClasses()) {
+      const className = cls.getName()
+      if (className === undefined || !cls.getDecorators().some(d => d.getName() === 'Entity')) continue
+      classToTable.set(className, resolveEntityName(cls))
+    }
+  }
+
   const tables: TableNode[] = []
 
   for (const sourceFile of project.getSourceFiles()) {
@@ -164,7 +177,7 @@ export async function parseTypeOrmEntities(
               name: prop.getName(),
               type: relDecorator.getName(),
               nullable: true,
-              references: { table: targetEntity, column: 'id' },
+              references: { table: classToTable.get(targetEntity) ?? targetEntity, column: 'id' },
             })
           }
         }
@@ -177,7 +190,10 @@ export async function parseTypeOrmEntities(
           columns,
           provenance,
           confidence: 'inferred',
-          inferenceChain: [`typeorm: @Entity('${tableName}') in ${relPath}`],
+          inferenceChain: [
+            `typeorm: @Entity('${tableName}') in ${relPath}`,
+            ...(cls.getName() !== undefined ? [`${ORM_CLASS_PREFIX}${cls.getName()}`] : []),
+          ],
         }),
       )
     }

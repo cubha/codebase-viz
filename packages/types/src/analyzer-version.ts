@@ -26,4 +26,7 @@
 // 예외가 성립하지 않는다: 센티넬 없는 캐시가 **이미 현장에 존재**하고(v1.2.66까지 배포됨), 그 캐시로는
 // Tab3 클래스명 배지가 조용히 안 뜬다. shape 가드(isDiagramCache)는 IRGraph 내부 배열 내용을 보지
 // 않으므로 이 상수 범프가 유일한 무효화 수단이다.
-export const ANALYZER_VERSION = 'codebase-viz@1.2.67'
+// v1.2.68: Prisma(`@@map`·`@map` 실제 이름 + 센티넬)·TypeORM(센티넬 + FK가 테이블명 참조)·Drizzle(센티넬)
+// 파서 출력과 Tab3 dbScreen 텍스트(nodemap 마커)가 바뀐다. `@@map` 모델은 **노드 id 자체가 바뀌고**,
+// 이전 캐시로는 Tab3 딥링크·클래스명 배지가 조용히 안 뜨므로 v1.2.65 규칙대로 범프가 필요하다.
+export const ANALYZER_VERSION = 'codebase-viz@1.2.68'

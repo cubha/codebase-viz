@@ -4,6 +4,7 @@ import { getSchema } from '@mrleebo/prisma-ast'
 import {
   createTableNode,
   makeNodeId,
+  ORM_CLASS_PREFIX,
   type TableNode,
   type ColumnDef,
   type Provenance,
@@ -31,13 +32,39 @@ async function findPrismaFiles(repoRoot: string): Promise<string[]> {
   return results
 }
 
+interface PrismaAttributeArg {
+  type: string
+  value: unknown
+}
+
+interface PrismaAttribute {
+  type: string
+  name: string
+  kind?: string
+  args?: PrismaAttributeArg[]
+}
+
 interface PrismaField {
   type: string
   name: string
   fieldType: string
   array: boolean
   optional: boolean
-  attributes?: Array<{ type: string; name: string }>
+  attributes?: PrismaAttribute[]
+}
+
+// `@map("x")`·`@@map("x")`·`@map(name: "x")` 세 형태 모두 실제 DB 이름을 준다. 인자 값은
+// prisma-ast가 따옴표를 포함한 원문 문자열로 넘긴다.
+function readMapName(attr: PrismaAttribute | undefined): string | undefined {
+  const raw = attr?.args?.[0]?.value
+  const text = typeof raw === 'string'
+    ? raw
+    : typeof raw === 'object' && raw !== null && (raw as { key?: unknown }).key === 'name'
+      ? (raw as { value?: unknown }).value
+      : undefined
+  if (typeof text !== 'string') return undefined
+  const m = /^"(.+)"$/.exec(text)
+  return m?.[1]
 }
 
 function isRelationField(field: PrismaField): boolean {
@@ -77,27 +104,35 @@ export async function parsePrismaSchema(
     for (const item of schema.list) {
       if (item.type !== 'model') continue
 
+      const modelName = (item as { name: string }).name
+      const properties = (item as { properties: Array<PrismaField | PrismaAttribute> }).properties
+      const modelMap = properties.find(
+        (p): p is PrismaAttribute => p.type === 'attribute' && (p as PrismaAttribute).kind === 'object' && p.name === 'map',
+      )
+      const tableName = readMapName(modelMap) ?? modelName
+
       const columns: ColumnDef[] = []
-      for (const prop of (item as { properties: PrismaField[] }).properties) {
+      for (const prop of properties) {
         if (prop.type !== 'field') continue
-        if (isRelationField(prop)) continue
+        const field = prop as PrismaField
+        if (isRelationField(field)) continue
 
         columns.push({
-          name: prop.name,
-          type: prop.fieldType,
-          nullable: prop.optional,
-          isPrimaryKey: prop.attributes?.some(a => a.name === 'id') ?? false,
+          name: readMapName(field.attributes?.find(a => a.name === 'map')) ?? field.name,
+          type: field.fieldType,
+          nullable: field.optional,
+          isPrimaryKey: field.attributes?.some(a => a.name === 'id') ?? false,
         })
       }
 
       tables.push(
         createTableNode({
-          id: makeNodeId('table', relPath, (item as { name: string }).name),
-          name: (item as { name: string }).name,
+          id: makeNodeId('table', relPath, tableName),
+          name: tableName,
           columns,
           provenance,
           confidence: 'inferred',
-          inferenceChain: [`prisma: model ${(item as { name: string }).name} in ${relPath}`],
+          inferenceChain: [`prisma: model ${modelName} in ${relPath}`, `${ORM_CLASS_PREFIX}${modelName}`],
         }),
       )
     }

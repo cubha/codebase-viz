@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest'
 import { createIRGraph, createRouteNode, createTableNode, createComponentNode, createEdge, makeNodeId, makeEdgeId, ORM_CLASS_PREFIX, type IRGraphMetadata, type IRNode, type IREdge } from '@codebase-viz/types'
 import { buildDiagrams } from '../mermaid-renderer.js'
 import { NODEMAP_MARKER_PREFIX } from '../helpers/node-map.js'
+import { CHUNK_SEPARATOR } from '../_shared/wrap-fallback.js'
 import { resolveTab3Kind, buildDbScreenDiagram, isInformativeOrmClass } from './db-diagram.js'
 
 const PROV = { file: 'x', line: 1, adapter: 'test@0.1', analyzerVersion: 'test' }
@@ -223,7 +224,9 @@ describe('Tab3 ERD 딥링크 — nodemap 마커로 선언 id → IR id 명시 (v
       provenance: { ...PROV, file: `db/t${i}.sql` },
       confidence: 'verified',
     }))
-    const set = buildDiagrams(graph(NEXT_META, many, []))
+    // 기본 임계값으로는 80개가 청킹되지 않는다(실측) — 임계값을 낮춰 폴백 경로를 실제로 태운다.
+    const set = buildDiagrams(graph(NEXT_META, many, []), { nodeThreshold: 20 })
+    expect(set.dbScreen.split(CHUNK_SEPARATOR).length).toBeGreaterThan(1)
     for (let i = 0; i < 80; i++) expect(set.nodeMap?.[`tbl_${i}`]?.f).toBe(`db/t${i}.sql`)
     expect(set.dbScreen).not.toContain(NODEMAP_MARKER_PREFIX)
   })

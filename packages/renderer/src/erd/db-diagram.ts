@@ -5,6 +5,7 @@ import { DB_DIAGRAM_INIT } from '../helpers/constants.js'
 import { metadataToInfra } from '../fe/infra.js'
 import { buildFeApiCallDiagram } from '../fe/tab3-api.js'
 import { isBeRepository } from '../be/leaf.js'
+import { nodeMapMarker } from '../helpers/node-map.js'
 
 // - group route `(marketing)` · 동적 route `[slug]` 등 URL≠파일경로 케이스에서 가치 큼
 // - LLM enabled에서도 ComponentNode.filePath 정적 기반이라 동일 동작
@@ -75,7 +76,10 @@ export function buildDbScreenDiagram(graph: IRGraph): string {
     }
   }
 
+  // Tab3 딥링크: 선언 id(`sanitizeId(t.name)`)가 IR sid보다 짧아 buildNodeMap의 suffix 역해석으로는
+  // 도달할 수 없다(v62-D2 휴리스틱은 접두사를 벗기는 방향). 선언마다 대응 IR 노드를 마커로 명시한다.
   for (const t of tableNodes) {
+    lines.push(nodeMapMarker('  ', sanitizeId(t.name), t.id))
     lines.push(`  ${sanitizeId(t.name)} {`)
     for (const col of t.columns) {
       const pkFlag = col.isPrimaryKey === true ? ' PK' : ''
@@ -95,8 +99,14 @@ export function buildDbScreenDiagram(graph: IRGraph): string {
     }
   }
 
-  // Source (route/component/action) proxy entities
-  for (const label of new Set(sourcesMap.values())) {
+  // Source (route/component/action) proxy entities — 같은 라벨로 합쳐진 소스가 여럿이면 첫 소스(엣지
+  // 순서)를 대표로 삼는다. 박스 하나가 여러 파일을 뜻하므로 결정론만 보장하면 된다.
+  const representativeByLabel = new Map<string, string>()
+  for (const [nodeId, label] of sourcesMap) {
+    if (!representativeByLabel.has(label)) representativeByLabel.set(label, nodeId)
+  }
+  for (const [label, nodeId] of representativeByLabel) {
+    lines.push(nodeMapMarker('  ', label, nodeId))
     lines.push(`  ${label} {`)
     lines.push(`    string name`)
     lines.push('  }')

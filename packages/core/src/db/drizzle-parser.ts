@@ -4,6 +4,7 @@ import { Project, SyntaxKind } from 'ts-morph'
 import {
   createTableNode,
   makeNodeId,
+  ORM_CLASS_PREFIX,
   type TableNode,
   type ColumnDef,
   type Provenance,
@@ -106,7 +107,7 @@ export async function parseDrizzleSchema(
           columns,
           provenance,
           confidence: 'inferred',
-          inferenceChain: [`drizzle: ${funcName}('${tableName}') in ${relPath}`],
+          inferenceChain: [`drizzle: ${funcName}('${tableName}') in ${relPath}`, `${ORM_CLASS_PREFIX}${varDecl.getName()}`],
         }),
       )
     }
