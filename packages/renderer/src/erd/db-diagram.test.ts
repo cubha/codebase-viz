@@ -256,3 +256,39 @@ describe('Tab3 ERD 딥링크 — nodemap 마커로 선언 id → IR id 명시 (v
     expect(set.dbScreen).not.toContain(NODEMAP_MARKER_PREFIX)
   })
 })
+
+describe('Tab3 ERD 텍스트 인젝션 방어 (v1.2.68 ship 전 보안검토 W1·W2·I1)', () => {
+  const evilFile = 'src/a\nEVIL {\n x y\n }\n%% z.entity.ts'
+  const users = createTableNode({
+    id: makeNodeId('table', evilFile, 'users'),
+    name: 'users',
+    columns: [{ name: 'id', type: 'int', nullable: false, isPrimaryKey: true }],
+    provenance: { ...PROV, file: evilFile },
+    confidence: 'verified',
+  })
+  const posts = createTableNode({
+    id: makeNodeId('table', 'db/posts.sql', 'posts'),
+    name: 'posts',
+    columns: [{ name: 'a"\nEVIL {\n x y\n}\nb', type: 'int', nullable: true, references: { table: 'users', column: 'id' } }],
+    provenance: { ...PROV, file: 'db/posts.sql' },
+    confidence: 'verified',
+  })
+
+  it('파일 경로·FK 컬럼명의 개행·따옴표가 erDiagram 줄을 만들지 못한다', () => {
+    const text = buildDbScreenDiagram(createIRGraph({ analyzerVersion: 'test', repoRoot: '/r', metadata: NEXT_META, nodes: [users, posts], edges: [] }))
+    expect(text.split('\n').some(l => l.trim().startsWith('EVIL'))).toBe(false)
+    expect(text).toMatch(/posts \}o--\|\| users : "[A-Za-z0-9_]+"/)
+  })
+
+  it('__proto__ 테이블명이 nodeMap 프로토타입을 오염시키지 않는다', () => {
+    const proto = createTableNode({
+      id: makeNodeId('table', 'db/p.sql', '__proto__'),
+      name: '__proto__',
+      columns: [{ name: 'id', type: 'int', nullable: false, isPrimaryKey: true }],
+      provenance: { ...PROV, file: 'db/p.sql' },
+      confidence: 'verified',
+    })
+    const set = buildDiagrams(createIRGraph({ analyzerVersion: 'test', repoRoot: '/r', metadata: NEXT_META, nodes: [proto], edges: [] }))
+    expect(Object.getPrototypeOf(set.nodeMap ?? {})).toBe(Object.prototype)
+  })
+})
