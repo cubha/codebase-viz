@@ -9,6 +9,7 @@ import {
   isValidOpenNodeMessage,
   resolveWithinRoot,
   resolveOpenNodeTarget,
+  resolveFeedbackUrl,
 } from './message-guard.js'
 
 describe('isHttpsUrl (ST2)', () => {
@@ -62,7 +63,7 @@ describe('isAllowedSidebarMessageType (ST2)', () => {
     const known = [
       'ready', 'analyze', 'reanalyze', 'openViewer', 'exportRequest',
       'setApiKey', 'clearApiKey', 'toggleLLM', 'selectFolder', 'setLanguage',
-      'setProvider', 'openExternal',
+      'setProvider', 'openExternal', 'openFeedback',
     ]
     for (const type of known) expect(isAllowedSidebarMessageType(type)).toBe(true)
   })
@@ -163,5 +164,20 @@ describe('resolveOpenNodeTarget — 딥링크 점프 대상 해석 (v1.2.63 검�
 
   it('엔트리 경로가 root를 이탈하면 undefined(resolveWithinRoot 위임)', () => {
     expect(resolveOpenNodeTarget(nodeMap, 'escapee', repoRoot, undefined)).toBeUndefined()
+  })
+})
+
+describe('resolveFeedbackUrl (Wave M T10/T13)', () => {
+  it('rate는 Open VSX 리뷰 페이지, issue는 GitHub 새 이슈 페이지를 반환한다', () => {
+    expect(resolveFeedbackUrl('rate')).toBe('https://open-vsx.org/extension/cubha/codebase-arch-viz/reviews')
+    expect(resolveFeedbackUrl('issue')).toBe('https://github.com/cubha/codebase-viz/issues/new')
+  })
+  it('반환 URL은 전부 https다', () => {
+    for (const kind of ['rate', 'issue']) expect(isHttpsUrl(resolveFeedbackUrl(kind))).toBe(true)
+  })
+  it('알 수 없는 kind·프로토타입 키·비문자열은 undefined다', () => {
+    for (const kind of ['review', '__proto__', 'constructor', 'toString', '', 1, undefined, null]) {
+      expect(resolveFeedbackUrl(kind)).toBeUndefined()
+    }
   })
 })
