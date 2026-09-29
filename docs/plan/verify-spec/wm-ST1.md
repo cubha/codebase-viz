@@ -11,5 +11,5 @@
   - URL 하드코딩: publisher/extension id(`cubha.codebase-arch-viz`)·repo(`cubha/codebase-viz`)가
     package.json과 중복된다. package.json을 런타임에 읽지 않는 기존 구조라 상수로 둠(rename 시 동시 수정 필요).
 - 인접 경계: 기존 `openExternal` 경로는 변경 없음(API 키 가이드가 계속 사용).
-- 미확인 사항: `/extension/<ns>/<name>/reviews`는 Open VSX SPA 경로라 HTTP 200은 항상 나온다 — 실제로
-  Reviews 탭이 선택된 상태로 열리는지는 브라우저 렌더로 확인하지 않았다.
+- 미확인 사항: (해소) `/extension/<ns>/<name>/reviews`는 SPA라 HTTP 200만으론 불충분 — Playwright 접근성
+  트리로 `tab "Ratings & Reviews" [selected]` 상태로 열림을 실측 확인(2026-09-29).
