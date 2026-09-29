@@ -1018,7 +1018,8 @@ function buildSingleDbGraph(groupEntries, sgPrefix, fkEdges, routeEdges, actionE
   let dgIdx = 0;
   for (const [label, names] of groupEntries) {
     const id = sgPrefix === 'DG' ? 'DG'+dgIdx++ : sgPrefix+sanitizeSgId(label);
-    lines.push('  subgraph '+id+'["'+label+'"]');
+    // label은 분석 대상 repo의 디렉터리명이다 — `"`가 섞이면 mermaid 라벨이 닫혀 구문이 주입된다.
+    lines.push('  subgraph '+id+'["'+String(label).replace(/"/g, "'")+'"]');
     lines.push(...emitInnerRowsViewer('    ', id, names, n => {
       const oc = ORM_CLASS_BY_TABLE[n];
       // 클래스명은 confidence:'inferred' 노드에서 온 **추론값**이라, 테이블명과 같은 위계로 쓰면

@@ -30,6 +30,13 @@
 - Prisma `@@map` 모델의 파일명 휴리스틱 매칭(`account.tsx` ↔ `Account`)이 끊기지 않게 모델명 키를 보존
   (Prisma 한정 — 다른 ORM에 클래스명 매칭을 새로 열지 않음).
 
+### Security — ship 전 security-auditor(QUICK) 반영
+
+- ERD `%% table: path:` 주석이 분석 대상 repo의 파일 경로를 그대로 실어 개행 포함 경로로 erDiagram 줄을 주입할 수
+  있던 결함(기존) — 공백류를 `_`로 치환. FK 라벨 `col.name`에 `sanitizeId` 적용(기존 결함이나 이번 TypeORM FK 복구로
+  도달 범위 확대). `__proto__` 선언 id가 nodeMap 프로토타입을 교체하던 결함(`@@map("__proto__")`로 도달) — 건너뜀.
+  viewer Tab3 subgraph 라벨(디렉터리명)의 `"` 치환. Critical 0.
+
 ### Changed
 
 - `ANALYZER_VERSION` → `codebase-viz@1.2.68`. `@@map` 모델은 노드 id 자체가 바뀌고 dbScreen 텍스트(마커)가 바뀌는

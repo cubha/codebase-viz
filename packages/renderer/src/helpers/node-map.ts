@@ -211,8 +211,11 @@ export function buildNodeMap(
 
   const routeJumpTargets = buildRouteJumpTargets(graph)
 
+  // 선언 id는 분석 대상 repo의 이름에서 온다 — `__proto__`를 일반 객체에 대입하면 own 키가 아니라
+  // 프로토타입이 교체된다(`@@map("__proto__")` 한 줄로 도달). 그 id는 딥링크 대상에서 뺀다.
   const map: NodeMap = {}
   for (const declId of collectDeclaredIds(emittedTexts)) {
+    if (declId === '__proto__') continue
     const node = resolveBySuffix(declId, bySid)
     if (node !== undefined) map[declId] = toEntry(node, opts, routeJumpTargets.get(node.id))
   }
@@ -222,6 +225,7 @@ export function buildNodeMap(
     MARKER_RE.lastIndex = 0
     let m: RegExpExecArray | null
     while ((m = MARKER_RE.exec(text)) !== null) {
+      if (m[1] === '__proto__') continue
       const target = decodeMarkerTarget(m[2]!)
       if (target === undefined) continue
       const node = byIrId.get(target)

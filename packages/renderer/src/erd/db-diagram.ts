@@ -73,7 +73,9 @@ export function buildDbScreenDiagram(graph: IRGraph): string {
     if (file !== undefined && file !== '') {
       const ormClass = readOrmClassName(t)
       const classField = isInformativeOrmClass(ormClass, t.name) ? ` class:${sanitizeId(ormClass!)}` : ''
-      lines.push(`%% table:${sanitizeId(t.name)} path:${file}${classField}`)
+      // 파일 경로는 분석 대상 repo 유래라 개행이 섞이면 이 주석이 쪼개져 erDiagram 줄로 주입된다.
+      // viewer는 `path:(\S+)`로 읽으므로 공백류를 `_`로 바꿔도 표시 규약이 유지된다.
+      lines.push(`%% table:${sanitizeId(t.name)} path:${file.replace(/\s/g, '_')}${classField}`)
     }
   }
 
@@ -123,7 +125,7 @@ export function buildDbScreenDiagram(graph: IRGraph): string {
       if (col.references === undefined) continue
       const target = sanitizeId(col.references.table)
       if (tableNameSet.has(target)) {
-        lines.push(`  ${sanitizeId(t.name)} }o--|| ${target} : "${col.name}"`)
+        lines.push(`  ${sanitizeId(t.name)} }o--|| ${target} : "${sanitizeId(col.name)}"`)
       }
     }
   }
