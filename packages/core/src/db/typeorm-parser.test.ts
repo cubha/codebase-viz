@@ -2,6 +2,7 @@ import * as fs from 'node:fs/promises'
 import * as os from 'node:os'
 import * as path from 'node:path'
 import { describe, it, expect, beforeAll, afterAll } from 'vitest'
+import { readOrmClassName, ORM_CLASS_PREFIX } from '@codebase-viz/types'
 import { parseTypeOrmEntities } from './typeorm-parser.js'
 
 let tmpDir: string
@@ -196,5 +197,63 @@ export class Post {
     expect(authorCol?.references).toBeDefined()
     expect(authorCol?.references?.table).toBe('User')
     await fs.rm(relDir, { recursive: true, force: true })
+  })
+})
+
+describe('parseTypeOrmEntities — ORM 클래스 센티넬·FK 테이블명 (v1.2.68 ST2)', () => {
+  let relDir: string
+
+  beforeAll(async () => {
+    relDir = await fs.mkdtemp(path.join(os.tmpdir(), 'cv-typeorm-rel-'))
+    await fs.writeFile(
+      path.join(relDir, 'member.entity.ts'),
+      `
+import { Entity, PrimaryGeneratedColumn, Column } from 'typeorm'
+
+@Entity('tb_member')
+export class Member {
+  @PrimaryGeneratedColumn()
+  id: number
+
+  @Column()
+  name: string
+}
+`,
+    )
+    await fs.writeFile(
+      path.join(relDir, 'order.entity.ts'),
+      `
+import { Entity, PrimaryGeneratedColumn, Column, ManyToOne } from 'typeorm'
+import { Member } from './member.entity'
+
+@Entity()
+export class PurchaseOrder {
+  @PrimaryGeneratedColumn()
+  id: number
+
+  @ManyToOne(() => Member)
+  buyer: Member
+}
+`,
+    )
+  })
+
+  afterAll(async () => {
+    await fs.rm(relDir, { recursive: true, force: true })
+  })
+
+  it('클래스명을 orm-class 센티넬로 싣고, 센티넬은 inferenceChain[0]이 아니다', async () => {
+    const tables = await parseTypeOrmEntities(relDir, 'test@0.1')
+    for (const [table, cls] of [['tb_member', 'Member'], ['purchaseorder', 'PurchaseOrder']] as const) {
+      const node = tables.find(t => t.name === table)!
+      expect(readOrmClassName(node)).toBe(cls)
+      if (node.confidence === 'inferred') expect(node.inferenceChain[0]!.startsWith(ORM_CLASS_PREFIX)).toBe(false)
+    }
+  })
+
+  it('관계 FK는 대상 엔티티의 클래스명이 아니라 테이블명을 참조한다', async () => {
+    const tables = await parseTypeOrmEntities(relDir, 'test@0.1')
+    const buyer = tables.find(t => t.name === 'purchaseorder')!.columns.find(c => c.name === 'buyer')
+    expect(buyer?.references?.table).toBe('tb_member')
   })
 })
