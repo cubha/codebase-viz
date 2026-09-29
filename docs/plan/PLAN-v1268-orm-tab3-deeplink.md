@@ -42,6 +42,7 @@
 | F2 | ST3 critic(yes) — 무정보 배지 | `isInformativeOrmClass` 정규화에 `table` 접미사 제거 추가(`usersTable ⌗ users` 억제) | `packages/renderer/src/erd/db-diagram.ts` |
 | F3 | ST3 critic(yes) — 같은 결함 클래스 단편 수정 | Drizzle 컬럼명 = 빌더 루트 호출 첫 인자(DB 이름), 없으면 TS 키 | `packages/core/src/db/drizzle-parser.ts` |
 | F4 | F3와 같은 기준 적용 | TypeORM `@Column({ name })` DB 이름 | `packages/core/src/db/typeorm-parser.ts` |
+| F6 | 실기검증(CLI 실분석 mini-nest-app) | Tab3 소스 라벨이 테이블 선언 id와 겹치면 테이블 마커 우선(오점프 방지) | `packages/renderer/src/erd/db-diagram.ts` |
 | F5 | ST1 미확인 사항 실측 | Prisma `@map(name:)` 키-값 형태 테스트 고정 | `prisma-parser.test.ts` |
 
 ## UI 설계

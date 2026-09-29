@@ -106,8 +106,11 @@ export function buildDbScreenDiagram(graph: IRGraph): string {
   for (const [nodeId, label] of sourcesMap) {
     if (!representativeByLabel.has(label)) representativeByLabel.set(label, nodeId)
   }
+  // 라우트 `/users`의 라벨 `users`처럼 소스 라벨이 테이블 선언과 겹치면 viewer는 둘을 테이블 하나로 합쳐
+  // 그린다 — 그 박스는 테이블이므로 마커를 싣지 않아 테이블 마커가 남게 한다(실기검증 mini-nest-app).
+  const tableDeclIds = new Set(tableNodes.map(t => sanitizeId(t.name)))
   for (const [label, nodeId] of representativeByLabel) {
-    lines.push(nodeMapMarker('  ', label, nodeId))
+    if (!tableDeclIds.has(label)) lines.push(nodeMapMarker('  ', label, nodeId))
     lines.push(`  ${label} {`)
     lines.push(`    string name`)
     lines.push('  }')
