@@ -257,3 +257,27 @@ export class PurchaseOrder {
     expect(buyer?.references?.table).toBe('tb_member')
   })
 })
+
+describe('parseTypeOrmEntities — @Column({ name }) DB 실제 이름 (v1.2.68 FIX)', () => {
+  it('데코레이터 name 옵션이 있으면 컬럼명으로 쓰고, 없으면 프로퍼티명', async () => {
+    const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'cv-typeorm-col-'))
+    await fs.writeFile(path.join(dir, 'account.entity.ts'), `
+import { Entity, PrimaryGeneratedColumn, Column } from 'typeorm'
+@Entity('accounts')
+export class Account {
+  @PrimaryGeneratedColumn({ name: 'account_id' })
+  id: number
+
+  @Column({ name: 'user_name', type: 'varchar' })
+  userName: string
+
+  @Column()
+  email: string
+}
+`)
+    const tables = await parseTypeOrmEntities(dir, 'test@0.1')
+    const cols = tables.find(t => t.name === 'accounts')!.columns.map(c => c.name)
+    expect(cols).toEqual(['account_id', 'user_name', 'email'])
+    await fs.rm(dir, { recursive: true, force: true })
+  })
+})

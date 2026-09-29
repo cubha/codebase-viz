@@ -75,3 +75,21 @@ describe('parseDrizzleSchema — ORM 클래스 센티넬 (v1.2.68 ST3)', () => {
     }
   })
 })
+
+describe('parseDrizzleSchema — 컬럼 DB 실제 이름 (v1.2.68 FIX)', () => {
+  it('컬럼 빌더 첫 인자(DB 이름)를 쓰고, 이름 인자가 없으면 TS 키로 폴백한다', async () => {
+    const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'cv-drizzle-col-'))
+    await fs.writeFile(path.join(dir, 'schema.ts'), `
+import { pgTable, integer, text } from 'drizzle-orm/pg-core'
+export const orders = pgTable('orders', {
+  id: integer('id').primaryKey(),
+  buyerId: integer('buyer_id').notNull(),
+  memo: text(),
+})
+`)
+    const tables = await parseDrizzleSchema(dir, 'test@0.1')
+    const cols = tables.find(t => t.name === 'orders')!.columns.map(c => c.name)
+    expect(cols).toEqual(['id', 'buyer_id', 'memo'])
+    await fs.rm(dir, { recursive: true, force: true })
+  })
+})

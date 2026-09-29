@@ -138,3 +138,21 @@ model Tag {
     }
   })
 })
+
+describe('parsePrismaSchema — @map(name: "x") 키-값 형태 (v1.2.68 FIX)', () => {
+  it('@@map(name:)·@map(name:)도 실제 이름으로 읽는다', async () => {
+    const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'cv-prisma-kv-'))
+    await fs.writeFile(path.join(dir, 'schema.prisma'), `
+model A {
+  id Int    @id
+  b  String @map(name: "b_col")
+
+  @@map(name: "tb_a")
+}
+`)
+    const tables = await parsePrismaSchema(dir, 'test@0.1')
+    expect(tables[0]!.name).toBe('tb_a')
+    expect(tables[0]!.columns.map(c => c.name)).toEqual(['id', 'b_col'])
+    await fs.rm(dir, { recursive: true, force: true })
+  })
+})

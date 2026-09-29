@@ -154,6 +154,12 @@ describe('isInformativeOrmClass — 무정보 배지 억제 규칙 (T5)', () => 
     expect(isInformativeOrmClass('User', 'User')).toBe(false)       // 완전일치
   })
 
+  it('Drizzle 변수명의 Table 접미사는 관례라 정보가 아니다 (v1.2.68)', () => {
+    expect(isInformativeOrmClass('usersTable', 'users')).toBe(false)
+    expect(isInformativeOrmClass('userTable', 'users')).toBe(false)
+    expect(isInformativeOrmClass('members', 'tb_member')).toBe(true)
+  })
+
   it('유도 불가능한 레거시 매핑은 정보다 — 이게 이 기능의 존재 이유다', () => {
     expect(isInformativeOrmClass('DecoSheet', 'TB_HODS401')).toBe(true)
     expect(isInformativeOrmClass('CuttingPlan', 'TWO_MOLD_CUTING_NRM')).toBe(true)
