@@ -42,7 +42,8 @@ export function resolveTab3Kind(graph: IRGraph): 'erd' | 'flow' {
 // 클래스 개념이 없는 스택(supabase·flyway·mybatis 등)은 애초에 센티넬이 없어 여기 오기 전에 걸러진다.
 export function isInformativeOrmClass(ormClass: string | undefined, tableName: string): boolean {
   if (ormClass === undefined || ormClass === '') return false
-  const norm = (v: string): string => v.toLowerCase().replace(/_/g, '').replace(/s$/, '')
+  // Drizzle은 클래스 대신 변수명을 싣는데 `usersTable`의 `Table` 접미사는 관례일 뿐이라 함께 벗긴다.
+  const norm = (v: string): string => v.toLowerCase().replace(/_/g, '').replace(/table$/, '').replace(/s$/, '')
   return norm(ormClass) !== norm(tableName)
 }
 

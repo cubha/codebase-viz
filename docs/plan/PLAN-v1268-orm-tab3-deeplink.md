@@ -34,6 +34,16 @@
 
 라우팅: 전량 [S] (독립 [P] 후보 < 4, ST5→ST6 의존).
 
+### Phase 3 FIX로 추가된 범위 (scope-critic 판정 반영, 2026-09-29)
+
+| ID | 근거 | 내용 | 파일 |
+|---|---|---|---|
+| F1 | ST1 critic(yes) → 추적 결과 파일명 휴리스틱 회귀 실재 | Prisma `@@map` 테이블도 모델명(센티넬)으로 파일명 매칭 유지. Prisma 외 ORM은 클래스명 키를 열지 않음 | `packages/core/src/adapters/_shared/mapper-utils.ts` |
+| F2 | ST3 critic(yes) — 무정보 배지 | `isInformativeOrmClass` 정규화에 `table` 접미사 제거 추가(`usersTable ⌗ users` 억제) | `packages/renderer/src/erd/db-diagram.ts` |
+| F3 | ST3 critic(yes) — 같은 결함 클래스 단편 수정 | Drizzle 컬럼명 = 빌더 루트 호출 첫 인자(DB 이름), 없으면 TS 키 | `packages/core/src/db/drizzle-parser.ts` |
+| F4 | F3와 같은 기준 적용 | TypeORM `@Column({ name })` DB 이름 | `packages/core/src/db/typeorm-parser.ts` |
+| F5 | ST1 미확인 사항 실측 | Prisma `@map(name:)` 키-값 형태 테스트 고정 | `prisma-parser.test.ts` |
+
 ## UI 설계
 
 신규 UI 없음 — 기존 T1/T2 hover 툴팁·클릭 펄스를 Tab3 erd 모드 노드에 그대로 적용.

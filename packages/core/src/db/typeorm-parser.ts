@@ -129,12 +129,19 @@ export async function parseTypeOrmEntities(
           const isPrimary = colDecorator.getName() === 'PrimaryColumn'
             || colDecorator.getName() === 'PrimaryGeneratedColumn'
 
+          // `@Column({ name: 'user_name' })`처럼 DB 실제 컬럼명을 따로 줄 수 있다 — 없으면 프로퍼티명.
+          let dbName: string | undefined
           const args = colDecorator.getArguments()
           if (args.length > 0) {
             const first = args[0]!
             if (first.isKind(SyntaxKind.StringLiteral)) {
               colType = first.asKindOrThrow(SyntaxKind.StringLiteral).getLiteralValue()
             } else if (first.isKind(SyntaxKind.ObjectLiteralExpression)) {
+              const nameProp = first.asKindOrThrow(SyntaxKind.ObjectLiteralExpression).getProperty('name')
+              if (nameProp?.isKind(SyntaxKind.PropertyAssignment)) {
+                const init = nameProp.asKindOrThrow(SyntaxKind.PropertyAssignment).getInitializer()
+                if (init?.isKind(SyntaxKind.StringLiteral)) dbName = init.asKindOrThrow(SyntaxKind.StringLiteral).getLiteralValue()
+              }
               const typeProp = first.asKindOrThrow(SyntaxKind.ObjectLiteralExpression).getProperty('type')
               if (typeProp?.isKind(SyntaxKind.PropertyAssignment)) {
                 const init = typeProp.asKindOrThrow(SyntaxKind.PropertyAssignment).getInitializer()
@@ -146,7 +153,7 @@ export async function parseTypeOrmEntities(
           }
 
           const nullable = resolveColumnNullable(prop, isPrimary, colDecorator)
-          columns.push({ name: prop.getName(), type: colType, nullable, isPrimaryKey: isPrimary })
+          columns.push({ name: dbName ?? prop.getName(), type: colType, nullable, isPrimaryKey: isPrimary })
           continue
         }
 

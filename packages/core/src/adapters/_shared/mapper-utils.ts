@@ -2,6 +2,7 @@ import path from 'node:path'
 import {
   createEdge,
   makeEdgeId,
+  readOrmClassName,
   type IREdge,
   type RouteNode,
   type ComponentNode,
@@ -23,6 +24,18 @@ function tokenMatch(fileBase: string, tableName: string): boolean {
   return re.test(fileBase)
 }
 
+// Prisma는 v1.2.67까지 모델명을 테이블명으로 썼고, 파일명도 코드가 부르는 모델명을 따른다. `@@map`으로
+// 테이블명이 DB 이름으로 바뀐 뒤에도 그 매칭이 끊기지 않게 모델명(센티넬)을 키로 보존한다.
+// 다른 ORM(JPA·Django 등)은 원래 테이블명으로만 매칭했으므로 클래스명 키를 새로 열지 않는다 —
+// 엣지를 늘리는 동작 변경이라 Less is More 관점의 별도 판단 대상이다.
+function fileMatchKeys(table: TableNode): string[] {
+  const keys = [table.name.toLowerCase()]
+  if (!table.provenance.adapter.startsWith('prisma-parser')) return keys
+  const model = readOrmClassName(table)?.toLowerCase()
+  if (model !== undefined && model !== keys[0]) keys.push(model)
+  return keys
+}
+
 export function buildMapperEdges(
   routes: RouteNode[],
   components: ComponentNode[],
@@ -35,12 +48,12 @@ export function buildMapperEdges(
   const edges: IREdge[] = []
 
   for (const table of tables) {
-    const tableNameLower = table.name.toLowerCase()
+    const matchKeys = fileMatchKeys(table)
 
     // Route → Table (basename 토큰 경계 매칭만 — dirParts 경로 전체 포함 제거)
     for (const route of routes) {
       const fileBase = path.basename(route.filePath, path.extname(route.filePath)).toLowerCase()
-      if (!tokenMatch(fileBase, tableNameLower)) continue
+      if (!matchKeys.some(key => tokenMatch(fileBase, key))) continue
       const edgeId = makeEdgeId('queries', route.id, table.id)
       edges.push(
         createEdge({
@@ -60,7 +73,7 @@ export function buildMapperEdges(
     // Component → Table (basename 토큰 경계 매칭만)
     for (const component of components) {
       const fileBase = path.basename(component.filePath, path.extname(component.filePath)).toLowerCase()
-      if (!tokenMatch(fileBase, tableNameLower)) continue
+      if (!matchKeys.some(key => tokenMatch(fileBase, key))) continue
       const edgeId = makeEdgeId('queries', component.id, table.id)
       edges.push(
         createEdge({
