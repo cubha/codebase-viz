@@ -222,6 +222,25 @@ describe('Tab3 ERD 딥링크 — nodemap 마커로 선언 id → IR id 명시 (v
     expect(set.nodeMap?.['UserRepository']).toMatchObject({ f: 'src/main/java/UserRepository.java', l: 8 })
   })
 
+  // 실기검증(mini-nest-app)에서 발견: 라우트 `/users`의 프록시 라벨 `users`가 테이블 선언 `users`와 같다.
+  // viewer는 같은 이름을 테이블 하나로 합쳐 그리므로, 테이블 클릭이 라우트로 점프하면 안 된다.
+  it('소스 라벨이 테이블 선언 id와 겹치면 테이블이 이긴다', () => {
+    const usersRoute = createRouteNode({
+      id: makeNodeId('route', 'src/users.controller.ts', '/users'),
+      path: '/users',
+      filePath: 'src/users.controller.ts',
+      routeFileKind: 'page',
+      dynamicSegmentType: 'static',
+      isGroupRoute: false,
+      renderingMode: 'SSR',
+      provenance: { ...PROV, file: 'src/users.controller.ts', line: 5 },
+      confidence: 'verified',
+    })
+    const q = createEdge({ id: makeEdgeId('queries', usersRoute.id, table.id), from: usersRoute.id, to: table.id, kind: 'queries', provenance: PROV, confidence: 'verified' })
+    const set = buildDiagrams(graph(NEXT_META, [usersRoute, table], [q]))
+    expect(set.nodeMap?.['users']).toMatchObject({ f: 'supabase/migrations/001_init.sql', l: 12 })
+  })
+
   it('청킹 폴백 경로(테이블 다수)에서도 모든 테이블이 해석된다', () => {
     const many = Array.from({ length: 80 }, (_, i) => createTableNode({
       id: makeNodeId('table', `db/t${i}.sql`, `tbl_${i}`),
