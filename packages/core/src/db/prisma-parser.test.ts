@@ -2,6 +2,7 @@ import * as fs from 'node:fs/promises'
 import * as os from 'node:os'
 import * as path from 'node:path'
 import { describe, it, expect, beforeAll, afterAll } from 'vitest'
+import { makeNodeId, readOrmClassName, ORM_CLASS_PREFIX } from '@codebase-viz/types'
 import { parsePrismaSchema } from './prisma-parser.js'
 
 let tmpDir: string
@@ -81,5 +82,77 @@ describe('parsePrismaSchema', () => {
     if (user.confidence === 'inferred') {
       expect(user.inferenceChain.length).toBeGreaterThan(0)
     }
+  })
+})
+
+describe('parsePrismaSchema — @@map/@map·ORM 클래스 센티넬 (v1.2.68 ST1)', () => {
+  let mapDir: string
+
+  beforeAll(async () => {
+    mapDir = await fs.mkdtemp(path.join(os.tmpdir(), 'cv-prisma-map-'))
+    await fs.writeFile(
+      path.join(mapDir, 'schema.prisma'),
+      `
+model Account {
+  id        Int    @id
+  userName  String @map("user_name")
+  email     String
+
+  @@map("tb_account")
+}
+
+model Tag {
+  id   Int    @id
+  name String
+}
+`,
+    )
+  })
+
+  afterAll(async () => {
+    await fs.rm(mapDir, { recursive: true, force: true })
+  })
+
+  it('@@map이 있으면 실제 테이블명을 name으로 쓰고 노드 id도 테이블명 기준이다', async () => {
+    const tables = await parsePrismaSchema(mapDir, 'test@0.1')
+    const account = tables.find(t => t.name === 'tb_account')
+    expect(account).toBeDefined()
+    expect(tables.map(t => t.name)).not.toContain('Account')
+    expect(account!.id).toBe(makeNodeId('table', 'schema.prisma', 'tb_account'))
+  })
+
+  it('필드 @map이 있으면 실제 컬럼명을 쓴다', async () => {
+    const tables = await parsePrismaSchema(mapDir, 'test@0.1')
+    const cols = tables.find(t => t.name === 'tb_account')!.columns.map(c => c.name)
+    expect(cols).toContain('user_name')
+    expect(cols).not.toContain('userName')
+    expect(cols).toContain('email')
+  })
+
+  it('모델명을 orm-class 센티넬로 싣고, 센티넬은 inferenceChain[0]이 아니다', async () => {
+    const tables = await parsePrismaSchema(mapDir, 'test@0.1')
+    for (const [table, model] of [['tb_account', 'Account'], ['Tag', 'Tag']] as const) {
+      const node = tables.find(t => t.name === table)!
+      expect(readOrmClassName(node)).toBe(model)
+      if (node.confidence === 'inferred') expect(node.inferenceChain[0]!.startsWith(ORM_CLASS_PREFIX)).toBe(false)
+    }
+  })
+})
+
+describe('parsePrismaSchema — @map(name: "x") 키-값 형태 (v1.2.68 FIX)', () => {
+  it('@@map(name:)·@map(name:)도 실제 이름으로 읽는다', async () => {
+    const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'cv-prisma-kv-'))
+    await fs.writeFile(path.join(dir, 'schema.prisma'), `
+model A {
+  id Int    @id
+  b  String @map(name: "b_col")
+
+  @@map(name: "tb_a")
+}
+`)
+    const tables = await parsePrismaSchema(dir, 'test@0.1')
+    expect(tables[0]!.name).toBe('tb_a')
+    expect(tables[0]!.columns.map(c => c.name)).toEqual(['id', 'b_col'])
+    await fs.rm(dir, { recursive: true, force: true })
   })
 })

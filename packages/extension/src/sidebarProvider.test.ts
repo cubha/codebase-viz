@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
 import * as vscode from 'vscode'
 import { SidebarProvider } from './sidebarProvider.js'
 import { makeWebviewView, makeUri, resetVscodeMock } from './test-support/vscode-mock.js'
@@ -66,6 +66,26 @@ describe('SidebarProvider 메시지 디스패치', () => {
     view.webview.__fireMessage({ type: 'openExternal', value: 'https://aistudio.google.com/app/apikey' })
     await Promise.resolve()
     expect(vscode.env.openExternal).toHaveBeenCalledTimes(1)
+  })
+
+  it.each([
+    ['rate', 'https://open-vsx.org/extension/cubha/codebase-arch-viz/reviews'],
+    ['issue', 'https://github.com/cubha/codebase-viz/issues/new'],
+  ])('openFeedback %s는 확장 측 상수 URL을 openExternal로 연다', async (kind, url) => {
+    const { view } = setup()
+    view.webview.__fireMessage({ type: 'openFeedback', value: kind })
+    await Promise.resolve()
+    expect(vscode.env.openExternal).toHaveBeenCalledTimes(1)
+    expect(String(vi.mocked(vscode.env.openExternal).mock.calls[0]?.[0])).toBe(url)
+  })
+
+  it('openFeedback에 URL이나 알 수 없는 kind를 실으면 아무것도 열지 않는다', async () => {
+    const { view } = setup()
+    for (const value of ['https://evil.example.com', '__proto__', undefined]) {
+      view.webview.__fireMessage({ type: 'openFeedback', value })
+    }
+    await Promise.resolve()
+    expect(vscode.env.openExternal).not.toHaveBeenCalled()
   })
 
   it('알 수 없는 메시지 타입(__proto__ 등)은 무시한다', async () => {

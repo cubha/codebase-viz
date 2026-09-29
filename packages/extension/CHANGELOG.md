@@ -1,5 +1,32 @@
 # Changelog
 
+## [1.2.68] — 2026-09-30
+
+### Added
+
+- **Feedback buttons in the sidebar.** "⭐ Rate on Open VSX" opens the review page, and "🐛 Report Issue" opens a new GitHub issue. The extension decides the destination; the sidebar only says which button was pressed.
+- **The Data Flow tab is now clickable.** Hover a table or a page/component/repository box to see where it's declared, and click to jump to that file and line — the same as on the other tabs. This never worked on database diagrams before.
+- **ORM class names for Prisma, TypeORM and Drizzle.** When the name your code uses differs from the actual table name (e.g. `Member` ↔ `tb_member`), the Data Flow tab shows both — the same badge v1.2.67 added for JPA, Django and SQLAlchemy. Obvious matches (`User` ↔ `users`, `usersTable` ↔ `users`) stay hidden.
+
+### Fixed
+
+- **Prisma `@@map` / `@map`**: tables and columns now show their real database names instead of the model/field names.
+- **Drizzle and TypeORM column names**: columns declared as `integer('author_id')` or `@Column({ name: 'user_name' })` now show the database name instead of the TypeScript property.
+- **TypeORM foreign-key lines were missing** whenever the entity's table name differed from its class name (including every `@Entity()` without arguments). They now connect.
+- Upgrading re-runs the analysis automatically — older caches don't contain the new data.
+
+## [1.2.67] — 2026-09-02
+
+### Added
+
+- **ORM class names on the Data Flow tab.** For legacy schemas where tables are named like `TB_HODS401`, the diagram and the table sidebar now also show the entity class (`DecoSheet`) — but only when the two names genuinely differ. Supported: JPA, Django, SQLAlchemy, Flask-SQLAlchemy.
+
+## [1.2.66] — 2026-08-28
+
+### Added
+
+- **Sequence tab (FE↔BE pair analysis only).** Draws the call flow from a frontend component through the backend endpoint, controller, service/repository and table as a time-ordered sequence diagram. Solid arrows are verified calls, dashed arrows are inferred. Large projects are split into readable rows automatically. The tab doesn't appear for single-project analysis.
+
 ## [1.2.65] — 2026-08-18
 
 ### Fixed

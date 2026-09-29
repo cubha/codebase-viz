@@ -1,5 +1,8 @@
 import { describe, it, expect } from 'vitest'
-import { createIRGraph, createRouteNode, createTableNode, makeNodeId, ORM_CLASS_PREFIX, type IRGraphMetadata } from '@codebase-viz/types'
+import { createIRGraph, createRouteNode, createTableNode, createComponentNode, createEdge, makeNodeId, makeEdgeId, ORM_CLASS_PREFIX, type IRGraphMetadata, type IRNode, type IREdge } from '@codebase-viz/types'
+import { buildDiagrams } from '../mermaid-renderer.js'
+import { NODEMAP_MARKER_PREFIX } from '../helpers/node-map.js'
+import { CHUNK_SEPARATOR } from '../_shared/wrap-fallback.js'
 import { resolveTab3Kind, buildDbScreenDiagram, isInformativeOrmClass } from './db-diagram.js'
 
 const PROV = { file: 'x', line: 1, adapter: 'test@0.1', analyzerVersion: 'test' }
@@ -151,6 +154,12 @@ describe('isInformativeOrmClass — 무정보 배지 억제 규칙 (T5)', () => 
     expect(isInformativeOrmClass('User', 'User')).toBe(false)       // 완전일치
   })
 
+  it('Drizzle 변수명의 Table 접미사는 관례라 정보가 아니다 (v1.2.68)', () => {
+    expect(isInformativeOrmClass('usersTable', 'users')).toBe(false)
+    expect(isInformativeOrmClass('userTable', 'users')).toBe(false)
+    expect(isInformativeOrmClass('members', 'tb_member')).toBe(true)
+  })
+
   it('유도 불가능한 레거시 매핑은 정보다 — 이게 이 기능의 존재 이유다', () => {
     expect(isInformativeOrmClass('DecoSheet', 'TB_HODS401')).toBe(true)
     expect(isInformativeOrmClass('CuttingPlan', 'TWO_MOLD_CUTING_NRM')).toBe(true)
@@ -162,5 +171,124 @@ describe('isInformativeOrmClass — 무정보 배지 억제 규칙 (T5)', () => 
   it('없거나 빈 클래스명은 배지 대상이 아니다', () => {
     expect(isInformativeOrmClass(undefined, 'users')).toBe(false)
     expect(isInformativeOrmClass('', 'users')).toBe(false)
+  })
+})
+
+describe('Tab3 ERD 딥링크 — nodemap 마커로 선언 id → IR id 명시 (v1.2.68 ST5)', () => {
+  // ERD는 테이블을 `sanitizeId(t.name)`로 선언한다 — IR sid(`table_<file>_<name>`)보다 **짧아서**
+  // 접두사를 벗기는 방향인 suffix 역해석으로는 도달할 수 없다. 빌더가 마커로 명시해야 한다.
+  const table = createTableNode({
+    id: makeNodeId('table', 'supabase/migrations/001_init.sql', 'users'),
+    name: 'users',
+    columns: [{ name: 'id', type: 'uuid', nullable: false, isPrimaryKey: true }],
+    provenance: { ...PROV, file: 'supabase/migrations/001_init.sql', line: 12 },
+    confidence: 'verified',
+  })
+  const page = createRouteNode({
+    id: makeNodeId('route', 'app/admin/users/page.tsx', 'page'),
+    path: '/admin/users',
+    filePath: 'app/admin/users/page.tsx',
+    routeFileKind: 'page',
+    dynamicSegmentType: 'static',
+    isGroupRoute: false,
+    renderingMode: 'SSR',
+    provenance: { ...PROV, file: 'app/admin/users/page.tsx', line: 3 },
+    confidence: 'verified',
+  })
+  const repo = createComponentNode({
+    id: makeNodeId('component', 'src/main/java/UserRepository.java', 'UserRepository'),
+    name: 'UserRepository',
+    filePath: 'src/main/java/UserRepository.java',
+    runtime: 'server',
+    provenance: { ...PROV, file: 'src/main/java/UserRepository.java', line: 8 },
+    confidence: 'verified',
+  })
+
+  function graph(metadata: IRGraphMetadata, nodes: IRNode[], edges: IREdge[]) {
+    return createIRGraph({ analyzerVersion: 'test', repoRoot: '/tmp/test', metadata, nodes, edges })
+  }
+
+  it('FE: 테이블과 쿼리 소스(라우트) 선언 id가 nodeMap에서 각자의 IR 노드로 해석된다', () => {
+    const q = createEdge({ id: makeEdgeId('queries', page.id, table.id), from: page.id, to: table.id, kind: 'queries', provenance: PROV, confidence: 'verified' })
+    const set = buildDiagrams(graph(NEXT_META, [page, table], [q]))
+    expect(set.nodeMap?.['users']).toMatchObject({ f: 'supabase/migrations/001_init.sql', l: 12 })
+    expect(set.nodeMap?.['admin_users']).toMatchObject({ f: 'app/admin/users/page.tsx' })
+    expect(set.dbScreen).not.toContain(NODEMAP_MARKER_PREFIX)
+  })
+
+  it('BE: queries 엣지 없이 편입된 Repository 박스도 해석된다', () => {
+    const set = buildDiagrams(graph(BE_META, [repo, table], []))
+    expect(set.nodeMap?.['users']).toMatchObject({ f: 'supabase/migrations/001_init.sql' })
+    expect(set.nodeMap?.['UserRepository']).toMatchObject({ f: 'src/main/java/UserRepository.java', l: 8 })
+  })
+
+  // 실기검증(mini-nest-app)에서 발견: 라우트 `/users`의 프록시 라벨 `users`가 테이블 선언 `users`와 같다.
+  // viewer는 같은 이름을 테이블 하나로 합쳐 그리므로, 테이블 클릭이 라우트로 점프하면 안 된다.
+  it('소스 라벨이 테이블 선언 id와 겹치면 테이블이 이긴다', () => {
+    const usersRoute = createRouteNode({
+      id: makeNodeId('route', 'src/users.controller.ts', '/users'),
+      path: '/users',
+      filePath: 'src/users.controller.ts',
+      routeFileKind: 'page',
+      dynamicSegmentType: 'static',
+      isGroupRoute: false,
+      renderingMode: 'SSR',
+      provenance: { ...PROV, file: 'src/users.controller.ts', line: 5 },
+      confidence: 'verified',
+    })
+    const q = createEdge({ id: makeEdgeId('queries', usersRoute.id, table.id), from: usersRoute.id, to: table.id, kind: 'queries', provenance: PROV, confidence: 'verified' })
+    const set = buildDiagrams(graph(NEXT_META, [usersRoute, table], [q]))
+    expect(set.nodeMap?.['users']).toMatchObject({ f: 'supabase/migrations/001_init.sql', l: 12 })
+  })
+
+  it('청킹 폴백 경로(테이블 다수)에서도 모든 테이블이 해석된다', () => {
+    const many = Array.from({ length: 80 }, (_, i) => createTableNode({
+      id: makeNodeId('table', `db/t${i}.sql`, `tbl_${i}`),
+      name: `tbl_${i}`,
+      columns: [{ name: 'id', type: 'int', nullable: false, isPrimaryKey: true }],
+      provenance: { ...PROV, file: `db/t${i}.sql` },
+      confidence: 'verified',
+    }))
+    // 기본 임계값으로는 80개가 청킹되지 않는다(실측) — 임계값을 낮춰 폴백 경로를 실제로 태운다.
+    const set = buildDiagrams(graph(NEXT_META, many, []), { nodeThreshold: 20 })
+    expect(set.dbScreen.split(CHUNK_SEPARATOR).length).toBeGreaterThan(1)
+    for (let i = 0; i < 80; i++) expect(set.nodeMap?.[`tbl_${i}`]?.f).toBe(`db/t${i}.sql`)
+    expect(set.dbScreen).not.toContain(NODEMAP_MARKER_PREFIX)
+  })
+})
+
+describe('Tab3 ERD 텍스트 인젝션 방어 (v1.2.68 ship 전 보안검토 W1·W2·I1)', () => {
+  const evilFile = 'src/a\nEVIL {\n x y\n }\n%% z.entity.ts'
+  const users = createTableNode({
+    id: makeNodeId('table', evilFile, 'users'),
+    name: 'users',
+    columns: [{ name: 'id', type: 'int', nullable: false, isPrimaryKey: true }],
+    provenance: { ...PROV, file: evilFile },
+    confidence: 'verified',
+  })
+  const posts = createTableNode({
+    id: makeNodeId('table', 'db/posts.sql', 'posts'),
+    name: 'posts',
+    columns: [{ name: 'a"\nEVIL {\n x y\n}\nb', type: 'int', nullable: true, references: { table: 'users', column: 'id' } }],
+    provenance: { ...PROV, file: 'db/posts.sql' },
+    confidence: 'verified',
+  })
+
+  it('파일 경로·FK 컬럼명의 개행·따옴표가 erDiagram 줄을 만들지 못한다', () => {
+    const text = buildDbScreenDiagram(createIRGraph({ analyzerVersion: 'test', repoRoot: '/r', metadata: NEXT_META, nodes: [users, posts], edges: [] }))
+    expect(text.split('\n').some(l => l.trim().startsWith('EVIL'))).toBe(false)
+    expect(text).toMatch(/posts \}o--\|\| users : "[A-Za-z0-9_]+"/)
+  })
+
+  it('__proto__ 테이블명이 nodeMap 프로토타입을 오염시키지 않는다', () => {
+    const proto = createTableNode({
+      id: makeNodeId('table', 'db/p.sql', '__proto__'),
+      name: '__proto__',
+      columns: [{ name: 'id', type: 'int', nullable: false, isPrimaryKey: true }],
+      provenance: { ...PROV, file: 'db/p.sql' },
+      confidence: 'verified',
+    })
+    const set = buildDiagrams(createIRGraph({ analyzerVersion: 'test', repoRoot: '/r', metadata: NEXT_META, nodes: [proto], edges: [] }))
+    expect(Object.getPrototypeOf(set.nodeMap ?? {})).toBe(Object.prototype)
   })
 })

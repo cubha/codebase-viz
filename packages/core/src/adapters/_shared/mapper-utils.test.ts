@@ -4,6 +4,7 @@ import {
   createRouteNode,
   createComponentNode,
   createTableNode,
+  ORM_CLASS_PREFIX,
   type Provenance,
 } from '@codebase-viz/types'
 import { buildMapperEdges } from './mapper-utils.js'
@@ -153,5 +154,33 @@ describe('buildMapperEdges', () => {
     const table = makeTable('user_profile')
     const result = buildMapperEdges([route], [], [table], 'codebase-viz@0.1.0')
     expect(result).toHaveLength(1)
+  })
+
+  // v1.2.68: Prisma `@@map` 모델은 테이블명이 DB 이름(tb_account)으로 바뀌었다. 파일명은 코드가 부르는
+  // 모델명(Account)을 따르므로, v1.2.67까지 성립하던 모델명 매칭이 끊기지 않게 보존한다.
+  it('Prisma @@map 테이블은 모델명(센티넬)으로도 파일명 매칭한다', () => {
+    const route = makeRoute('src/routes/account.ts')
+    const table = createTableNode({
+      id: makeNodeId('table', 'prisma/schema.prisma', 'tb_account'),
+      name: 'tb_account',
+      columns: [],
+      provenance: { ...provenance, file: 'prisma/schema.prisma', adapter: 'prisma-parser@0.1' },
+      confidence: 'inferred',
+      inferenceChain: ['prisma: model Account in prisma/schema.prisma', `${ORM_CLASS_PREFIX}Account`],
+    })
+    expect(buildMapperEdges([route], [], [table], 'codebase-viz@0.1.0')).toHaveLength(1)
+  })
+
+  it('Prisma 외 ORM 센티넬(JPA 등)로는 파일명 매칭 범위를 넓히지 않는다', () => {
+    const route = makeRoute('src/routes/deco-sheet.ts')
+    const table = createTableNode({
+      id: makeNodeId('table', 'src/DecoSheet.java', 'TB_HODS401'),
+      name: 'TB_HODS401',
+      columns: [],
+      provenance: { ...provenance, file: 'src/DecoSheet.java', adapter: 'jpa-orm-parser@0.1' },
+      confidence: 'inferred',
+      inferenceChain: ['jpa: @Entity class DecoSheet in src/DecoSheet.java', `${ORM_CLASS_PREFIX}DecoSheet`],
+    })
+    expect(buildMapperEdges([route], [], [table], 'codebase-viz@0.1.0')).toEqual([])
   })
 })

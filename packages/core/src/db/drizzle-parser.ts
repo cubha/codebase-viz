@@ -4,6 +4,7 @@ import { Project, SyntaxKind } from 'ts-morph'
 import {
   createTableNode,
   makeNodeId,
+  ORM_CLASS_PREFIX,
   type TableNode,
   type ColumnDef,
   type Provenance,
@@ -11,6 +12,23 @@ import {
 import { findTsFiles } from '../adapters/_shared/file-finder.js'
 
 const TABLE_FUNCS = new Set(['pgTable', 'sqliteTable', 'mysqlTable', 'table'])
+
+// 컬럼 빌더 체인(`integer('buyer_id').notNull()`)의 **루트 호출** 첫 인자가 DB 실제 이름이다.
+// drizzle 0.31+는 이름 인자를 생략할 수 있어(`text()`), 그땐 TS 키가 곧 컬럼명이다.
+function resolveColumnDbName(node: import('ts-morph').Node): string | undefined {
+  let cur = node
+  while (cur.isKind(SyntaxKind.CallExpression)) {
+    const call = cur.asKindOrThrow(SyntaxKind.CallExpression)
+    const expr = call.getExpression()
+    if (expr.isKind(SyntaxKind.PropertyAccessExpression)) {
+      cur = expr.asKindOrThrow(SyntaxKind.PropertyAccessExpression).getExpression()
+      continue
+    }
+    const first = call.getArguments()[0]
+    return first?.isKind(SyntaxKind.StringLiteral) ? first.asKindOrThrow(SyntaxKind.StringLiteral).getLiteralValue() : undefined
+  }
+  return undefined
+}
 
 function resolveChainRoot(node: import('ts-morph').Node): string | null {
   let cur = node
@@ -95,7 +113,7 @@ export async function parseDrizzleSchema(
           const init2 = pa.getInitializer()
           if (init2 === undefined) continue
           const colType = resolveChainRoot(init2) ?? 'unknown'
-          columns.push({ name: pa.getName(), type: colType, nullable: false })
+          columns.push({ name: resolveColumnDbName(init2) ?? pa.getName(), type: colType, nullable: false })
         }
       }
 
@@ -106,7 +124,7 @@ export async function parseDrizzleSchema(
           columns,
           provenance,
           confidence: 'inferred',
-          inferenceChain: [`drizzle: ${funcName}('${tableName}') in ${relPath}`],
+          inferenceChain: [`drizzle: ${funcName}('${tableName}') in ${relPath}`, `${ORM_CLASS_PREFIX}${varDecl.getName()}`],
         }),
       )
     }

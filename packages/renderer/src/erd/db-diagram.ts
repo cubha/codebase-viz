@@ -5,6 +5,7 @@ import { DB_DIAGRAM_INIT } from '../helpers/constants.js'
 import { metadataToInfra } from '../fe/infra.js'
 import { buildFeApiCallDiagram } from '../fe/tab3-api.js'
 import { isBeRepository } from '../be/leaf.js'
+import { nodeMapMarker } from '../helpers/node-map.js'
 
 // - group route `(marketing)` · 동적 route `[slug]` 등 URL≠파일경로 케이스에서 가치 큼
 // - LLM enabled에서도 ComponentNode.filePath 정적 기반이라 동일 동작
@@ -41,7 +42,8 @@ export function resolveTab3Kind(graph: IRGraph): 'erd' | 'flow' {
 // 클래스 개념이 없는 스택(supabase·flyway·mybatis 등)은 애초에 센티넬이 없어 여기 오기 전에 걸러진다.
 export function isInformativeOrmClass(ormClass: string | undefined, tableName: string): boolean {
   if (ormClass === undefined || ormClass === '') return false
-  const norm = (v: string): string => v.toLowerCase().replace(/_/g, '').replace(/s$/, '')
+  // Drizzle은 클래스 대신 변수명을 싣는데 `usersTable`의 `Table` 접미사는 관례일 뿐이라 함께 벗긴다.
+  const norm = (v: string): string => v.toLowerCase().replace(/_/g, '').replace(/table$/, '').replace(/s$/, '')
   return norm(ormClass) !== norm(tableName)
 }
 
@@ -71,11 +73,16 @@ export function buildDbScreenDiagram(graph: IRGraph): string {
     if (file !== undefined && file !== '') {
       const ormClass = readOrmClassName(t)
       const classField = isInformativeOrmClass(ormClass, t.name) ? ` class:${sanitizeId(ormClass!)}` : ''
-      lines.push(`%% table:${sanitizeId(t.name)} path:${file}${classField}`)
+      // 파일 경로는 분석 대상 repo 유래라 개행이 섞이면 이 주석이 쪼개져 erDiagram 줄로 주입된다.
+      // viewer는 `path:(\S+)`로 읽으므로 공백류를 `_`로 바꿔도 표시 규약이 유지된다.
+      lines.push(`%% table:${sanitizeId(t.name)} path:${file.replace(/\s/g, '_')}${classField}`)
     }
   }
 
+  // Tab3 딥링크: 선언 id(`sanitizeId(t.name)`)가 IR sid보다 짧아 buildNodeMap의 suffix 역해석으로는
+  // 도달할 수 없다(v62-D2 휴리스틱은 접두사를 벗기는 방향). 선언마다 대응 IR 노드를 마커로 명시한다.
   for (const t of tableNodes) {
+    lines.push(nodeMapMarker('  ', sanitizeId(t.name), t.id))
     lines.push(`  ${sanitizeId(t.name)} {`)
     for (const col of t.columns) {
       const pkFlag = col.isPrimaryKey === true ? ' PK' : ''
@@ -95,8 +102,17 @@ export function buildDbScreenDiagram(graph: IRGraph): string {
     }
   }
 
-  // Source (route/component/action) proxy entities
-  for (const label of new Set(sourcesMap.values())) {
+  // Source (route/component/action) proxy entities — 같은 라벨로 합쳐진 소스가 여럿이면 첫 소스(엣지
+  // 순서)를 대표로 삼는다. 박스 하나가 여러 파일을 뜻하므로 결정론만 보장하면 된다.
+  const representativeByLabel = new Map<string, string>()
+  for (const [nodeId, label] of sourcesMap) {
+    if (!representativeByLabel.has(label)) representativeByLabel.set(label, nodeId)
+  }
+  // 라우트 `/users`의 라벨 `users`처럼 소스 라벨이 테이블 선언과 겹치면 viewer는 둘을 테이블 하나로 합쳐
+  // 그린다 — 그 박스는 테이블이므로 마커를 싣지 않아 테이블 마커가 남게 한다(실기검증 mini-nest-app).
+  const tableDeclIds = new Set(tableNodes.map(t => sanitizeId(t.name)))
+  for (const [label, nodeId] of representativeByLabel) {
+    if (!tableDeclIds.has(label)) lines.push(nodeMapMarker('  ', label, nodeId))
     lines.push(`  ${label} {`)
     lines.push(`    string name`)
     lines.push('  }')
@@ -109,7 +125,7 @@ export function buildDbScreenDiagram(graph: IRGraph): string {
       if (col.references === undefined) continue
       const target = sanitizeId(col.references.table)
       if (tableNameSet.has(target)) {
-        lines.push(`  ${sanitizeId(t.name)} }o--|| ${target} : "${col.name}"`)
+        lines.push(`  ${sanitizeId(t.name)} }o--|| ${target} : "${sanitizeId(col.name)}"`)
       }
     }
   }
