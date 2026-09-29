@@ -1,7 +1,7 @@
 import * as vscode from 'vscode'
 import * as crypto from 'node:crypto'
 import { t, resolveLocale, dictForLocale } from './i18n/dict.js'
-import { isAllowedSidebarMessageType, isHttpsUrl } from './message-guard.js'
+import { isAllowedSidebarMessageType, isHttpsUrl, resolveFeedbackUrl } from './message-guard.js'
 
 function getLocale() {
   const setting = vscode.workspace.getConfiguration('codebaseViz').get<string>('language', 'auto')
@@ -90,6 +90,11 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
             await vscode.env.openExternal(vscode.Uri.parse(msg.value))
           }
           break
+        case 'openFeedback': {
+          const url = resolveFeedbackUrl(msg.value)
+          if (url !== undefined) await vscode.env.openExternal(vscode.Uri.parse(url))
+          break
+        }
       }
     })
     // status 전달은 webview의 'ready' 신호 수신 시 처리
@@ -291,6 +296,14 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
   </select>
 </div>
 
+<hr>
+
+<div class="section">
+  <div class="label">${t('sidebar.feedback', locale)}</div>
+  <button id="btnRate" class="secondary">${t('sidebar.btnRate', locale)}</button>
+  <button id="btnReportIssue" class="secondary">${t('sidebar.btnReportIssue', locale)}</button>
+</div>
+
 <script>window.__SIDEBAR_I18N__ = ${JSON.stringify(dict)};
 function tr(key) { return (window.__SIDEBAR_I18N__[key]) || key; }</script>
 
@@ -329,6 +342,8 @@ function tr(key) { return (window.__SIDEBAR_I18N__[key]) || key; }</script>
   document.getElementById('btnClearApiKey').addEventListener('click', () => send('clearApiKey'));
   document.getElementById('llmToggle').addEventListener('click', toggleLLM);
   document.getElementById('langSelect').addEventListener('change', function () { send('setLanguage', this.value); });
+  document.getElementById('btnRate').addEventListener('click', () => send('openFeedback', 'rate'));
+  document.getElementById('btnReportIssue').addEventListener('click', () => send('openFeedback', 'issue'));
 
   const API_KEY_URLS = {
     google: 'https://aistudio.google.com/app/apikey',

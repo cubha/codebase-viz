@@ -101,8 +101,22 @@ const SIDEBAR_MESSAGE_TYPES = new Set([
   'setLanguage',
   'setProvider',
   'openExternal',
+  'openFeedback',
 ])
 
 export function isAllowedSidebarMessageType(type: unknown): boolean {
   return typeof type === 'string' && SIDEBAR_MESSAGE_TYPES.has(type)
+}
+
+// Wave M T10: 웹뷰는 피드백 종류만 보내고 목적지 URL은 확장이 고른다 — 웹뷰가 임의 https URL을
+// 열게 하는 openExternal 경로와 달리 목적지가 이 상수표로 닫혀 있다.
+// T13: ⭐ Rate는 Open VSX 단일(실측 다운로드·실리뷰가 Open VSX 쪽이 우세해 사용자 결정으로 확정).
+const FEEDBACK_URLS: Readonly<Record<string, string>> = {
+  rate: 'https://open-vsx.org/extension/cubha/codebase-arch-viz/reviews',
+  issue: 'https://github.com/cubha/codebase-viz/issues/new',
+}
+
+export function resolveFeedbackUrl(kind: unknown): string | undefined {
+  if (typeof kind !== 'string' || !Object.prototype.hasOwnProperty.call(FEEDBACK_URLS, kind)) return undefined
+  return FEEDBACK_URLS[kind]
 }
