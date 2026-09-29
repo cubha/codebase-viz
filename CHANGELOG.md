@@ -1,5 +1,45 @@
 # Changelog
 
+## [1.2.68] — 2026-09-30
+
+### Added — Wave M T10/T13: 사이드바 피드백 버튼
+
+- 사이드바 최하단 Feedback 섹션 — `⭐ Rate on Open VSX` / `🐛 Report Issue`. 웹뷰는 kind(`rate|issue`)만 보내고
+  URL은 확장 상수표(`resolveFeedbackUrl`)가 결정한다 — 기존 개방형 `openExternal` 경로를 넓히지 않았다.
+- T13 결정: ⭐ 대상 = **Open VSX 단일**. 원안 "MS Marketplace 단일(Open VSX 리뷰 UX 미성숙)"은 실측 근거가 없었다
+  (Open VSX 다운로드 15,431·실리뷰 1 vs MS 1,215·install 89 — 미러 수집 섞임 주의). i18n 4로케일.
+
+### Added — Tab3(Data Flow) erd 모드 hover·클릭 딥링크
+
+- erd 모드 화면은 viewer가 테이블명을 id로 쓰는 flowchart를 재생성하는데, 그 선언 id가 IR sid보다 짧아 nodeMap의
+  suffix 역해석(v62-D2)으로 도달할 수 없었다 — 도입 이래 Tab3 hover·클릭이 한 번도 동작하지 않았다.
+  v62-D2 재설계 없이 ERD 빌더가 선언마다 `%% nodemap:` 마커로 IR id를 명시하는 **ERD 전용 경로**로 해결(청킹 폴백 포함).
+- 소스 라벨이 테이블 선언 id와 겹치면(라우트 `/users` ↔ 테이블 `users`) 테이블 마커를 우선한다 — CLI 실분석에서
+  테이블 클릭이 컨트롤러로 오점프하는 것을 발견해 수정. viewer의 거짓 주석("Tab3는 erDiagram이라 .node 없음") 3곳 정정.
+
+### Added — ORM 클래스 센티넬 3종 (TypeORM·Drizzle·Prisma)
+
+- T5(v1.2.67)의 `orm-class:` 센티넬을 TS ORM 파서에 확장(배열 뒤 — `[0]`은 툴팁 노출). Drizzle은 변수명.
+- `isInformativeOrmClass` 정규화에 `table` 접미사 제거 추가 — `usersTable ⌗ users` 무정보 배지 억제.
+
+### Fixed — ORM 파서가 DB 실제 이름 대신 코드 식별자를 노출
+
+- Prisma `@@map`(테이블명·노드 id)·`@map`(컬럼명), 키-값 형태(`@map(name: "x")`) 포함.
+- Drizzle 컬럼명 = 빌더 루트 호출 첫 인자(없으면 TS 키), TypeORM `@Column({ name })`.
+- TypeORM 관계 FK `references.table`이 클래스명이라 ERD FK 선이 드롭되던 결함 — JPA와 같은 classToTable 선행 패스.
+- Prisma `@@map` 모델의 파일명 휴리스틱 매칭(`account.tsx` ↔ `Account`)이 끊기지 않게 모델명 키를 보존
+  (Prisma 한정 — 다른 ORM에 클래스명 매칭을 새로 열지 않음).
+
+### Changed
+
+- `ANALYZER_VERSION` → `codebase-viz@1.2.68`. `@@map` 모델은 노드 id 자체가 바뀌고 dbScreen 텍스트(마커)가 바뀌는
+  그래프 내용 변경이라 범프 필수.
+
+### Verification
+
+- verify.sh --full PASS · Playwright 47/47 · Tab3 E2E 되돌림 실험(구현 제거 4/4 FAIL) · fixture CLI 실분석 ·
+  `/verify-impl` UNMET 0 · VS Code 실기(Extension Development Host): 피드백 버튼 2종, Tab3 hover, 테이블/소스 클릭 점프.
+
 ## [1.2.67] — 2026-09-02
 
 ### Added — Tab3 ERD에 ORM 클래스명 병기 (Wave B T5, 재정의)

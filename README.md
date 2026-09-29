@@ -4,13 +4,13 @@
 
 Routes, components, and DB relationships — extracted statically from **13 frameworks**, optionally enriched by LLM, rendered as live diagram tabs inside VS Code.
 
-> Marketplace: [`cubha.codebase-arch-viz`](https://marketplace.visualstudio.com/items?itemName=cubha.codebase-arch-viz) · Current release: **v1.2.67**
+> Marketplace: [`cubha.codebase-arch-viz`](https://marketplace.visualstudio.com/items?itemName=cubha.codebase-arch-viz) · Current release: **v1.2.68**
+>
+> **v1.2.68** — **Tab3(Data Flow) 딥링크 + TS ORM 실제 이름 + 사이드바 피드백 버튼**. Data Flow 탭의 테이블·페이지·컴포넌트·Repository 박스에 hover 툴팁과 클릭 점프가 처음으로 동작한다. Prisma `@@map`/`@map`·TypeORM `@Column({ name })`·Drizzle 컬럼 이름 인자를 실제 DB 이름으로 표시하고, 드롭되던 TypeORM FK 선을 복구했다. TypeORM·Drizzle·Prisma도 클래스명 배지를 싣는다. 사이드바에 ⭐ Open VSX 평가·🐛 이슈 신고 버튼 추가.
 >
 > **v1.2.67** — **Tab3에 ORM 클래스명 병기**. `@Entity`·`models.Model`·SQLAlchemy 클래스명이 실제 테이블명과 다를 때(`DecoSheet` ↔ `TB_HODS401`) 다이어그램 노드와 사이드바 카드에 함께 보여준다. 클래스명이 없거나 규칙으로 유도 가능한 경우(`User` ↔ `users`)는 표시하지 않는다 — 노이즈보다 침묵이 낫다. IR 확장 0.
 >
 > **v1.2.66** — **Sequence 탭 신설(FE↔BE 페어 분석 전용)**. FE 컴포넌트 → BE 엔드포인트 → Controller → Service/Repository → Table 호출 흐름을 시간순 시퀀스 다이어그램으로 그린다. 매칭된 cross-edge만 대상이고(신규 추정 0), `verified`는 실선·`inferred`는 점선으로 근거 강도를 유지한다. 대형 입력은 참가자 12명 단위로 자동 분할되어 행 그리드로 렌더된다. 단일 프로젝트 분석에서는 탭이 뜨지 않는다.
->
-> **v1.2.65** — react-router 딥링크 오점프 수정. `routes.map(...)`으로 뿌린 라우트가 페이지가 아니라 router의 map 호출 지점으로 점프하던 결함(provenance 3곳 오기록 + file/line이 서로 다른 파일에서 오던 유령 좌표)을 바로잡고, 라우트 딥링크를 `renders`로 연결된 페이지 컴포넌트 좌표로 해석하도록 했다(react-router 한정 — 타 어댑터 회귀 0 실측). 캐시는 `ANALYZER_VERSION` 범프로 자동 무효화된다.
 >
 > 이전 버전 이력은 [CHANGELOG](CHANGELOG.md) 참조.
 
