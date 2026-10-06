@@ -41,15 +41,18 @@ function buildScreenComponentDiagram(graph: IRGraph): string {
   // Only page-type routes — remove loading, layout, template, error, route-handler
   const allPageRoutes = allRouteNodes.filter(r => r.routeFileKind === 'page')
 
-  // Build path → display route map; prefer verified (static) over inferred (LLM duplicates)
+  // LLM이 다시 만든 같은 path 라우트만 정적 라우트로 흡수한다. 정적 파서가 낸 라우트는 같은 path여도
+  // 서로 다른 화면(Angular named outlet 등)이라 전부 남긴다 — 예전엔 path 하나당 하나만 남겨 지웠다(v1.2.69).
+  const isLlmRoute = (r: RouteNode): boolean => r.provenance.adapter.startsWith('llm-')
+  const staticPaths = new Set(allPageRoutes.filter(r => !isLlmRoute(r)).map(r => r.path))
   const pathToDisplayRoute = new Map<string, RouteNode>()
+  const pageRoutes: RouteNode[] = []
   for (const r of allPageRoutes) {
-    const existing = pathToDisplayRoute.get(r.path)
-    if (existing === undefined || r.confidence === 'verified') {
-      pathToDisplayRoute.set(r.path, r)
-    }
+    if (isLlmRoute(r) && (staticPaths.has(r.path) || pathToDisplayRoute.has(r.path))) continue
+    pageRoutes.push(r)
+    const shown = pathToDisplayRoute.get(r.path)
+    if (shown === undefined || isLlmRoute(shown)) pathToDisplayRoute.set(r.path, r)
   }
-  const pageRoutes = Array.from(pathToDisplayRoute.values())
   const pageRouteIds = new Set(pageRoutes.map(r => r.id))
 
   // Remap renders edges: inferred/non-display routes → display route by path, deduplicate
