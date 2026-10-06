@@ -281,3 +281,66 @@ export class Account {
     await fs.rm(dir, { recursive: true, force: true })
   })
 })
+
+// v1.2.69: 관계 FK 컬럼의 실제 DB 이름·참조 컬럼·소유측.
+describe('parseTypeOrmEntities — 관계 FK @JoinColumn·소유측 (v1.2.69)', () => {
+  let dir: string
+  beforeAll(async () => {
+    dir = await fs.mkdtemp(path.join(os.tmpdir(), 'cv-typeorm-join-'))
+    await fs.writeFile(path.join(dir, 'account.entity.ts'), `
+import { Entity, PrimaryGeneratedColumn, Column, OneToOne } from 'typeorm'
+import { Profile } from './profile.entity'
+@Entity('accounts')
+export class Account {
+  @PrimaryGeneratedColumn({ name: 'account_id' })
+  id: number
+
+  @Column({ name: 'login_code' })
+  loginCode: string
+
+  @OneToOne(() => Profile, p => p.account)
+  profile: Profile
+}
+`)
+    await fs.writeFile(path.join(dir, 'profile.entity.ts'), `
+import { Entity, PrimaryGeneratedColumn, OneToOne, ManyToOne, JoinColumn } from 'typeorm'
+import { Account } from './account.entity'
+@Entity('profiles')
+export class Profile {
+  @PrimaryGeneratedColumn()
+  id: number
+
+  @OneToOne(() => Account, a => a.profile)
+  @JoinColumn({ name: 'owner_account_id' })
+  account: Account
+
+  @ManyToOne(() => Account)
+  @JoinColumn({ name: 'reviewer_code', referencedColumnName: 'loginCode' })
+  reviewer: Account
+
+  @ManyToOne(() => Account)
+  creator: Account
+}
+`)
+  })
+  afterAll(async () => { await fs.rm(dir, { recursive: true, force: true }) })
+
+  it('@JoinColumn({ name })이 FK 컬럼의 DB 이름이 된다', async () => {
+    const profile = (await parseTypeOrmEntities(dir, 't')).find(t => t.name === 'profiles')!
+    const names = profile.columns.map(c => c.name)
+    expect(names).toContain('owner_account_id')
+    expect(names).not.toContain('account')
+  })
+
+  it('참조 컬럼은 대상 엔티티 PK의 DB 이름 — referencedColumnName이 있으면 그 프로퍼티의 DB 이름', async () => {
+    const profile = (await parseTypeOrmEntities(dir, 't')).find(t => t.name === 'profiles')!
+    expect(profile.columns.find(c => c.name === 'owner_account_id')?.references).toEqual({ table: 'accounts', column: 'account_id' })
+    expect(profile.columns.find(c => c.name === 'reviewer_code')?.references).toEqual({ table: 'accounts', column: 'login_code' })
+    expect(profile.columns.find(c => c.name === 'creator')?.references).toEqual({ table: 'accounts', column: 'account_id' })
+  })
+
+  it('@OneToOne 역방향(@JoinColumn 없는 쪽)에는 FK 컬럼을 만들지 않는다', async () => {
+    const account = (await parseTypeOrmEntities(dir, 't')).find(t => t.name === 'accounts')!
+    expect(account.columns.map(c => c.name)).toEqual(['account_id', 'login_code'])
+  })
+})
