@@ -425,4 +425,40 @@ export class ReportsModule {}`)
     expect(routes.map(r => r.path).sort()).toEqual(['/', '/about', '/users', '/users/:id'])
     expect(routes.find(r => r.path === '/users/:id')?.filePath).toBe('src/app/user-detail/user-detail.component.ts')
   })
+
+  // scope-critic(v1.2.69): 같은 "라우트 소실" 결함 계열 — 기존부터 미지원이던 두 형태.
+  it('provideRouter 배열의 spread(...routes)도 펼친다', async () => {
+    const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'cv-ng-spread-'))
+    await fs.mkdir(path.join(dir, 'src/app'), { recursive: true })
+    await fs.writeFile(path.join(dir, 'src/app/auth.routes.ts'), `import { Routes } from '@angular/router'
+export const AUTH_ROUTES: Routes = [{ path: 'login', component: LoginComponent }]`)
+    await fs.writeFile(path.join(dir, 'src/app/app.config.ts'), `import { provideRouter } from '@angular/router'
+import { AUTH_ROUTES } from './auth.routes'
+export const appConfig = { providers: [provideRouter([...AUTH_ROUTES, { path: 'home', component: HomeComponent }])] }`)
+    const { routes } = await parseAngularRoutes(dir, 't')
+    expect(routes.map(r => r.path).sort()).toEqual(['/home', '/login'])
+    await fs.rm(dir, { recursive: true, force: true })
+  })
+
+  it("loadChildren: () => import('./x')(default export routes)도 부모 prefix로 해석한다", async () => {
+    const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'cv-ng-default-'))
+    await fs.mkdir(path.join(dir, 'src/app/admin'), { recursive: true })
+    await fs.writeFile(path.join(dir, 'src/app/admin/admin.routes.ts'), `import { Routes } from '@angular/router'
+const routes: Routes = [{ path: 'users', component: UsersComponent }]
+export default routes`)
+    await fs.writeFile(path.join(dir, 'src/app/app.routes.ts'), `import { Routes } from '@angular/router'
+export const routes: Routes = [
+  { path: 'admin', loadChildren: () => import('./admin/admin.routes') },
+  { path: 'shop', loadChildren: () => import('./admin/admin.routes').then(m => m.default) },
+]`)
+    await fs.writeFile(path.join(dir, 'src/app/app.config.ts'), `import { provideRouter } from '@angular/router'
+import { routes } from './app.routes'
+export const appConfig = { providers: [provideRouter(routes)] }`)
+    const { routes } = await parseAngularRoutes(dir, 't')
+    const paths = routes.map(r => r.path)
+    expect(paths).toContain('/admin/users')
+    expect(paths).toContain('/shop/users')
+    expect(paths).not.toContain('/users')
+    await fs.rm(dir, { recursive: true, force: true })
+  })
 })
