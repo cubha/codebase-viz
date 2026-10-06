@@ -172,9 +172,28 @@ function resolveClass(name: string, sf: TsSourceFile, project: import('ts-morph'
 
 // loadChildren: () => import('./x').then(m => m.Name) — Name이 routes 변수면 그 배열, NgModule 클래스면
 // 그 모듈의 forChild 배열(v1.2.69 이전엔 클래스를 못 찾아 [] → 부모 prefix가 통째로 사라졌다).
+// `export default routes` / `export default [...]` — Angular 15+의 `loadChildren: () => import('./x')`(then 없음)와
+// `.then(m => m.default)`가 가리키는 대상.
+function defaultExportRoutes(sf: TsSourceFile, project: import('ts-morph').Project): TsNode[] {
+  for (const assign of sf.getExportAssignments()) {
+    if (assign.isExportEquals()) continue
+    const arr = resolveRoutesExpr(assign.getExpression(), project)
+    if (arr !== undefined) return [arr]
+  }
+  return []
+}
+
 function resolveLoadChildren(prop: import('ts-morph').PropertyAssignment, project: import('ts-morph').Project): TsNode[] {
   const init = prop.getInitializer()
   if (init === undefined) return []
+  const fromDir = path.dirname(prop.getSourceFile().getFilePath())
+  const bareImport = init.isKind(SyntaxKind.ArrowFunction)
+    ? init.asKindOrThrow(SyntaxKind.ArrowFunction).getBody().getText().match(/^import\(['"`]([^'"`]+)['"`]\)$/)
+    : null
+  if (bareImport !== null) {
+    const sf = loadSourceFile(project, path.resolve(fromDir, bareImport[1]!))
+    return sf !== undefined ? defaultExportRoutes(sf, project) : []
+  }
   for (const call of init.getDescendantsOfKind(SyntaxKind.CallExpression)) {
     const expr = call.getExpression()
     if (!expr.isKind(SyntaxKind.PropertyAccessExpression)) continue
@@ -188,8 +207,9 @@ function resolveLoadChildren(prop: import('ts-morph').PropertyAssignment, projec
     if (!body.isKind(SyntaxKind.PropertyAccessExpression)) continue
     const exportName = body.asKindOrThrow(SyntaxKind.PropertyAccessExpression).getName()
 
-    const sf = loadSourceFile(project, path.resolve(path.dirname(prop.getSourceFile().getFilePath()), importMatch[1]!))
+    const sf = loadSourceFile(project, path.resolve(fromDir, importMatch[1]!))
     if (sf === undefined) return []
+    if (exportName === 'default') return defaultExportRoutes(sf, project)
     const varInit = sf.getVariableDeclarations().find(v => v.getName() === exportName)?.getInitializer()
     if (varInit !== undefined) {
       const arr = resolveRoutesExpr(varInit, project)
@@ -215,6 +235,12 @@ function extractRouteEntries(arrayNode: TsNode, parentPath: string, ctx: Extract
   const fileDir = path.dirname(sourceFile.getFilePath())
 
   for (const el of arrayNode.asKindOrThrow(SyntaxKind.ArrayLiteralExpression).getElements()) {
+    // `[...AUTH_ROUTES, {...}]` — 펼친 배열의 라우트는 같은 부모 아래 형제다.
+    if (el.isKind(SyntaxKind.SpreadElement)) {
+      const spread = resolveRoutesExpr(el.asKindOrThrow(SyntaxKind.SpreadElement).getExpression(), ctx.project)
+      if (spread !== undefined) extractRouteEntries(spread, parentPath, ctx, out)
+      continue
+    }
     if (!el.isKind(SyntaxKind.ObjectLiteralExpression)) continue
     const obj = el.asKindOrThrow(SyntaxKind.ObjectLiteralExpression)
     const rawSegment = stringProp(obj, 'path') ?? ''
