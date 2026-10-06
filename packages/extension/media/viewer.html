@@ -1223,7 +1223,12 @@ function zm(t, f) {
     });
     return;
   }
-  ST[t].s = Math.max(0.1, Math.min(ST[t].s*f, 5));
+  // 화면 중앙의 콘텐츠 지점을 고정한다 — 배율만 바꾸면 요소 중심 기준으로 커지고 줄어 팬·하한 정렬로 생긴
+  // 오프셋(x,y)이 그대로 남아 콘텐츠가 화면 밖으로 밀려난다(v1.2.69).
+  const prev = ST[t].s;
+  ST[t].s = Math.max(0.1, Math.min(prev*f, 5));
+  const ratio = ST[t].s / prev;
+  ST[t].x *= ratio; ST[t].y *= ratio;
   applyTransform(t);
 }
 function rz(t) { fitToView(t); }
