@@ -148,8 +148,9 @@ function applyForeignKey(cols: ColumnDef[], clause: string): boolean {
   return true
 }
 
-// ALTER TABLE <t> <action>[, <action>...] — 컬럼 구성을 바꾸는 ADD/DROP/RENAME COLUMN과 FK 추가만 반영한다.
-// 타입 변경·인덱스·UNIQUE 등은 ERD 컬럼 목록에 영향이 없어 무시한다.
+// ALTER TABLE <t> <action>[, <action>...] — ERD가 그리는 컬럼 이름·타입·NULL 여부와 FK를 바꾸는 구문만 반영한다
+// (ADD/DROP/RENAME COLUMN, FK 추가, Postgres ALTER COLUMN TYPE·SET/DROP NOT NULL, MySQL MODIFY·CHANGE).
+// 인덱스·UNIQUE·CHECK·기본값 등은 ERD에 나오지 않아 무시한다.
 function applyAlterTable(cols: ColumnDef[], actions: string): void {
   for (const raw of splitTopLevel(actions)) {
     const action = raw.trim()
@@ -159,6 +160,30 @@ function applyAlterTable(cols: ColumnDef[], actions: string): void {
     if (add !== null) {
       for (const col of extractColumnsFromBody(add[1]!)) {
         if (!cols.some(c => c.name === col.name)) cols.push(col)
+      }
+      continue
+    }
+    const alterType = new RegExp(`^ALTER\\s+(?:COLUMN\\s+)?${IDENT}\\s+(?:SET\\s+DATA\\s+)?TYPE\\s+([A-Za-z_][A-Za-z0-9_]*)`, 'i').exec(action)
+    if (alterType !== null) {
+      const col = cols.find(c => c.name === alterType[1])
+      if (col !== undefined) col.type = alterType[2]!.toLowerCase()
+      continue
+    }
+    const alterNull = new RegExp(`^ALTER\\s+(?:COLUMN\\s+)?${IDENT}\\s+(SET|DROP)\\s+NOT\\s+NULL`, 'i').exec(action)
+    if (alterNull !== null) {
+      const col = cols.find(c => c.name === alterNull[1])
+      if (col !== undefined && col.isPrimaryKey !== true) col.nullable = alterNull[2]!.toUpperCase() === 'DROP'
+      continue
+    }
+    // MySQL: MODIFY [COLUMN] c <def> = 정의 교체, CHANGE [COLUMN] old new <def> = 이름+정의 교체.
+    const modify = new RegExp(`^(?:MODIFY\\s+(?:COLUMN\\s+)?(?=${IDENT})|CHANGE\\s+(?:COLUMN\\s+)?${IDENT}\\s+)([\\s\\S]+)$`, 'i').exec(action)
+    if (modify !== null) {
+      const [replacement] = extractColumnsFromBody(modify[3]!)
+      const oldName = modify[2] ?? replacement?.name
+      const idx = cols.findIndex(c => c.name === oldName)
+      if (replacement !== undefined && idx !== -1) {
+        cols[idx] = { ...replacement, isPrimaryKey: cols[idx]!.isPrimaryKey === true || replacement.isPrimaryKey === true,
+          ...(cols[idx]!.references !== undefined ? { references: cols[idx]!.references } : {}) }
       }
       continue
     }
