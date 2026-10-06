@@ -304,3 +304,125 @@ describe('AngularAdapter — hasSupabase (Tab3)', () => {
     expect(Array.isArray(result.tableNodes)).toBe(true)
   })
 })
+
+// v1.2.69: NgModule 기반 lazy 라우팅 결함 일괄 — 부모 prefix 소실·무접두 이중 등록·후행 슬래시·
+// lazy 경로 컴포넌트 소실·같은 path 덮어쓰기(동일 NodeId 2개). 재실측(2026-10-06)에서 원본
+// mini-angular-app도 `/users/:id` 상세가 `/`로 붙어 Tab2에서 사라지고 있었다.
+describe('parseAngularRoutes — NgModule lazy forChild (v1.2.69)', () => {
+  let ngDir: string
+  const write = async (rel: string, body: string): Promise<void> => {
+    await fs.mkdir(path.dirname(path.join(ngDir, rel)), { recursive: true })
+    await fs.writeFile(path.join(ngDir, rel), body)
+  }
+  const comp = (name: string): string => `import { Component } from '@angular/core'
+@Component({ selector: 'x', template: '' })
+export class ${name} {}`
+
+  beforeAll(async () => {
+    ngDir = await fs.mkdtemp(path.join(os.tmpdir(), 'cv-ng-v1269-'))
+    await write('src/app/home.component.ts', comp('HomeComponent'))
+    await write('src/app/admin/dashboard.component.ts', comp('DashboardComponent'))
+    await write('src/app/admin/side.component.ts', comp('SideComponent'))
+    await write('src/app/admin/settings.component.ts', comp('SettingsComponent'))
+    await write('src/app/reports/report-list.component.ts', comp('ReportListComponent'))
+    await write('src/app/reports/report-detail.component.ts', comp('ReportDetailComponent'))
+    await write('src/app/app-routing.module.ts', `import { NgModule } from '@angular/core'
+import { RouterModule, Routes } from '@angular/router'
+import { HomeComponent } from './home.component'
+const routes: Routes = [
+  { path: '', component: HomeComponent },
+  { path: 'old-home', redirectTo: '', pathMatch: 'full' },
+  { path: 'admin', loadChildren: () => import('./admin/admin.module').then(m => m.AdminModule) },
+  { path: 'reports', loadChildren: () => import('./reports/reports.routes').then(m => m.REPORT_ROUTES) },
+]
+@NgModule({ imports: [RouterModule.forRoot(routes)], exports: [RouterModule] })
+export class AppRoutingModule {}`)
+    await write('src/app/admin/admin.module.ts', `import { NgModule } from '@angular/core'
+import { RouterModule } from '@angular/router'
+import { DashboardComponent } from './dashboard.component'
+import { SideComponent } from './side.component'
+import { SettingsComponent } from './settings.component'
+@NgModule({
+  imports: [
+    RouterModule.forChild([
+      { path: '', component: DashboardComponent },
+      { path: '', component: SideComponent, outlet: 'side' },
+      { path: 'settings', component: SettingsComponent },
+    ]),
+  ],
+})
+export class AdminModule {}`)
+    await write('src/app/reports/reports.routes.ts', `import { Routes } from '@angular/router'
+import { ReportListComponent } from './report-list.component'
+import { ReportDetailComponent } from './report-detail.component'
+export const REPORT_ROUTES: Routes = [
+  { path: '', component: ReportListComponent },
+  { path: ':id', component: ReportDetailComponent },
+]`)
+    await write('src/app/reports/reports.module.ts', `import { NgModule } from '@angular/core'
+import { RouterModule } from '@angular/router'
+import { REPORT_ROUTES } from './reports.routes'
+@NgModule({ imports: [RouterModule.forChild(REPORT_ROUTES)] })
+export class ReportsModule {}`)
+  })
+
+  afterAll(async () => {
+    await fs.rm(ngDir, { recursive: true, force: true })
+  })
+
+  it('NgModule 클래스 loadChildren의 forChild 라우트에 부모 prefix가 붙는다', async () => {
+    const { routes } = await parseAngularRoutes(ngDir, 'test@0.1')
+    const paths = routes.map(r => r.path)
+    expect(paths).toContain('/admin/settings')
+    expect(paths).not.toContain('/settings')
+  })
+
+  it("부모의 path:'' 자식이 부모 URL의 페이지가 된다 — 컴포넌트 파일로 매핑되고 부모 컨테이너는 따로 남지 않는다", async () => {
+    const { routes } = await parseAngularRoutes(ngDir, 'test@0.1')
+    const admin = routes.filter(r => r.path === '/admin' && !r.id.includes('side'))
+    expect(admin).toHaveLength(1)
+    expect(admin[0]!.filePath).toBe('src/app/admin/dashboard.component.ts')
+    const reports = routes.filter(r => r.path === '/reports')
+    expect(reports).toHaveLength(1)
+    expect(reports[0]!.filePath).toBe('src/app/reports/report-list.component.ts')
+  })
+
+  it('lazy로 마운트된 forChild는 무접두로 한 번 더 등록되지 않는다', async () => {
+    const { routes } = await parseAngularRoutes(ngDir, 'test@0.1')
+    const paths = routes.map(r => r.path)
+    expect(paths).toContain('/reports/:id')
+    expect(paths).not.toContain('/:id')
+    expect(paths.filter(p => p === '/')).toHaveLength(1)
+  })
+
+  it('후행 슬래시가 남지 않는다', async () => {
+    const { routes } = await parseAngularRoutes(ngDir, 'test@0.1')
+    for (const r of routes) if (r.path !== '/') expect(r.path.endsWith('/')).toBe(false)
+  })
+
+  it('lazy 하위 라우트도 컴포넌트 파일로 매핑된다', async () => {
+    const { routes } = await parseAngularRoutes(ngDir, 'test@0.1')
+    expect(routes.find(r => r.path === '/reports/:id')?.filePath).toBe('src/app/reports/report-detail.component.ts')
+    expect(routes.find(r => r.path === '/admin/settings')?.filePath).toBe('src/app/admin/settings.component.ts')
+  })
+
+  it("같은 path(''+named outlet)도 덮어쓰지 않고 각자 노드가 되며 NodeId가 전부 고유하다", async () => {
+    const { routes } = await parseAngularRoutes(ngDir, 'test@0.1')
+    const ids = routes.map(r => r.id)
+    expect(new Set(ids).size).toBe(ids.length)
+    const files = routes.filter(r => r.path === '/admin').map(r => r.filePath).sort()
+    expect(files).toEqual(['src/app/admin/dashboard.component.ts', 'src/app/admin/side.component.ts'])
+  })
+
+  it('redirectTo 항목은 페이지가 아니므로 라우트로 만들지 않는다', async () => {
+    const { routes } = await parseAngularRoutes(ngDir, 'test@0.1')
+    expect(routes.map(r => r.path)).not.toContain('/old-home')
+  })
+
+  it('mini-angular-app: /users/:id는 상세 컴포넌트로 매핑되고 / 는 하나뿐이다', async () => {
+    const FIXTURE = path.resolve(process.cwd(), 'fixtures/mini-angular-app')
+    const { routes } = await parseAngularRoutes(FIXTURE, 'test@0.1')
+    expect(routes.map(r => r.path).sort()).toEqual(['/', '/about', '/users', '/users/:id'])
+    expect(routes.find(r => r.path === '/users/:id')?.filePath).toBe('src/app/user-detail/user-detail.component.ts')
+  })
+})
