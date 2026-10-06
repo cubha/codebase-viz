@@ -223,7 +223,8 @@ function quotedEnd(text: string, i: number): number {
     }
     return text.length
   }
-  if (ch === '$') {
+  // 식별자 안의 `$`(`acc$tbl$x`)는 인용이 아니다 — 앞 글자가 식별자 문자면 달러 인용 시작이 아니다.
+  if (ch === '$' && (i === 0 || !/[A-Za-z0-9_$]/.test(text[i - 1] ?? ''))) {
     const tag = /^\$[A-Za-z_]*\$/.exec(text.slice(i))
     if (tag === null) return -1
     const close = text.indexOf(tag[0], i + tag[0].length)
