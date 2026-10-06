@@ -41,15 +41,18 @@ function buildScreenComponentDiagram(graph: IRGraph): string {
   // Only page-type routes — remove loading, layout, template, error, route-handler
   const allPageRoutes = allRouteNodes.filter(r => r.routeFileKind === 'page')
 
-  // Build path → display route map; prefer verified (static) over inferred (LLM duplicates)
+  // LLM이 다시 만든 같은 path 라우트만 정적 라우트로 흡수한다. 정적 파서가 낸 라우트는 같은 path여도
+  // 서로 다른 화면(Angular named outlet 등)이라 전부 남긴다 — 예전엔 path 하나당 하나만 남겨 지웠다(v1.2.69).
+  const isLlmRoute = (r: RouteNode): boolean => r.provenance.adapter.startsWith('llm-')
+  const staticPaths = new Set(allPageRoutes.filter(r => !isLlmRoute(r)).map(r => r.path))
   const pathToDisplayRoute = new Map<string, RouteNode>()
+  const pageRoutes: RouteNode[] = []
   for (const r of allPageRoutes) {
-    const existing = pathToDisplayRoute.get(r.path)
-    if (existing === undefined || r.confidence === 'verified') {
-      pathToDisplayRoute.set(r.path, r)
-    }
+    if (isLlmRoute(r) && (staticPaths.has(r.path) || pathToDisplayRoute.has(r.path))) continue
+    pageRoutes.push(r)
+    const shown = pathToDisplayRoute.get(r.path)
+    if (shown === undefined || isLlmRoute(shown)) pathToDisplayRoute.set(r.path, r)
   }
-  const pageRoutes = Array.from(pathToDisplayRoute.values())
   const pageRouteIds = new Set(pageRoutes.map(r => r.id))
 
   // Remap renders edges: inferred/non-display routes → display route by path, deduplicate
@@ -155,7 +158,7 @@ export interface DiagramSet {
   // renderMermaid(.md CLI 출력)는 이 필드를 emit하지 않는다 — DiagramSet은 webview 경로 전용 산출물.
   nodeMap?: NodeMap
   // Wave B T4: 페어 분석(FE+BE) 전용 sequenceDiagram. buildDiagrams(단일모드)는 항상 undefined —
-  // CLI(.md) 미노출. buildCombinedDiagram에서도 drawableEdges(matched fe-be-call)가 0건이면
+  // CLI(.md) 미노출. buildCombinedDiagram에서도 matchedEdges(matched fe-be-call)가 0건이면
   // undefined — 빈 다이어그램 대신 필드 자체를 비운다(Less is More). isDiagramCache 필수 shape에는
   // 넣지 않는다(구버전 캐시 전량 무효화 방지 — nodeMap·tab3Kind와 동일한 선례).
   sequence?: string
@@ -270,8 +273,10 @@ export function buildCombinedDiagram(
   const feRoutes = feGraph.nodes.filter(isRouteNode).filter(r => r.routeFileKind === 'page' && matchedFeRouteIds.has(r.id))
   const beRoutes = beGraph.nodes.filter(isRouteNode).filter(r => r.routeFileKind === 'page' && matchedBeRouteIds.has(r.id))
 
-  // T4: 신규 임계 계산 없이 이미 정해진 drawableEdges를 그대로 소비(v1.2.49 freeze 재발 방지).
-  const sequence = drawableEdges.length > 0 ? buildSequenceDiagram(feGraph, beGraph, drawableEdges) : undefined
+  // T4: 신규 매칭·임계 계산 없이 이미 정해진 matched 목록을 그대로 소비(v1.2.49 freeze 재발 방지).
+  // drawableEdges가 아니라 matchedEdges인 이유: FE 부모 라우트는 Tab1 결합 그래프의 시각적 출발점일 뿐이고
+  // 시퀀스는 FE 컴포넌트에서 출발한다 — 부모 라우트 없는 레이아웃 컴포넌트 호출까지 빠뜨리게 된다(v1.2.69).
+  const sequence = matchedEdges.length > 0 ? buildSequenceDiagram(feGraph, beGraph, matchedEdges) : undefined
 
   const lines: string[] = [RENDERING_INIT, 'graph TD', CLASS_DEFS]
 
@@ -301,7 +306,11 @@ export function buildCombinedDiagram(
   // 매칭된 crossEdges가 있었는데도 실제로 그려진 연결이 0건이면(전량 dangling이거나 전량
   // 부모 라우트 미해석) 빈 껍데기 대신 안내를 남긴다 — beGraph=0 폴백과 같은 원칙(조용한
   // 강등 금지)을 matched=0 케이스에도 적용(scope-critic 지적).
-  if (drawableEdges.length === 0 && crossEdges.length > 0) {
+  // 매칭은 됐는데 FE 부모 라우트를 못 찾은 호출만 있으면 그 호출은 Sequence 탭에 그려진다(v1.2.69) —
+  // "매칭 없음"이라고 하면 Sequence 탭과 모순되므로 안내를 갈라 적는다.
+  if (drawableEdges.length === 0 && matchedEdges.length > 0) {
+    lines.push(`  NO_MATCH["⚠ 매칭된 FE↔BE 호출 ${matchedEdges.length}건은 FE 라우트에 연결되지 않아 이 탭에 그릴 수 없습니다 — Sequence 탭에서 확인하세요"]:::muted`)
+  } else if (drawableEdges.length === 0 && crossEdges.length > 0) {
     const danglingCount = crossEdges.filter(e => e.kind === 'fe-be-call').length
     lines.push(`  NO_MATCH["⚠ 매칭된 FE↔BE 라우트가 없습니다(crossEdges ${danglingCount}건 중 표시 가능 0건) — 각 프로젝트 단독 탭을 확인하세요"]:::muted`)
   }

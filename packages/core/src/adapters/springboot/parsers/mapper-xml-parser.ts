@@ -50,8 +50,8 @@ function componentFqn(filePath: string): string | undefined {
 
 // B2(BE-DIAGRAM-STANDARD v1.2 R-T2.9 amendment): Repository 단위(statement 단위 아님)로 접근
 // 테이블명을 노출한다. statement→table 2-pass 브리지는 Tab3 ERD에 신규 프록시 엔티티를 만들어
-// "Tab3 변경 없음"(§4)을 위반하고 depth 예산도 부족해 기각됨 — Repository는 이미 Tab3
-// sourcesMap에 있는 노드라(db-diagram.ts) 엣지만 붙는다.
+// "Tab3 변경 없음"(§4)을 위반하고 depth 예산도 부족해 기각됨 — Repository 단위면 Repository 하나가
+// Tab3 박스 하나가 된다(db-diagram.ts queries 소스).
 export interface RepoTableRef {
   repoComponentId: NodeId
   tableNames: string[]

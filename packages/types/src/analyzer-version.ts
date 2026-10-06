@@ -29,4 +29,7 @@
 // v1.2.68: Prisma(`@@map`·`@map` 실제 이름 + 센티넬)·TypeORM(센티넬 + FK가 테이블명 참조)·Drizzle(센티넬)
 // 파서 출력과 Tab3 dbScreen 텍스트(nodemap 마커)가 바뀐다. `@@map` 모델은 **노드 id 자체가 바뀌고**,
 // 이전 캐시로는 Tab3 딥링크·클래스명 배지가 조용히 안 뜨므로 v1.2.65 규칙대로 범프가 필요하다.
-export const ANALYZER_VERSION = 'codebase-viz@1.2.68'
+// v1.2.69: Angular 라우트 IR(lazy NgModule prefix·라우트 id 고유화·provenance 좌표)·TypeORM FK 컬럼·
+// Flyway ALTER/FK 반영·ERD 고아 Repository 제거·시퀀스 체인 묶음 — 그래프·다이어그램 내용이 바뀐다.
+// Angular는 노드 id 자체가 바뀌므로 구캐시로는 틀린 라우트가 그대로 재생된다. v1.2.65 규칙대로 범프.
+export const ANALYZER_VERSION = 'codebase-viz@1.2.69'

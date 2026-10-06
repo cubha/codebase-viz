@@ -305,7 +305,10 @@ function makeBeComponent(
 }
 
 describe('BE 렌더러 — Tab3 (BE-E)', () => {
-  it('adapterCategory=BE 시 queries 엣지 없는 Repository도 Tab3에 표시', async () => {
+  // v1.2.69 A2: 명세 변경 — queries 엣지 없는 Repository는 어느 테이블과도 잇지 못하는 고아 박스였다.
+  // viewer(parseDbData)는 `string name`뿐인 프록시를 버려 화면·MD export에 나오지 않았고 CLI
+  // db-screen.md에만 연결선 없는 박스로 남았다 — 보이지 않거나, 보이면 노이즈(Less is More).
+  it('adapterCategory=BE여도 queries 엣지 없는 Repository는 Tab3에 넣지 않는다', async () => {
     const repo = makeBeComponent('UserRepository', 'repository/UserRepository.java')
     const table = createTableNode({
       id: makeNodeId('table', 'schema.sql', 'users'),
@@ -325,7 +328,7 @@ describe('BE 렌더러 — Tab3 (BE-E)', () => {
 
     await renderMermaid(graph, OUTPUT_DIR)
     const content = await fs.readFile(path.join(OUTPUT_DIR, 'db-screen.md'), 'utf8')
-    expect(content).toContain('UserRepository')
+    expect(content).not.toContain('UserRepository')
     expect(content).toContain('users')
   })
 
@@ -892,5 +895,52 @@ describe('buildDiagrams — tab3Kind (v1.2.63 D0, webview Tab3 렌더 종류 선
       edges: [],
     })
     expect(buildDiagrams(graph).tab3Kind).toBe('flow')
+  })
+})
+
+// v1.2.69: Tab2는 같은 path의 라우트를 하나로 합쳤다 — 원래 의도는 LLM이 다시 만든 중복 라우트를 정적
+// 라우트로 흡수하는 것이었는데, 정적 파서가 낸 서로 다른 라우트(Angular named outlet 등)까지 지웠다.
+describe('Tab2 — 같은 path 라우트 표시 (v1.2.69)', () => {
+  const META = { framework: 'angular', hasSupabase: false, hasPrisma: false, hasDexie: false, hasFirebase: false, adapterCategory: 'FE' as const }
+  const prov = (adapter: string) => ({ file: 'src/app/admin/admin.module.ts', line: 5, adapter, analyzerVersion: 'test' })
+  const route = (file: string, adapter: string, confidence: 'verified' | 'inferred') => createRouteNode({
+    id: makeNodeId('route', file, '/admin'), path: '/admin', filePath: file, routeFileKind: 'page',
+    dynamicSegmentType: 'static', isGroupRoute: false, renderingMode: 'CSR', provenance: prov(adapter),
+    ...(confidence === 'verified' ? { confidence } : { confidence, inferenceChain: ['x'] }),
+  })
+  const comp = (name: string, file: string) => createComponentNode({
+    id: makeNodeId('component', file, name), name, filePath: file, runtime: 'client',
+    provenance: prov('angular@0.1'), confidence: 'verified',
+  })
+  const renders = (from: string, to: string) => createEdge({
+    id: makeEdgeId('renders', from as never, to as never), from: from as never, to: to as never, kind: 'renders',
+    provenance: prov('angular@0.1'), confidence: 'inferred', inferenceChain: ['x'],
+  })
+
+  it('정적 파서가 낸 같은 path의 서로 다른 라우트는 모두 그 컴포넌트와 함께 남는다', () => {
+    const dash = route('src/app/admin/dashboard.component.ts', 'angular@0.1', 'inferred')
+    const side = route('src/app/admin/side.component.ts', 'angular@0.1', 'inferred')
+    const dashC = comp('DashboardComponent', 'src/app/admin/dashboard.component.ts')
+    const sideC = comp('SideComponent', 'src/app/admin/side.component.ts')
+    const set = buildDiagrams(createIRGraph({
+      analyzerVersion: 'test', repoRoot: '/ng', metadata: META,
+      nodes: [dash, side, dashC, sideC], edges: [renders(dash.id, dashC.id), renders(side.id, sideC.id)],
+    }))
+    // Angular Tab2 leaf는 라우트 박스에 컴포넌트 파일명을 싣는다.
+    expect(set.screenComponent).toContain('dashboard.component.ts')
+    expect(set.screenComponent).toContain('side.component.ts')
+  })
+
+  it('LLM이 만든 같은 path 중복 라우트는 정적 라우트로 흡수된다(별도 노드가 생기지 않는다)', () => {
+    const dash = route('src/app/admin/dashboard.component.ts', 'angular@0.1', 'inferred')
+    const llmDup = route('src/app/admin/admin.page.ts', 'llm-analyzer@0.1', 'inferred')
+    const dashC = comp('DashboardComponent', 'src/app/admin/dashboard.component.ts')
+    const llmC = comp('AdminWidget', 'src/app/admin/admin-widget.ts')
+    const set = buildDiagrams(createIRGraph({
+      analyzerVersion: 'test', repoRoot: '/ng', metadata: META,
+      nodes: [dash, llmDup, dashC, llmC], edges: [renders(dash.id, dashC.id), renders(llmDup.id, llmC.id)],
+    }))
+    expect(set.screenComponent).toContain('dashboard.component.ts')
+    expect(set.screenComponent).not.toContain('admin.page.ts')
   })
 })

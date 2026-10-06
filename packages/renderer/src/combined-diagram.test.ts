@@ -315,7 +315,9 @@ describe('buildCombinedDiagram — A2 재보정(scope-critic): 전량 dangling·
     const diagrams = buildCombinedDiagram(feGraph, beGraph, [matched])
     expect(diagrams.rendering).not.toContain('apiClient')
     expect(diagrams.rendering).not.toContain('-.->')
-    expect(diagrams.rendering).toMatch(/매칭된 FE↔BE 라우트가 없습니다/)
+    // v1.2.69 명세 변경: 매칭된 호출은 Sequence 탭에 그려지므로 "매칭 없음"이 아니라 Sequence 탭 안내.
+    expect(diagrams.rendering).toMatch(/매칭된 FE↔BE 호출 1건은 FE 라우트에 연결되지 않아/)
+    expect(diagrams.rendering).not.toMatch(/매칭된 FE↔BE 라우트가 없습니다/)
   })
 
   it('부분매칭(정상 1건 + orphan 1건) — orphan 쪽 BE 라우트가 연결선 없이 새어나가지 않는다', () => {
@@ -478,6 +480,31 @@ describe('buildCombinedDiagram — sequence 필드 (Wave B T4)', () => {
     expect(diagrams.sequence).toBeDefined()
     expect(diagrams.sequence?.split('\n')[1]).toBe('sequenceDiagram')
     expect(diagrams.sequence).toContain('MatchedController')
+  })
+
+  // v1.2.69: 시퀀스는 FE 컴포넌트에서 출발하므로 FE 부모 라우트(Tab1 결합 그래프의 시각적 출발점)가
+  // 없어도 그릴 수 있다. drawableEdges만 넘기던 탓에 실 페어(fa-web→api)에서 matched 65건 중 57건만
+  // 시퀀스에 나왔다(NotificationBell 등 레이아웃 컴포넌트의 호출이 통째로 빠짐).
+  it('FE 부모 라우트가 없는 matched 호출도 시퀀스에는 그린다', () => {
+    const orphanComp = createComponentNode({
+      id: makeNodeId('component', 'components/NotificationBell.tsx', 'NotificationBell'),
+      name: 'NotificationBell', filePath: 'components/NotificationBell.tsx',
+      runtime: 'client', provenance: PROV, confidence: 'verified',
+    })
+    const feGraph: IRGraph = createIRGraph({
+      analyzerVersion: 'test', repoRoot: '/fe', projectName: 'fe',
+      nodes: [orphanComp], edges: [],
+    })
+    const beRoute = makeBeRoute('/api/notifications')
+    const beGraph: IRGraph = createIRGraph({
+      analyzerVersion: 'test', repoRoot: '/be', projectName: 'be', metadata: BE_META,
+      nodes: [beRoute], edges: [],
+    })
+    const diagrams = buildCombinedDiagram(feGraph, beGraph, [makeCrossEdge(orphanComp.id, beRoute.id)])
+    expect(diagrams.sequence).toBeDefined()
+    expect(diagrams.sequence).toContain('NotificationBell')
+    // Tab1 결합 그래프의 orphan 제외 규칙은 그대로다.
+    expect(diagrams.rendering).not.toContain('NotificationBell')
   })
 
   it('drawableEdges가 0건(매칭 없음)이면 sequence는 undefined다', () => {

@@ -1,5 +1,41 @@
 # Changelog
 
+## [1.2.69] — 2026-10-06
+
+### Changed — viewer 화면 맞춤 가독 하한 통일 (UX-1·2·3)
+
+- `readableFit = max(min(fit, 1), 0.65)`를 단일·줄 단위 모드가 공유한다. 하한에 걸리면 좌상단 정렬 + 팬.
+  대형 ERD가 fit 0.073으로 판독 불가하던 결함(UX-2) 해소. **v1.2.1 T-FIX-3의 줄 단위 fitS=1.0 고정을 뒤집는다** —
+  고정 이유(975라우트에서 폭 맞춤이 판독 불가)는 하한이 막는다. Tab1 개요는 하한에 걸리면 한 화면에 다 들어오지 않는다.
+- 범례 접기 토글(`aria-expanded`, i18n 4로케일) + 줄 단위 모드 상단 여백을 범례·청크 칩 아래로(UX-1).
+- 줌은 화면 중앙 콘텐츠 지점 고정, 줌·팬 전이면 ResizeObserver로 패널 크기 변경 시 재fit(크기 키 = offset 크기).
+
+### Changed — Sequence endpoint당 체인 1회 (A1)
+
+- crossEdge를 `edge.to`(BE route)로 묶어 FE 호출 화살표는 전부, route→Controller→DI 체인은 endpoint당 1회. 그룹 단위 청크 예산.
+- 시퀀스 입력을 `drawableEdges` → `matchedEdges`로 — 부모 라우트 없는 FE 호출 누락(실측 57→65) 해소.
+  Tab1에 그릴 수 없는 매칭만 있을 때 "매칭 없음" 대신 Sequence 탭 안내.
+
+### Changed — ERD 고아 Repository 프록시 제거 (A2)
+
+- queries 엣지 없는 BE Repository 박스를 ERD에서 제거(viewer·MD 내보내기에는 원래 미노출). **CLI `db-screen.md`에서도 사라진다.**
+  BE-DIAGRAM-STANDARD §4 amendment.
+
+### Fixed — 파서 결함 일괄
+
+- **Angular**: NgModule `loadChildren(m => m.XModule)`의 `forChild` 해석(부모 prefix 소실)·이중 등록·후행 슬래시·
+  같은 path(outlet) 덮어쓰기로 인한 컴포넌트 소실·**동일 NodeId 2개**·redirectTo 페이지화·`[...ROUTES]` spread·
+  `export default` 미해석. 라우트 NodeId에 outlet 접미사가 붙고 provenance가 라우트 객체 선언 위치로 바뀐다(캐시 재분석).
+- **Tab2**: `pathToDisplayRoute`가 같은 path의 정적 라우트까지 합치던 결함 — LLM 라우트만 흡수.
+- **TypeORM**: `@JoinColumn({ name })`·`referencedColumnName`·대상 PK DB 이름 반영, `@OneToOne` 비소유측 가짜 FK 제거.
+- **Flyway**: 버전 순 처리, `ALTER TABLE` ADD/DROP/RENAME/TYPE/NOT NULL/MySQL MODIFY·CHANGE/FK, CREATE 인라인·테이블 레벨 FK,
+  인용 구간(`'…;…'`·`$$`) 인식 문장 분리.
+- `ANALYZER_VERSION` → `codebase-viz@1.2.69`.
+
+### Docs
+
+- `demo-tab-switch.gif`·`demo-db-toggle.gif`·`screenshot-sidebar.png` 재촬영(구 브랜드·피드백 버튼·fit 정책 반영). README "DB–Screen" → "Data Flow".
+
 ## [1.2.68] — 2026-09-30
 
 ### Added — Wave M T10/T13: 사이드바 피드백 버튼

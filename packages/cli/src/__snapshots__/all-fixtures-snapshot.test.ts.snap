@@ -7,7 +7,7 @@ exports[`Phase XI — fixture baseline snapshots (P1) > mini-angular-app > IRGra
     "renders:component:src/app/home.component.ts:HomeComponent:component:src/app/users.component.ts:UsersComponent",
     "renders:route:src/app/about.component.ts:/about:component:src/app/about.component.ts:AboutComponent",
     "renders:route:src/app/home.component.ts:/:component:src/app/home.component.ts:HomeComponent",
-    "renders:route:src/app/user-detail/user-detail.component.ts:/:component:src/app/user-detail/user-detail.component.ts:UserDetailComponent",
+    "renders:route:src/app/user-detail/user-detail.component.ts:/users/:id:component:src/app/user-detail/user-detail.component.ts:UserDetailComponent",
     "renders:route:src/app/users.component.ts:/users:component:src/app/users.component.ts:UsersComponent",
   ],
   "edgesByKind": {
@@ -21,14 +21,13 @@ exports[`Phase XI — fixture baseline snapshots (P1) > mini-angular-app > IRGra
     "component:src/app/user-detail/user-detail.component.ts:UserDetailComponent",
     "component:src/app/users.component.ts:UsersComponent",
     "route:src/app/about.component.ts:/about",
-    "route:src/app/app.routes.ts:/users/:id",
     "route:src/app/home.component.ts:/",
-    "route:src/app/user-detail/user-detail.component.ts:/",
+    "route:src/app/user-detail/user-detail.component.ts:/users/:id",
     "route:src/app/users.component.ts:/users",
   ],
   "nodesByKind": {
     "component": 5,
-    "route": 5,
+    "route": 4,
   },
 }
 `;
@@ -50,7 +49,7 @@ graph LR
   subgraph BROWSER["🌐 Browser · Client-Side App"]
     subgraph ROUTER["🧭 Angular Router · SPA"]
       subgraph ANGULAR["🅰 Angular · CSR Engine"]
-        T1_root["📁 / · 2 routes"]:::pkg
+        T1_root["📁 / · 1 route"]:::pkg
         T1_about["📁 /about · 1 route"]:::pkg
         T1_users["📁 /users · 2 routes"]:::pkg
         T1_root ~~~ T1_about ~~~ T1_users
@@ -81,9 +80,7 @@ graph LR
   subgraph USERS_T["📄 /users"]
     route_src_app_users_component_ts__users["users · CSR<br/>🔗 /users"]:::csr
     route_src_app_users_component_ts__users --> file_component_src_app_users_component_ts_UsersComponent
-    subgraph USERS__ID_T["📄 /:id"]
-      route_src_app_app_routes_ts__users__id[":id · CSR<br/>🔗 /users/:id"]:::csr
-    end
+    leaf_route_src_app_user_detail_user_detail_component_ts__users__id[":id · CSR<br/>🔗 /users/:id<br/>📂 src/app/user-detail<br/>📄 user-detail.component.ts"]:::csr
   end
   leaf_route_src_app_about_component_ts__about ~~~ USERS_T
   file_component_src_app_home_component_ts_HomeComponent --> file_component_src_app_users_component_ts_UsersComponent"
@@ -2051,15 +2048,6 @@ erDiagram
     Long id PK
     Integer amount
     String status
-  }
-  AdminRepository {
-    string name
-  }
-  DecoSheetRepository {
-    string name
-  }
-  OrderRepository {
-    string name
   }"
 `;
 
@@ -3562,69 +3550,6 @@ erDiagram
   }
   vendor {
     Long id PK
-  }
-  MainRepository {
-    string name
-  }
-  BillingRepository {
-    string name
-  }
-  CampaignRepository {
-    string name
-  }
-  ContractRepository {
-    string name
-  }
-  DashboardRepository {
-    string name
-  }
-  DecosheetRepository {
-    string name
-  }
-  InvRepository {
-    string name
-  }
-  InventoryRepository {
-    string name
-  }
-  InvoiceRepository {
-    string name
-  }
-  LoyaltyRepository {
-    string name
-  }
-  MatRepository {
-    string name
-  }
-  MemberRepository {
-    string name
-  }
-  OrderRepository {
-    string name
-  }
-  PricingRepository {
-    string name
-  }
-  ProcurementRepository {
-    string name
-  }
-  QualityRepository {
-    string name
-  }
-  ReportRepository {
-    string name
-  }
-  SettingsRepository {
-    string name
-  }
-  ShipmentRepository {
-    string name
-  }
-  StockRepository {
-    string name
-  }
-  VendorRepository {
-    string name
   }"
 `;
 

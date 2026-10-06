@@ -216,10 +216,14 @@ describe('Tab3 ERD 딥링크 — nodemap 마커로 선언 id → IR id 명시 (v
     expect(set.dbScreen).not.toContain(NODEMAP_MARKER_PREFIX)
   })
 
-  it('BE: queries 엣지 없이 편입된 Repository 박스도 해석된다', () => {
-    const set = buildDiagrams(graph(BE_META, [repo, table], []))
+  // v1.2.69 A2: queries 엣지 없는 Repository는 더 이상 Tab3 박스로 편입하지 않는다(명세 변경 — 고아 박스).
+  it('BE: queries 엣지 있는 Repository 박스는 해석되고, 없는 Repository는 Tab3에 그리지 않는다', () => {
+    const q = createEdge({ id: makeEdgeId('queries', repo.id, table.id), from: repo.id, to: table.id, kind: 'queries', provenance: PROV, confidence: 'verified' })
+    const set = buildDiagrams(graph(BE_META, [repo, table], [q]))
     expect(set.nodeMap?.['users']).toMatchObject({ f: 'supabase/migrations/001_init.sql' })
     expect(set.nodeMap?.['UserRepository']).toMatchObject({ f: 'src/main/java/UserRepository.java', l: 8 })
+    const orphan = buildDiagrams(graph(BE_META, [repo, table], []))
+    expect(orphan.dbScreen).not.toContain('UserRepository')
   })
 
   // 실기검증(mini-nest-app)에서 발견: 라우트 `/users`의 프록시 라벨 `users`가 테이블 선언 `users`와 같다.

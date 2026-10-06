@@ -1,5 +1,24 @@
 # Changelog
 
+## [1.2.69] — 2026-10-06
+
+### Changed
+
+- **Diagrams open at a readable size.** "Fit to view" no longer shrinks a diagram below 65% — on large schemas it used to zoom out to ~7%, where no text could be read. When the diagram is bigger than the panel, it opens at the top-left and you pan to see the rest. **The Rendering tab overview may therefore no longer fit on one screen.** Multi-row diagrams now follow the same rule, so "reset" behaves the same on every tab.
+- **The legend can be collapsed**, and in multi-row view the first row starts below the legend instead of hiding behind it.
+- Zooming keeps the point at the centre of the panel in place, and resizing the panel (e.g. hiding the sidebar) re-fits the diagram as long as you haven't zoomed or panned yet.
+- **Sequence tab: one backend chain per endpoint.** When several screens call the same endpoint, every call arrow now points at that one endpoint and the controller → service → repository chain is drawn once, instead of once per caller.
+- The Data Flow tab no longer draws a Repository box when it isn't connected to any table. This box was already hidden in the viewer and Markdown export; it also disappears from the CLI's `db-screen.md`.
+
+### Fixed
+
+- **Angular routes**: lazy modules loaded with `loadChildren: () => import(...).then(m => m.AdminModule)` lost their parent path (`/admin/settings` showed up as `/settings`) and were registered twice. Also fixed: trailing slashes (`/admin/`), duplicate node IDs for routes sharing a path (secondary outlets), redirect-only entries shown as pages, and routes pulled in through `[...ROUTES]` spreads or `export default` arrays being missed.
+- **Sequence tab** now shows every matched frontend→backend call — calls from components without a parent route were dropped (57 → 65 calls on a real project). When such calls can't be placed on the Rendering tab, it now says "see the Sequence tab" instead of "no matches".
+- **Screen–Component tab**: two different routes with the same path (e.g. Angular outlets) were merged into one, hiding one of them.
+- **TypeORM**: foreign keys use the column name from `@JoinColumn({ name })`, point at the target's real primary-key column (or `referencedColumnName`), and the non-owning side of a `@OneToOne` no longer gets a fake foreign key.
+- **Flyway**: migrations are applied in version order (V10 after V2), and `ALTER TABLE` is now applied — add/drop/rename column, type and NOT NULL changes, MySQL `MODIFY`/`CHANGE`, and foreign keys. Foreign keys declared in `CREATE TABLE` now draw relation lines. Semicolons inside `COMMENT '...'` strings no longer cut a table short.
+- Upgrading re-runs the analysis automatically — Angular route IDs and schema output changed, so older caches are discarded.
+
 ## [1.2.68] — 2026-09-30
 
 ### Added

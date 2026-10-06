@@ -195,6 +195,62 @@ describe('buildSequenceDiagram — FE→BE→Controller→Service→Repository�
     expect(occurrences.length).toBe(1)
   })
 
+  // v1.2.69 A1: endpoint는 하나로 두고 호출부마다 그 endpoint로 연결한다 — DI 체인을 호출자 수만큼
+  // 반복하지 않는다(실측: 호출자 2명이면 메시지 22→44로 체인이 통째로 복제됐다).
+  it('같은 endpoint를 여러 FE 호출부가 부르면 호출 화살표는 전부, DI 체인은 endpoint당 1회만 그린다', () => {
+    const otherFeCompId = makeNodeId('component', 'src/widgets/OtherWidget.tsx', 'OtherWidget')
+    const otherFeComp = createComponentNode({
+      id: otherFeCompId, name: 'OtherWidget', filePath: 'src/widgets/OtherWidget.tsx',
+      runtime: 'client', provenance: PROV, ...verified(),
+    })
+    const feGraph2: IRGraph = createIRGraph({
+      analyzerVersion: 'test', repoRoot: '/fe', projectName: 'fe-app',
+      nodes: [feComp, otherFeComp], edges: [],
+    })
+    const otherCrossEdge: IREdge = createEdge({
+      id: makeEdgeId('fe-be-call', otherFeCompId, beRouteId), from: otherFeCompId, to: beRouteId,
+      kind: 'fe-be-call', provenance: PROV, ...verified(),
+    })
+    const out = buildSequenceDiagram(feGraph2, beGraph, [crossEdge, otherCrossEdge])
+    const msgs = out.split('\n').map(l => l.trim()).filter(l => /->>|-->>/.test(l))
+    const routeSid = sanitizeId(beRouteId)
+    const ctrlSid = sanitizeId(ctrlId)
+    const svcSid = sanitizeId(svcId)
+    expect(msgs.filter(l => l.startsWith(`${sanitizeId(feCompId)}->>${routeSid}:`))).toHaveLength(1)
+    expect(msgs.filter(l => l.startsWith(`${sanitizeId(otherFeCompId)}->>${routeSid}:`))).toHaveLength(1)
+    expect(msgs.filter(l => l.startsWith(`${routeSid}->>${ctrlSid}:`))).toHaveLength(1)
+    expect(msgs.filter(l => l.startsWith(`${ctrlSid}->>${svcSid}:`))).toHaveLength(1)
+    // 호출 화살표 2개 + 체인 4개(route→ctrl→svc→repo→table)
+    expect(msgs).toHaveLength(6)
+    // 호출부 화살표가 체인보다 먼저 온다 — 두 호출이 같은 endpoint로 모인 뒤 한 번 내려간다.
+    const lastCall = msgs.findIndex(l => l.startsWith(`${sanitizeId(otherFeCompId)}->>`))
+    const firstChain = msgs.findIndex(l => l.startsWith(`${routeSid}->>`))
+    expect(lastCall).toBeLessThan(firstChain)
+  })
+
+  it('endpoint가 다르면 각자 체인을 그린다 — 같은 컨트롤러여도 endpoint 단위로 묶는다', () => {
+    const otherRouteId = makeNodeId('route', 'src/main/java/UserController.java', '/api/users/{id}')
+    const otherRoute = createRouteNode({
+      id: otherRouteId, path: '/api/users/{id}', filePath: 'src/main/java/UserController.java',
+      routeFileKind: 'page', dynamicSegmentType: 'dynamic', isGroupRoute: false,
+      renderingMode: 'SSR', provenance: PROV, ...verified(),
+    })
+    const otherHandles = createEdge({
+      id: makeEdgeId('handles', otherRouteId, ctrlId), from: otherRouteId, to: ctrlId,
+      kind: 'handles', provenance: PROV, ...verified(),
+    })
+    const beGraph2: IRGraph = { ...beGraph, nodes: [...beGraph.nodes, otherRoute], edges: [...beGraph.edges, otherHandles] }
+    const otherCross: IREdge = createEdge({
+      id: makeEdgeId('fe-be-call', feCompId, otherRouteId), from: feCompId, to: otherRouteId,
+      kind: 'fe-be-call', provenance: PROV, ...verified(),
+    })
+    const out = buildSequenceDiagram(feGraph, beGraph2, [crossEdge, otherCross])
+    const ctrlSid = sanitizeId(ctrlId)
+    const svcSid = sanitizeId(svcId)
+    const chainHeads = out.split('\n').map(l => l.trim()).filter(l => l.startsWith(`${ctrlSid}->>${svcSid}:`))
+    expect(chainHeads).toHaveLength(2)
+  })
+
   it('순환 calls 그래프에서도 무한루프 없이 종료한다', () => {
     const cyclicEdge = createEdge({
       id: makeEdgeId('calls', repoId, ctrlId), from: repoId, to: ctrlId,

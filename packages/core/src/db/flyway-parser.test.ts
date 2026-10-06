@@ -136,3 +136,109 @@ describe('mergeFlywayTables', () => {
     expect(merged).toEqual([])
   })
 })
+
+// v1.2.69: 마이그레이션 누적 결과가 ERD에 반영되지 않던 결함 — ALTER TABLE 무시(TODO)·FK 제약 전량 무시·
+// 파일을 readdir 순서로 처리(버전 순 아님).
+describe('parseFlywayMigrations — ALTER TABLE·FK·버전 순서 (v1.2.69)', () => {
+  let tempDir = ''
+  afterEach(() => { if (tempDir) { fs.rmSync(tempDir, { recursive: true, force: true }); tempDir = '' } })
+
+  const setup = (files: Record<string, string>): string => {
+    tempDir = makeTempDir()
+    const migDir = path.join(tempDir, 'src/main/resources/db/migration')
+    mkdirp(migDir)
+    for (const [name, sql] of Object.entries(files)) fs.writeFileSync(path.join(migDir, name), sql)
+    return tempDir
+  }
+  const cols = async (dir: string, table: string) =>
+    (await parseFlywayMigrations(dir, 't')).find(t => t.name === table)?.columns ?? []
+
+  it('ALTER TABLE ADD/DROP/RENAME COLUMN이 버전 순서대로 누적된다(V10이 V2보다 뒤)', async () => {
+    const dir = setup({
+      'V10__rename.sql': 'ALTER TABLE users RENAME COLUMN nick TO nickname;',
+      'V1__init.sql': 'CREATE TABLE users (id BIGINT PRIMARY KEY, email VARCHAR(255) NOT NULL, legacy INT);',
+      'V2__alter.sql': `ALTER TABLE users ADD COLUMN nick VARCHAR(50);
+ALTER TABLE users ADD age INT NOT NULL;
+ALTER TABLE users DROP COLUMN legacy;`,
+    })
+    const c = await cols(dir, 'users')
+    expect(c.map(x => x.name)).toEqual(['id', 'email', 'nickname', 'age'])
+    expect(c.find(x => x.name === 'age')).toMatchObject({ type: 'int', nullable: false })
+  })
+
+  it('CREATE TABLE의 인라인 REFERENCES와 테이블 레벨 FOREIGN KEY를 references로 싣는다', async () => {
+    const dir = setup({
+      'V1__init.sql': `CREATE TABLE users (id BIGINT PRIMARY KEY);
+CREATE TABLE orders (
+  id BIGINT PRIMARY KEY,
+  user_id BIGINT NOT NULL REFERENCES users(id),
+  coupon_code VARCHAR(20),
+  CONSTRAINT fk_coupon FOREIGN KEY (coupon_code) REFERENCES coupons (code)
+);`,
+    })
+    const c = await cols(dir, 'orders')
+    expect(c.find(x => x.name === 'user_id')?.references).toEqual({ table: 'users', column: 'id' })
+    expect(c.find(x => x.name === 'coupon_code')?.references).toEqual({ table: 'coupons', column: 'code' })
+  })
+
+  it('ALTER TABLE ADD [CONSTRAINT x] FOREIGN KEY도 references로 싣는다', async () => {
+    const dir = setup({
+      'V1__init.sql': 'CREATE TABLE users (id BIGINT PRIMARY KEY); CREATE TABLE posts (id BIGINT PRIMARY KEY, author_id BIGINT);',
+      'V2__fk.sql': 'ALTER TABLE posts ADD CONSTRAINT fk_author FOREIGN KEY (author_id) REFERENCES users(id);',
+    })
+    expect((await cols(dir, 'posts')).find(x => x.name === 'author_id')?.references).toEqual({ table: 'users', column: 'id' })
+  })
+
+  it('인덱스·UNIQUE 같은 컬럼 무관 ALTER는 무시하고 기존 컬럼을 건드리지 않는다', async () => {
+    const dir = setup({
+      'V1__init.sql': 'CREATE TABLE users (id BIGINT PRIMARY KEY, email VARCHAR(255));',
+      'V2__misc.sql': 'ALTER TABLE users ADD CONSTRAINT uq_email UNIQUE (email); ALTER TABLE users DROP CONSTRAINT uq_email;',
+    })
+    expect((await cols(dir, 'users')).map(x => x.name)).toEqual(['id', 'email'])
+  })
+
+  // scope-critic(v1.2.69): ERD는 컬럼 이름·타입을 그린다 — 타입·이름을 바꾸는 ALTER도 같은 결함 계열.
+  it('타입·이름 변경(Postgres ALTER COLUMN TYPE·SET/DROP NOT NULL, MySQL MODIFY·CHANGE)도 반영한다', async () => {
+    const dir = setup({
+      'V1__init.sql': 'CREATE TABLE users (id BIGINT PRIMARY KEY, email VARCHAR(255), nick VARCHAR(20) NOT NULL, age SMALLINT);',
+      'V2__types.sql': `ALTER TABLE users ALTER COLUMN email TYPE TEXT;
+ALTER TABLE users ALTER COLUMN email SET NOT NULL;
+ALTER TABLE users ALTER COLUMN nick DROP NOT NULL;
+ALTER TABLE users MODIFY COLUMN age INT NOT NULL;
+ALTER TABLE users CHANGE COLUMN nick nickname VARCHAR(50);`,
+    })
+    const c = await cols(dir, 'users')
+    expect(c.map(x => x.name)).toEqual(['id', 'email', 'nickname', 'age'])
+    expect(c.find(x => x.name === 'email')).toMatchObject({ type: 'text', nullable: false })
+    expect(c.find(x => x.name === 'nickname')).toMatchObject({ type: 'varchar', nullable: true })
+    expect(c.find(x => x.name === 'age')).toMatchObject({ type: 'int', nullable: false })
+  })
+
+  // advisor(v1.2.69): 문장 분리를 바꾸면서 원래 맞던 입력이 틀려지면 안 된다 — 문자열 리터럴 안 `;`·`--`와
+  // Postgres `$$` 함수 본문은 문장 경계가 아니다.
+  it("문자열·$$ 본문 안의 ';'·'--'는 문장을 자르지 않는다", async () => {
+    const dir = setup({
+      'V1__init.sql': `CREATE TABLE orders (
+  id BIGINT PRIMARY KEY,
+  status VARCHAR(10) COMMENT '상태; 0=대기 -- 1=완료',
+  memo VARCHAR(20) DEFAULT ';',
+  amount INT
+);
+CREATE FUNCTION touch() RETURNS trigger AS $$ BEGIN NEW.amount := 0; RETURN NEW; END; $$ LANGUAGE plpgsql;
+ALTER TABLE orders ADD COLUMN note TEXT;`,
+    })
+    expect((await cols(dir, 'orders')).map(x => x.name)).toEqual(['id', 'status', 'memo', 'amount', 'note'])
+  })
+
+  // security-auditor(v1.2.69 ship 전): 식별자 안의 `$`(`acc$tbl$x`)는 달러 인용이 아니다 — 인용으로 오인하면
+  // 다음 `$tbl$`까지(없으면 파일 끝까지) 한 문장으로 먹어 뒤 CREATE·ALTER가 조용히 사라진다.
+  it('식별자 중간의 $는 달러 인용 시작으로 보지 않는다', async () => {
+    const dir = setup({
+      'V1__init.sql': `CREATE TABLE acc$tbl$x (id BIGINT PRIMARY KEY);
+CREATE TABLE users (id BIGINT PRIMARY KEY, name TEXT);
+ALTER TABLE users ADD COLUMN email TEXT;`,
+    })
+    expect((await cols(dir, 'users')).map(x => x.name)).toEqual(['id', 'name', 'email'])
+  })
+})
+

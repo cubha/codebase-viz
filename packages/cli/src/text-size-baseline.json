@@ -20,7 +20,7 @@
     },
     "mini-nest-app": {
       "rendering": 1217,
-      "screenComponent": 1273,
+      "screenComponent": 1475,
       "dbScreen": 994,
       "exceeded": false
     },
@@ -32,19 +32,19 @@
     },
     "mini-fastapi-app": {
       "rendering": 1375,
-      "screenComponent": 1764,
+      "screenComponent": 1848,
       "dbScreen": 649,
       "exceeded": false
     },
     "mini-spring-app": {
       "rendering": 1312,
-      "screenComponent": 2151,
+      "screenComponent": 2427,
       "dbScreen": 881,
       "exceeded": false
     },
     "mini-flask-app": {
       "rendering": 1246,
-      "screenComponent": 1750,
+      "screenComponent": 1832,
       "dbScreen": 434,
       "exceeded": false
     },
@@ -55,8 +55,8 @@
       "exceeded": false
     },
     "mini-angular-app": {
-      "rendering": 1339,
-      "screenComponent": 2063,
+      "rendering": 1338,
+      "screenComponent": 2104,
       "dbScreen": 434,
       "exceeded": false
     },
