@@ -315,7 +315,9 @@ describe('buildCombinedDiagram — A2 재보정(scope-critic): 전량 dangling·
     const diagrams = buildCombinedDiagram(feGraph, beGraph, [matched])
     expect(diagrams.rendering).not.toContain('apiClient')
     expect(diagrams.rendering).not.toContain('-.->')
-    expect(diagrams.rendering).toMatch(/매칭된 FE↔BE 라우트가 없습니다/)
+    // v1.2.69 명세 변경: 매칭된 호출은 Sequence 탭에 그려지므로 "매칭 없음"이 아니라 Sequence 탭 안내.
+    expect(diagrams.rendering).toMatch(/매칭된 FE↔BE 호출 1건은 FE 라우트에 연결되지 않아/)
+    expect(diagrams.rendering).not.toMatch(/매칭된 FE↔BE 라우트가 없습니다/)
   })
 
   it('부분매칭(정상 1건 + orphan 1건) — orphan 쪽 BE 라우트가 연결선 없이 새어나가지 않는다', () => {

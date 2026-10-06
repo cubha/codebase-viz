@@ -158,7 +158,7 @@ export interface DiagramSet {
   // renderMermaid(.md CLI 출력)는 이 필드를 emit하지 않는다 — DiagramSet은 webview 경로 전용 산출물.
   nodeMap?: NodeMap
   // Wave B T4: 페어 분석(FE+BE) 전용 sequenceDiagram. buildDiagrams(단일모드)는 항상 undefined —
-  // CLI(.md) 미노출. buildCombinedDiagram에서도 drawableEdges(matched fe-be-call)가 0건이면
+  // CLI(.md) 미노출. buildCombinedDiagram에서도 matchedEdges(matched fe-be-call)가 0건이면
   // undefined — 빈 다이어그램 대신 필드 자체를 비운다(Less is More). isDiagramCache 필수 shape에는
   // 넣지 않는다(구버전 캐시 전량 무효화 방지 — nodeMap·tab3Kind와 동일한 선례).
   sequence?: string
@@ -306,7 +306,11 @@ export function buildCombinedDiagram(
   // 매칭된 crossEdges가 있었는데도 실제로 그려진 연결이 0건이면(전량 dangling이거나 전량
   // 부모 라우트 미해석) 빈 껍데기 대신 안내를 남긴다 — beGraph=0 폴백과 같은 원칙(조용한
   // 강등 금지)을 matched=0 케이스에도 적용(scope-critic 지적).
-  if (drawableEdges.length === 0 && crossEdges.length > 0) {
+  // 매칭은 됐는데 FE 부모 라우트를 못 찾은 호출만 있으면 그 호출은 Sequence 탭에 그려진다(v1.2.69) —
+  // "매칭 없음"이라고 하면 Sequence 탭과 모순되므로 안내를 갈라 적는다.
+  if (drawableEdges.length === 0 && matchedEdges.length > 0) {
+    lines.push(`  NO_MATCH["⚠ 매칭된 FE↔BE 호출 ${matchedEdges.length}건은 FE 라우트에 연결되지 않아 이 탭에 그릴 수 없습니다 — Sequence 탭에서 확인하세요"]:::muted`)
+  } else if (drawableEdges.length === 0 && crossEdges.length > 0) {
     const danglingCount = crossEdges.filter(e => e.kind === 'fe-be-call').length
     lines.push(`  NO_MATCH["⚠ 매칭된 FE↔BE 라우트가 없습니다(crossEdges ${danglingCount}건 중 표시 가능 0건) — 각 프로젝트 단독 탭을 확인하세요"]:::muted`)
   }
