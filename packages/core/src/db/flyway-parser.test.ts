@@ -229,5 +229,16 @@ ALTER TABLE orders ADD COLUMN note TEXT;`,
     })
     expect((await cols(dir, 'orders')).map(x => x.name)).toEqual(['id', 'status', 'memo', 'amount', 'note'])
   })
+
+  // security-auditor(v1.2.69 ship 전): 식별자 안의 `$`(`acc$tbl$x`)는 달러 인용이 아니다 — 인용으로 오인하면
+  // 다음 `$tbl$`까지(없으면 파일 끝까지) 한 문장으로 먹어 뒤 CREATE·ALTER가 조용히 사라진다.
+  it('식별자 중간의 $는 달러 인용 시작으로 보지 않는다', async () => {
+    const dir = setup({
+      'V1__init.sql': `CREATE TABLE acc$tbl$x (id BIGINT PRIMARY KEY);
+CREATE TABLE users (id BIGINT PRIMARY KEY, name TEXT);
+ALTER TABLE users ADD COLUMN email TEXT;`,
+    })
+    expect((await cols(dir, 'users')).map(x => x.name)).toEqual(['id', 'name', 'email'])
+  })
 })
 
