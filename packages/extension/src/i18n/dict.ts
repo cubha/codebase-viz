@@ -14,6 +14,7 @@ type Dict = Record<string, string>
 
 const KO: Dict = {
   // viewer.html — legend (rendering modes)
+  'legend.title': '범례',
   'legend.ssr': 'SSR · 서버 렌더링',
   'legend.csr': 'CSR · 클라이언트 렌더링',
   'legend.isr': 'ISR · 증분 재생성',
@@ -114,6 +115,7 @@ const KO: Dict = {
 }
 
 const EN: Dict = {
+  'legend.title': 'Legend',
   'legend.ssr': 'SSR · Server Rendering',
   'legend.csr': 'CSR · Client Rendering',
   'legend.isr': 'ISR · Incremental Regen',
@@ -202,6 +204,7 @@ const EN: Dict = {
 }
 
 const JA: Dict = {
+  'legend.title': '凡例',
   'legend.ssr': 'SSR · サーバーレンダリング',
   'legend.csr': 'CSR · クライアントレンダリング',
   'legend.isr': 'ISR · 増分再生成',
@@ -290,6 +293,7 @@ const JA: Dict = {
 }
 
 const ZH_CN: Dict = {
+  'legend.title': '图例',
   'legend.ssr': 'SSR · 服务器渲染',
   'legend.csr': 'CSR · 客户端渲染',
   'legend.isr': 'ISR · 增量再生',
