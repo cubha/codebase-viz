@@ -305,7 +305,10 @@ function makeBeComponent(
 }
 
 describe('BE 렌더러 — Tab3 (BE-E)', () => {
-  it('adapterCategory=BE 시 queries 엣지 없는 Repository도 Tab3에 표시', async () => {
+  // v1.2.69 A2: 명세 변경 — queries 엣지 없는 Repository는 어느 테이블과도 잇지 못하는 고아 박스였다.
+  // viewer(parseDbData)는 `string name`뿐인 프록시를 버려 화면·MD export에 나오지 않았고 CLI
+  // db-screen.md에만 연결선 없는 박스로 남았다 — 보이지 않거나, 보이면 노이즈(Less is More).
+  it('adapterCategory=BE여도 queries 엣지 없는 Repository는 Tab3에 넣지 않는다', async () => {
     const repo = makeBeComponent('UserRepository', 'repository/UserRepository.java')
     const table = createTableNode({
       id: makeNodeId('table', 'schema.sql', 'users'),
@@ -325,7 +328,7 @@ describe('BE 렌더러 — Tab3 (BE-E)', () => {
 
     await renderMermaid(graph, OUTPUT_DIR)
     const content = await fs.readFile(path.join(OUTPUT_DIR, 'db-screen.md'), 'utf8')
-    expect(content).toContain('UserRepository')
+    expect(content).not.toContain('UserRepository')
     expect(content).toContain('users')
   })
 
