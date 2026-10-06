@@ -46,6 +46,18 @@
 
 라우팅: 전량 [S] — ST4/5/6/7/3이 같은 `all-fixtures` 스냅샷·`ANALYZER_VERSION`을 공유해 독립 아님.
 
+### Phase 3 FIX로 추가된 범위 (scope-critic 판정 반영, 2026-10-06)
+
+| ID | 근거 | 내용 | 파일 |
+|---|---|---|---|
+| F1 | ST2 critic(yes) | 매칭 호출이 있지만 FE 부모 라우트가 없어 Tab1에 못 그리는 경우 "매칭 없음" 대신 "Sequence 탭에서 확인" 안내(Sequence 탭과 모순 제거). DiagramSet.sequence 주석 정정 | `renderer/src/mermaid-renderer.ts` |
+| F2 | ST4 critic(정확성 gap) | 같은 "라우트 소실" 계열: `provideRouter([...X_ROUTES, …])` spread 펼침 · `loadChildren: () => import('./x')`(then 없음)·`.then(m => m.default)` 기본 export 해석 | `core/.../angular/parsers/route-parser.ts` |
+| F3 | ST7 critic(yes) | ERD가 그리는 컬럼 이름·타입·NULL을 바꾸는 ALTER도 반영: Postgres `ALTER COLUMN c [SET DATA] TYPE t`·`SET/DROP NOT NULL`, MySQL `MODIFY [COLUMN]`·`CHANGE [COLUMN] old new` | `core/src/db/flyway-parser.ts` |
+
+ST4 상세(기준선 보강 — 같은 "틀린 라우트 출력" 결함 계열로 함께 처리): ⑥ 컴포넌트 없는 컨테이너(children/loadChildren)는
+자식에 기본 outlet `path:''`가 있으면 따로 내지 않음(같은 URL 이중 등록 — ② 계열) ⑦ `redirectTo` 전용 항목은 페이지가 아니므로 라우트로 내지 않음.
+ST7 경계 갱신: "그 외 ALTER(타입 변경·인덱스 등)는 무시" → 타입·NULL 변경은 F3로 반영, 인덱스·UNIQUE·CHECK·기본값만 무시.
+
 ## 제외 (결함 아님 — 기능 신설, 이월 아님)
 
 - Expo/expo-router 어댑터 · 듀얼 플랫폼 레인 — 어댑터 신설.
