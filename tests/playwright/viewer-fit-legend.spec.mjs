@@ -96,6 +96,28 @@ test.describe('v1.2.69 — viewer 화면 맞춤 하한·범례', () => {
     expect(svgTop - wrapTop).toBeLessThan(80)
   })
 
+  // GIF 촬영 중 발견: 하한 때문에 상단 정렬 오프셋(x,y)이 생긴 상태에서 −/+ 를 누르면 요소 중심 기준으로만
+  // 배율이 바뀌어 콘텐츠가 화면 밖으로 밀려났다. 줌은 화면 중앙의 콘텐츠 지점을 고정해야 한다.
+  test('UX-2 후속: 하한 정렬 상태에서 줌해도 화면 중앙의 콘텐츠 지점이 고정된다', async ({ page }) => {
+    await open(page, { rendering: 'graph TD\n  A["a"]', screenComponent: '', dbScreen: bigErd(), tab3Kind: 'erd' })
+    await page.waitForSelector('#i-r svg')
+    await page.click('.tab[data-t="d"]')
+    await page.waitForSelector('#i-d svg .node', { timeout: 20000 })
+    await page.waitForTimeout(300)
+    const offset = () => page.evaluate(() => {
+      const w = document.getElementById('w-d').getBoundingClientRect()
+      const r = document.querySelector('#i-d svg').getBoundingClientRect()
+      return { dx: (r.left + r.right) / 2 - (w.left + w.right) / 2, dy: (r.top + r.bottom) / 2 - (w.top + w.bottom) / 2, s: parseFloat(/scale\(([\d.]+)\)/.exec(document.getElementById('i-d').style.transform)[1]) }
+    })
+    const before = await offset()
+    expect(Math.abs(before.dy)).toBeGreaterThan(20) // 하한 정렬로 오프셋이 실제로 있는 조건
+    for (let i = 0; i < 3; i++) await page.click('[data-action="zm"][data-arg-t="d"][data-arg-f="0.833"]')
+    const after = await offset()
+    const ratio = after.s / before.s
+    expect(after.dy).toBeCloseTo(before.dy * ratio, 0)
+    expect(after.dx).toBeCloseTo(before.dx * ratio, 0)
+  })
+
   test('UX-3: 줄 단위 모드도 같은 정책 — 폭 맞춤(하한 0.65)으로 시작하고, 줌 후 ⌂는 그 상태로 돌아간다', async ({ page }) => {
     await open(page, { rendering: wideChunks(3, 14), screenComponent: '', dbScreen: '' })
     await page.waitForFunction(() => document.querySelectorAll('#i-r .row-diagram svg').length === 3, null, { timeout: 20000 })
