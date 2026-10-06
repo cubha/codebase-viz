@@ -113,6 +113,8 @@ Tab1과 동일한 패키지 트리 위에, leaf를 단순 Controller 노드가 �
 
 **변경 없음.** ER 다이어그램(`erDiagram`)은 표준 표 형식이 산업 표준이며, v1.2.2에서 적용된 MySQL Workbench 스타일 테마(헤더 어두운 청회색 + td 밝은 배경) 유지.
 
+**amendment(v1.2.69)**: 쿼리 소스 박스는 `queries` 엣지가 있는 노드만 그린다. 이전에는 BE에서 `queries` 엣지가 없는 Repository/Dao/Mapper도 `string name` 박스로 편입했으나(Tab2 추적 목적), 어느 테이블과도 연결되지 않는 고아 박스였고 viewer(`parseDbData`)는 이를 버려 화면·MD export에 나오지 않았으며 CLI `db-screen.md`에만 연결선 없이 남았다 — 제거.
+
 ## 5. FE 다이어그램과의 관계
 
 본 표준은 **BE 어댑터(`adapterCategory: 'BE'`)에만 적용**. FE 어댑터(`'FE'` / `'Fullstack'`)는 URL 기반 라우트 그룹핑 + Wave 1 nested subgraph 정책을 유지(v1.1.6 T4 그대로).

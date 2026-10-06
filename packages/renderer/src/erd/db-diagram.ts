@@ -4,7 +4,6 @@ import { sanitizeId } from '../helpers/ids.js'
 import { DB_DIAGRAM_INIT } from '../helpers/constants.js'
 import { metadataToInfra } from '../fe/infra.js'
 import { buildFeApiCallDiagram } from '../fe/tab3-api.js'
-import { isBeRepository } from '../be/leaf.js'
 import { nodeMapMarker } from '../helpers/node-map.js'
 
 // - group route `(marketing)` · 동적 route `[slug]` 등 URL≠파일경로 케이스에서 가치 큼
@@ -21,7 +20,7 @@ export function getSourceLabel(node: IRNode): string | undefined {
 // Tab3 렌더 종류 판정. webview(viewer.html)가 dbScreen 텍스트를 erDiagram 파서로 재해석할지
 // 원문 그대로 렌더할지 결정하는 데도 쓰인다(DiagramSet.tab3Kind) — buildDbScreenDiagram의 분기와
 // 어긋나면 webview가 다시 침묵 실패하므로(D0) 판정 로직을 이 함수 하나로 단일화한다.
-//   1. BE 어댑터 → 현행 ER + Repository 합성
+//   1. BE 어댑터 → 현행 ER (+ queries 엣지가 있는 Repository 소스)
 //   2. react-router FE + tables===0 → 신규 FE API 호출 다이어그램 (axios/fetch/react-query) = 'flow'
 //   3. 그 외(Next.js+Supabase·Vite·Nuxt·SvelteKit·Vue SPA 등 FE+tables>0) → 현행 ER 다이어그램 = 'erd'
 export function resolveTab3Kind(graph: IRGraph): 'erd' | 'flow' {
@@ -90,16 +89,6 @@ export function buildDbScreenDiagram(graph: IRGraph): string {
       lines.push(`    ${sanitizeId(col.type)} ${sanitizeId(col.name)}${pkFlag}${fkFlag}`)
     }
     lines.push('  }')
-  }
-
-  // BE-specific: include Repository/Dao/Mapper components even without queries edges.
-  // Ensures Tab3 tracks the same Repository nodes as Tab2 (cross-tab traceability).
-  if (graph.metadata?.adapterCategory === 'BE') {
-    for (const node of graph.nodes) {
-      if (!isComponentNode(node)) continue
-      if (!isBeRepository(node.name)) continue
-      if (!sourcesMap.has(node.id)) sourcesMap.set(node.id, sanitizeId(node.name))
-    }
   }
 
   // Source (route/component/action) proxy entities — 같은 라벨로 합쳐진 소스가 여럿이면 첫 소스(엣지
