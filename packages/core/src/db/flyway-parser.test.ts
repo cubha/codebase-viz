@@ -213,4 +213,21 @@ ALTER TABLE users CHANGE COLUMN nick nickname VARCHAR(50);`,
     expect(c.find(x => x.name === 'nickname')).toMatchObject({ type: 'varchar', nullable: true })
     expect(c.find(x => x.name === 'age')).toMatchObject({ type: 'int', nullable: false })
   })
+
+  // advisor(v1.2.69): 문장 분리를 바꾸면서 원래 맞던 입력이 틀려지면 안 된다 — 문자열 리터럴 안 `;`·`--`와
+  // Postgres `$$` 함수 본문은 문장 경계가 아니다.
+  it("문자열·$$ 본문 안의 ';'·'--'는 문장을 자르지 않는다", async () => {
+    const dir = setup({
+      'V1__init.sql': `CREATE TABLE orders (
+  id BIGINT PRIMARY KEY,
+  status VARCHAR(10) COMMENT '상태; 0=대기 -- 1=완료',
+  memo VARCHAR(20) DEFAULT ';',
+  amount INT
+);
+CREATE FUNCTION touch() RETURNS trigger AS $$ BEGIN NEW.amount := 0; RETURN NEW; END; $$ LANGUAGE plpgsql;
+ALTER TABLE orders ADD COLUMN note TEXT;`,
+    })
+    expect((await cols(dir, 'orders')).map(x => x.name)).toEqual(['id', 'status', 'memo', 'amount', 'note'])
+  })
 })
+
