@@ -126,15 +126,27 @@ export function buildSequenceDiagram(
     }
   }
 
+  // endpoint(BE route) 단위로 묶는다 — 호출부마다 체인을 다시 그리면 같은 DI 체인이 호출자 수만큼
+  // 복제된다. 그룹 순서는 endpoint가 처음 등장한 crossEdge 순서라 결정론적이다.
+  const callsByRoute = new Map<string, IREdge[]>()
   for (const edge of drawableEdges) {
-    const feComp = feById.get(edge.from)
-    const beRoute = beById.get(edge.to)
-    if (feComp === undefined || !isComponentNode(feComp)) continue
+    const list = callsByRoute.get(edge.to) ?? []
+    list.push(edge)
+    callsByRoute.set(edge.to, list)
+  }
+
+  for (const [routeId, routeCalls] of callsByRoute) {
+    const beRoute = beById.get(routeId)
     if (beRoute === undefined || !isRouteNode(beRoute)) continue
 
-    const feSid = declareParticipant(feComp)
     const routeSid = declareParticipant(beRoute)
-    pendingMessages.push(`  ${feSid}${seqArrow(edge)}${routeSid}: ${escapeSequenceLabel(beRoute.path)}`)
+    for (const edge of routeCalls) {
+      const feComp = feById.get(edge.from)
+      if (feComp === undefined || !isComponentNode(feComp)) continue
+      const feSid = declareParticipant(feComp)
+      pendingMessages.push(`  ${feSid}${seqArrow(edge)}${routeSid}: ${escapeSequenceLabel(beRoute.path)}`)
+    }
+    if (pendingMessages.length === 0) { pending = new Map(); continue }
 
     const handlesEdge = handlesByRoute.get(beRoute.id)
     if (handlesEdge === undefined) { commitChain(); continue }

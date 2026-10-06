@@ -270,8 +270,10 @@ export function buildCombinedDiagram(
   const feRoutes = feGraph.nodes.filter(isRouteNode).filter(r => r.routeFileKind === 'page' && matchedFeRouteIds.has(r.id))
   const beRoutes = beGraph.nodes.filter(isRouteNode).filter(r => r.routeFileKind === 'page' && matchedBeRouteIds.has(r.id))
 
-  // T4: 신규 임계 계산 없이 이미 정해진 drawableEdges를 그대로 소비(v1.2.49 freeze 재발 방지).
-  const sequence = drawableEdges.length > 0 ? buildSequenceDiagram(feGraph, beGraph, drawableEdges) : undefined
+  // T4: 신규 매칭·임계 계산 없이 이미 정해진 matched 목록을 그대로 소비(v1.2.49 freeze 재발 방지).
+  // drawableEdges가 아니라 matchedEdges인 이유: FE 부모 라우트는 Tab1 결합 그래프의 시각적 출발점일 뿐이고
+  // 시퀀스는 FE 컴포넌트에서 출발한다 — 부모 라우트 없는 레이아웃 컴포넌트 호출까지 빠뜨리게 된다(v1.2.69).
+  const sequence = matchedEdges.length > 0 ? buildSequenceDiagram(feGraph, beGraph, matchedEdges) : undefined
 
   const lines: string[] = [RENDERING_INIT, 'graph TD', CLASS_DEFS]
 
