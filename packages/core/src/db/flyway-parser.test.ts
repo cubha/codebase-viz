@@ -189,11 +189,28 @@ CREATE TABLE orders (
     expect((await cols(dir, 'posts')).find(x => x.name === 'author_id')?.references).toEqual({ table: 'users', column: 'id' })
   })
 
-  it('지원 밖 ALTER 구문(타입 변경·인덱스)은 무시하고 기존 컬럼을 건드리지 않는다', async () => {
+  it('인덱스·UNIQUE 같은 컬럼 무관 ALTER는 무시하고 기존 컬럼을 건드리지 않는다', async () => {
     const dir = setup({
       'V1__init.sql': 'CREATE TABLE users (id BIGINT PRIMARY KEY, email VARCHAR(255));',
-      'V2__misc.sql': 'ALTER TABLE users ALTER COLUMN email TYPE TEXT; ALTER TABLE users ADD CONSTRAINT uq_email UNIQUE (email);',
+      'V2__misc.sql': 'ALTER TABLE users ADD CONSTRAINT uq_email UNIQUE (email); ALTER TABLE users DROP CONSTRAINT uq_email;',
     })
     expect((await cols(dir, 'users')).map(x => x.name)).toEqual(['id', 'email'])
+  })
+
+  // scope-critic(v1.2.69): ERD는 컬럼 이름·타입을 그린다 — 타입·이름을 바꾸는 ALTER도 같은 결함 계열.
+  it('타입·이름 변경(Postgres ALTER COLUMN TYPE·SET/DROP NOT NULL, MySQL MODIFY·CHANGE)도 반영한다', async () => {
+    const dir = setup({
+      'V1__init.sql': 'CREATE TABLE users (id BIGINT PRIMARY KEY, email VARCHAR(255), nick VARCHAR(20) NOT NULL, age SMALLINT);',
+      'V2__types.sql': `ALTER TABLE users ALTER COLUMN email TYPE TEXT;
+ALTER TABLE users ALTER COLUMN email SET NOT NULL;
+ALTER TABLE users ALTER COLUMN nick DROP NOT NULL;
+ALTER TABLE users MODIFY COLUMN age INT NOT NULL;
+ALTER TABLE users CHANGE COLUMN nick nickname VARCHAR(50);`,
+    })
+    const c = await cols(dir, 'users')
+    expect(c.map(x => x.name)).toEqual(['id', 'email', 'nickname', 'age'])
+    expect(c.find(x => x.name === 'email')).toMatchObject({ type: 'text', nullable: false })
+    expect(c.find(x => x.name === 'nickname')).toMatchObject({ type: 'varchar', nullable: true })
+    expect(c.find(x => x.name === 'age')).toMatchObject({ type: 'int', nullable: false })
   })
 })
