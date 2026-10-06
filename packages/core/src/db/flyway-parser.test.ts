@@ -136,3 +136,64 @@ describe('mergeFlywayTables', () => {
     expect(merged).toEqual([])
   })
 })
+
+// v1.2.69: 마이그레이션 누적 결과가 ERD에 반영되지 않던 결함 — ALTER TABLE 무시(TODO)·FK 제약 전량 무시·
+// 파일을 readdir 순서로 처리(버전 순 아님).
+describe('parseFlywayMigrations — ALTER TABLE·FK·버전 순서 (v1.2.69)', () => {
+  let tempDir = ''
+  afterEach(() => { if (tempDir) { fs.rmSync(tempDir, { recursive: true, force: true }); tempDir = '' } })
+
+  const setup = (files: Record<string, string>): string => {
+    tempDir = makeTempDir()
+    const migDir = path.join(tempDir, 'src/main/resources/db/migration')
+    mkdirp(migDir)
+    for (const [name, sql] of Object.entries(files)) fs.writeFileSync(path.join(migDir, name), sql)
+    return tempDir
+  }
+  const cols = async (dir: string, table: string) =>
+    (await parseFlywayMigrations(dir, 't')).find(t => t.name === table)?.columns ?? []
+
+  it('ALTER TABLE ADD/DROP/RENAME COLUMN이 버전 순서대로 누적된다(V10이 V2보다 뒤)', async () => {
+    const dir = setup({
+      'V10__rename.sql': 'ALTER TABLE users RENAME COLUMN nick TO nickname;',
+      'V1__init.sql': 'CREATE TABLE users (id BIGINT PRIMARY KEY, email VARCHAR(255) NOT NULL, legacy INT);',
+      'V2__alter.sql': `ALTER TABLE users ADD COLUMN nick VARCHAR(50);
+ALTER TABLE users ADD age INT NOT NULL;
+ALTER TABLE users DROP COLUMN legacy;`,
+    })
+    const c = await cols(dir, 'users')
+    expect(c.map(x => x.name)).toEqual(['id', 'email', 'nickname', 'age'])
+    expect(c.find(x => x.name === 'age')).toMatchObject({ type: 'int', nullable: false })
+  })
+
+  it('CREATE TABLE의 인라인 REFERENCES와 테이블 레벨 FOREIGN KEY를 references로 싣는다', async () => {
+    const dir = setup({
+      'V1__init.sql': `CREATE TABLE users (id BIGINT PRIMARY KEY);
+CREATE TABLE orders (
+  id BIGINT PRIMARY KEY,
+  user_id BIGINT NOT NULL REFERENCES users(id),
+  coupon_code VARCHAR(20),
+  CONSTRAINT fk_coupon FOREIGN KEY (coupon_code) REFERENCES coupons (code)
+);`,
+    })
+    const c = await cols(dir, 'orders')
+    expect(c.find(x => x.name === 'user_id')?.references).toEqual({ table: 'users', column: 'id' })
+    expect(c.find(x => x.name === 'coupon_code')?.references).toEqual({ table: 'coupons', column: 'code' })
+  })
+
+  it('ALTER TABLE ADD [CONSTRAINT x] FOREIGN KEY도 references로 싣는다', async () => {
+    const dir = setup({
+      'V1__init.sql': 'CREATE TABLE users (id BIGINT PRIMARY KEY); CREATE TABLE posts (id BIGINT PRIMARY KEY, author_id BIGINT);',
+      'V2__fk.sql': 'ALTER TABLE posts ADD CONSTRAINT fk_author FOREIGN KEY (author_id) REFERENCES users(id);',
+    })
+    expect((await cols(dir, 'posts')).find(x => x.name === 'author_id')?.references).toEqual({ table: 'users', column: 'id' })
+  })
+
+  it('지원 밖 ALTER 구문(타입 변경·인덱스)은 무시하고 기존 컬럼을 건드리지 않는다', async () => {
+    const dir = setup({
+      'V1__init.sql': 'CREATE TABLE users (id BIGINT PRIMARY KEY, email VARCHAR(255));',
+      'V2__misc.sql': 'ALTER TABLE users ALTER COLUMN email TYPE TEXT; ALTER TABLE users ADD CONSTRAINT uq_email UNIQUE (email);',
+    })
+    expect((await cols(dir, 'users')).map(x => x.name)).toEqual(['id', 'email'])
+  })
+})
