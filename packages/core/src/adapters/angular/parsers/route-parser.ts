@@ -56,142 +56,237 @@ function extractLoadComponentModuleSpec(
   return m !== null ? m[1] : undefined
 }
 
-function resolveLoadChildrenPaths(
-  prop: import('ts-morph').PropertyAssignment,
-  parentPath: string,
-  project: import('ts-morph').Project,
-  currentFileDir: string,
-): string[] {
+type TsNode = import('ts-morph').Node
+type TsSourceFile = import('ts-morph').SourceFile
+
+// v1.2.44 A1-2: 각 경로의 컴포넌트 spec(모듈 상대 경로 or Identifier 이름).
+// parseAngularRoutes는 이 spec으로 routeFilePath를 컴포넌트 파일로 치환한다.
+interface ComponentSpecEntry {
+  spec: string  // 모듈 상대 경로(예 './foo') 또는 Identifier name(예 'FooComponent')
+  isIdentifier: boolean  // true=Identifier sync import, false=dynamic import path
+  resolveFromDir: string  // spec을 resolve할 디렉토리 = 라우트 객체가 선언된 파일의 디렉토리
+}
+
+// v1.2.69: 라우트 하나 = 엔트리 하나. 예전엔 fullPath를 키로 하는 Map에 spec을 모았는데, 같은 path
+// (`''` + named outlet, lazy 부모와 그 `''` 자식)가 서로를 덮어써 컴포넌트가 사라지고 같은 NodeId가 둘
+// 생겼다. 엔트리는 자신이 선언된 파일을 들고 다녀 lazy 하위 라우트도 그 파일 기준으로 해석된다.
+interface RouteEntry {
+  fullPath: string
+  outlet: string | undefined
+  componentSpec: ComponentSpecEntry | undefined
+  loadComponentClass: string | undefined
+  sourceFile: TsSourceFile
+  line: number
+}
+
+interface ExtractContext {
+  project: import('ts-morph').Project
+  // lazy(loadChildren)로 부모에 마운트된 routes 배열. 이 배열을 감싼 forChild 호출은 부모 없이 한 번 더
+  // 파싱하면 안 된다(예전엔 `/admin/settings`와 함께 무접두 `/settings`가 이중 등록됐다).
+  mounted: Set<import('ts-morph').ts.Node>
+  visiting: Set<import('ts-morph').ts.Node>
+}
+
+function joinRoutePath(parent: string, segment: string): string {
+  const joined = segment.startsWith('/') ? segment : `${parent}/${segment}`
+  return joined.replace(/\/+/g, '/').replace(/^\/|\/$/g, '')
+}
+
+function stringProp(obj: import('ts-morph').ObjectLiteralExpression, name: string): string | undefined {
+  const prop = obj.getProperty(name)
+  if (!prop?.isKind(SyntaxKind.PropertyAssignment)) return undefined
+  const init = prop.asKindOrThrow(SyntaxKind.PropertyAssignment).getInitializer()
+  return init?.isKind(SyntaxKind.StringLiteral) ? init.asKindOrThrow(SyntaxKind.StringLiteral).getLiteralValue() : undefined
+}
+
+function loadSourceFile(project: import('ts-morph').Project, absBase: string): TsSourceFile | undefined {
+  for (const candidate of [absBase + '.ts', absBase, path.join(absBase, 'index.ts')]) {
+    const existing = project.getSourceFile(candidate)
+    if (existing !== undefined) return existing
+    try { return project.addSourceFileAtPath(candidate) } catch { /* try next */ }
+  }
+  return undefined
+}
+
+// Identifier가 가리키는 routes 배열을 찾는다 — 같은 파일 → import한 모듈 → 프로젝트 전체 순.
+function resolveRoutesIdentifier(name: string, sf: TsSourceFile, project: import('ts-morph').Project): TsNode | undefined {
+  const local = sf.getVariableDeclarations().find(v => v.getName() === name)?.getInitializer()
+  if (local !== undefined) return local
+  const spec = buildImportMap(sf).get(name)
+  if (spec !== undefined && spec.startsWith('.')) {
+    const target = loadSourceFile(project, path.resolve(path.dirname(sf.getFilePath()), spec))
+    const init = target?.getVariableDeclarations().find(v => v.getName() === name)?.getInitializer()
+    if (init !== undefined) return init
+  }
+  for (const other of project.getSourceFiles()) {
+    const init = other.getVariableDeclarations().find(v => v.getName() === name)?.getInitializer()
+    if (init !== undefined) return init
+  }
+  return undefined
+}
+
+function resolveRoutesExpr(expr: TsNode, project: import('ts-morph').Project): TsNode | undefined {
+  if (expr.isKind(SyntaxKind.ArrayLiteralExpression)) return expr
+  if (expr.isKind(SyntaxKind.Identifier)) {
+    const init = resolveRoutesIdentifier(expr.getText(), expr.getSourceFile(), project)
+    return init?.isKind(SyntaxKind.ArrayLiteralExpression) ? init : undefined
+  }
+  return undefined
+}
+
+// NgModule 클래스가 등록한 forChild routes. 흔한 `AdminModule → imports: [AdminRoutingModule]` 형태를
+// 따라가도록 imports의 Identifier도 같은 방식으로 한 단계씩 해석한다(depth 가드).
+function routesOfNgModule(cls: import('ts-morph').ClassDeclaration, project: import('ts-morph').Project, depth = 0): TsNode[] {
+  if (depth > 3) return []
+  const arrays: TsNode[] = []
+  for (const dec of cls.getDecorators()) {
+    if (dec.getName() !== 'NgModule') continue
+    for (const call of dec.getDescendantsOfKind(SyntaxKind.CallExpression)) {
+      if (call.getExpression().getText() !== 'RouterModule.forChild') continue
+      const arg = call.getArguments()[0]
+      const arr = arg !== undefined ? resolveRoutesExpr(arg, project) : undefined
+      if (arr !== undefined) arrays.push(arr)
+    }
+    const arg = dec.getArguments()[0]
+    if (!arg?.isKind(SyntaxKind.ObjectLiteralExpression)) continue
+    const importsProp = arg.asKindOrThrow(SyntaxKind.ObjectLiteralExpression).getProperty('imports')
+    const importsInit = importsProp?.isKind(SyntaxKind.PropertyAssignment)
+      ? importsProp.asKindOrThrow(SyntaxKind.PropertyAssignment).getInitializer() : undefined
+    if (!importsInit?.isKind(SyntaxKind.ArrayLiteralExpression)) continue
+    for (const el of importsInit.asKindOrThrow(SyntaxKind.ArrayLiteralExpression).getElements()) {
+      if (!el.isKind(SyntaxKind.Identifier)) continue
+      const imported = resolveClass(el.getText(), cls.getSourceFile(), project)
+      if (imported !== undefined) arrays.push(...routesOfNgModule(imported, project, depth + 1))
+    }
+  }
+  return arrays
+}
+
+function resolveClass(name: string, sf: TsSourceFile, project: import('ts-morph').Project): import('ts-morph').ClassDeclaration | undefined {
+  const local = sf.getClass(name)
+  if (local !== undefined) return local
+  const spec = buildImportMap(sf).get(name)
+  if (spec === undefined || !spec.startsWith('.')) return undefined
+  return loadSourceFile(project, path.resolve(path.dirname(sf.getFilePath()), spec))?.getClass(name)
+}
+
+// loadChildren: () => import('./x').then(m => m.Name) — Name이 routes 변수면 그 배열, NgModule 클래스면
+// 그 모듈의 forChild 배열(v1.2.69 이전엔 클래스를 못 찾아 [] → 부모 prefix가 통째로 사라졌다).
+function resolveLoadChildren(prop: import('ts-morph').PropertyAssignment, project: import('ts-morph').Project): TsNode[] {
   const init = prop.getInitializer()
   if (init === undefined) return []
-
-  // Pattern: loadChildren: () => import('./path').then(m => m.exportName)
   for (const call of init.getDescendantsOfKind(SyntaxKind.CallExpression)) {
     const expr = call.getExpression()
     if (!expr.isKind(SyntaxKind.PropertyAccessExpression)) continue
     const propAccess = expr.asKindOrThrow(SyntaxKind.PropertyAccessExpression)
     if (propAccess.getName() !== 'then') continue
-
-    const importText = propAccess.getExpression().getText()
-    const importMatch = importText.match(/^import\(['"`]([^'"`]+)['"`]\)$/)
+    const importMatch = propAccess.getExpression().getText().match(/^import\(['"`]([^'"`]+)['"`]\)$/)
     if (importMatch === null) continue
-
-    const importPathRel = importMatch[1]!
-
-    const thenArgs = call.getArguments()
-    if (thenArgs.length === 0) continue
-    const thenArg = thenArgs[0]!
-    if (!thenArg.isKind(SyntaxKind.ArrowFunction)) continue
+    const thenArg = call.getArguments()[0]
+    if (thenArg === undefined || !thenArg.isKind(SyntaxKind.ArrowFunction)) continue
     const body = thenArg.asKindOrThrow(SyntaxKind.ArrowFunction).getBody()
     if (!body.isKind(SyntaxKind.PropertyAccessExpression)) continue
     const exportName = body.asKindOrThrow(SyntaxKind.PropertyAccessExpression).getName()
 
-    for (const candidate of [
-      path.resolve(currentFileDir, importPathRel + '.ts'),
-      path.resolve(currentFileDir, importPathRel),
-      path.resolve(currentFileDir, importPathRel, 'index.ts'),
-    ]) {
-      let sf = project.getSourceFile(candidate)
-      if (sf === undefined) {
-        try { sf = project.addSourceFileAtPath(candidate) } catch { continue }
-      }
-      const varDecl = sf.getVariableDeclarations().find(v => v.getName() === exportName)
-      const routesArray = varDecl?.getInitializer()
-      if (routesArray === undefined) continue
-      return extractPathsFromRoutesArray(routesArray, parentPath, project, path.dirname(candidate))
+    const sf = loadSourceFile(project, path.resolve(path.dirname(prop.getSourceFile().getFilePath()), importMatch[1]!))
+    if (sf === undefined) return []
+    const varInit = sf.getVariableDeclarations().find(v => v.getName() === exportName)?.getInitializer()
+    if (varInit !== undefined) {
+      const arr = resolveRoutesExpr(varInit, project)
+      return arr !== undefined ? [arr] : []
     }
+    const cls = sf.getClass(exportName)
+    return cls !== undefined ? routesOfNgModule(cls, project) : []
   }
-
   return []
 }
 
-// v1.2.44 A1-2: 각 경로의 컴포넌트 spec(모듈 상대 경로 or Identifier 이름)을 수집하는 map.
-// parseAngularRoutes는 이 map으로 routeFilePath를 컴포넌트 파일로 치환한다.
-interface ComponentSpecEntry {
-  spec: string  // 모듈 상대 경로(예 './foo') 또는 Identifier name(예 'FooComponent')
-  isIdentifier: boolean  // true=Identifier sync import, false=dynamic import path
-  resolveFromDir: string  // spec을 어느 디렉토리 기준으로 resolve할지 (loadChildren cross-file 시 외부 파일 디렉토리)
+function isPrimaryEmptyPath(el: TsNode): boolean {
+  if (!el.isKind(SyntaxKind.ObjectLiteralExpression)) return false
+  const obj = el.asKindOrThrow(SyntaxKind.ObjectLiteralExpression)
+  return (stringProp(obj, 'path') ?? '') === '' && stringProp(obj, 'outlet') === undefined
 }
 
-function extractPathsFromRoutesArray(
-  arrayNode: import('ts-morph').Node,
-  parentPath = '',
-  project?: import('ts-morph').Project,
-  currentFileDir?: string,
-  loadComponentMap?: Map<string, string>,
-  componentSpecMap?: Map<string, ComponentSpecEntry>,
-): string[] {
-  const paths: string[] = []
-  if (!arrayNode.isKind(SyntaxKind.ArrayLiteralExpression)) return paths
+function extractRouteEntries(arrayNode: TsNode, parentPath: string, ctx: ExtractContext, out: RouteEntry[]): void {
+  if (!arrayNode.isKind(SyntaxKind.ArrayLiteralExpression)) return
+  if (ctx.visiting.has(arrayNode.compilerNode)) return
+  ctx.visiting.add(arrayNode.compilerNode)
+  const sourceFile = arrayNode.getSourceFile()
+  const fileDir = path.dirname(sourceFile.getFilePath())
 
   for (const el of arrayNode.asKindOrThrow(SyntaxKind.ArrayLiteralExpression).getElements()) {
     if (!el.isKind(SyntaxKind.ObjectLiteralExpression)) continue
     const obj = el.asKindOrThrow(SyntaxKind.ObjectLiteralExpression)
-
-    const pathProp = obj.getProperty('path')
-    let rawSegment = ''
-    if (pathProp?.isKind(SyntaxKind.PropertyAssignment)) {
-      const init = pathProp.asKindOrThrow(SyntaxKind.PropertyAssignment).getInitializer()
-      if (init?.isKind(SyntaxKind.StringLiteral)) {
-        rawSegment = init.asKindOrThrow(SyntaxKind.StringLiteral).getLiteralValue()
-      }
-    }
-
+    const rawSegment = stringProp(obj, 'path') ?? ''
     if (rawSegment === '**') continue
+    const fullPath = joinRoutePath(parentPath, rawSegment)
 
-    // Accumulate full path: combine parent prefix with current segment
-    const fullPath = rawSegment.startsWith('/')
-      ? rawSegment
-      : parentPath
-        ? (parentPath + '/' + rawSegment).replace('//', '/')
-        : rawSegment
-
-    paths.push(fullPath)
-
-    // Capture loadComponent class name for renders edge generation
+    let componentSpec: ComponentSpecEntry | undefined
+    let loadComponentClass: string | undefined
     const loadComponentProp = obj.getProperty('loadComponent')
     if (loadComponentProp?.isKind(SyntaxKind.PropertyAssignment)) {
       const propAssign = loadComponentProp.asKindOrThrow(SyntaxKind.PropertyAssignment)
-      const className = extractLoadComponentClass(propAssign)
-      if (className !== undefined && loadComponentMap !== undefined) {
-        loadComponentMap.set(fullPath, className)
-      }
-      // v1.2.44 A1-2: loadComponent 모듈 spec 캡처
+      loadComponentClass = extractLoadComponentClass(propAssign)
       const moduleSpec = extractLoadComponentModuleSpec(propAssign)
-      if (moduleSpec !== undefined && componentSpecMap !== undefined && currentFileDir !== undefined) {
-        componentSpecMap.set(fullPath, { spec: moduleSpec, isIdentifier: false, resolveFromDir: currentFileDir })
-      }
+      if (moduleSpec !== undefined) componentSpec = { spec: moduleSpec, isIdentifier: false, resolveFromDir: fileDir }
     }
-
-    // v1.2.44 A1-2: component: FooComponent (Identifier sync import) 캡처
     const componentProp = obj.getProperty('component')
-    if (componentProp?.isKind(SyntaxKind.PropertyAssignment) && componentSpecMap !== undefined && currentFileDir !== undefined) {
+    if (componentProp?.isKind(SyntaxKind.PropertyAssignment)) {
       const init = componentProp.asKindOrThrow(SyntaxKind.PropertyAssignment).getInitializer()
-      if (init?.isKind(SyntaxKind.Identifier)) {
-        componentSpecMap.set(fullPath, { spec: init.getText(), isIdentifier: true, resolveFromDir: currentFileDir })
-      }
+      if (init?.isKind(SyntaxKind.Identifier)) componentSpec = { spec: init.getText(), isIdentifier: true, resolveFromDir: fileDir }
     }
+    const hasComponent = componentProp !== undefined || loadComponentProp !== undefined
 
-    // Recurse into children: [] passing accumulated path as prefix
+    const childArrays: TsNode[] = []
     const childrenProp = obj.getProperty('children')
     if (childrenProp?.isKind(SyntaxKind.PropertyAssignment)) {
       const childInit = childrenProp.asKindOrThrow(SyntaxKind.PropertyAssignment).getInitializer()
-      if (childInit !== undefined) {
-        paths.push(...extractPathsFromRoutesArray(childInit, fullPath, project, currentFileDir, loadComponentMap, componentSpecMap))
+      const arr = childInit !== undefined ? resolveRoutesExpr(childInit, ctx.project) : undefined
+      if (arr !== undefined) childArrays.push(arr)
+    }
+    const loadChildrenProp = obj.getProperty('loadChildren')
+    if (loadChildrenProp?.isKind(SyntaxKind.PropertyAssignment)) {
+      for (const arr of resolveLoadChildren(loadChildrenProp.asKindOrThrow(SyntaxKind.PropertyAssignment), ctx.project)) {
+        ctx.mounted.add(arr.compilerNode)
+        childArrays.push(arr)
       }
     }
 
-    // Attempt to resolve loadChildren: () => import('./path').then(m => m.routes)
-    const loadChildrenProp = obj.getProperty('loadChildren')
-    if (loadChildrenProp?.isKind(SyntaxKind.PropertyAssignment) && project !== undefined && currentFileDir !== undefined) {
-      paths.push(...resolveLoadChildrenPaths(
-        loadChildrenProp.asKindOrThrow(SyntaxKind.PropertyAssignment),
-        fullPath, project, currentFileDir,
-      ))
+    // redirectTo는 페이지가 아니다. 컴포넌트 없는 컨테이너(children/loadChildren)는 자식 중 `path:''`
+    // (기본 outlet)가 같은 URL의 실제 페이지이므로 컨테이너를 따로 내지 않는다 — 내면 같은 URL이
+    // 라우트 정의 파일로 한 번, 컴포넌트 파일로 한 번 이중 등록된다.
+    const isRedirect = obj.getProperty('redirectTo') !== undefined
+    const emptyChildIsPage = childArrays.some(arr =>
+      arr.asKind(SyntaxKind.ArrayLiteralExpression)?.getElements().some(isPrimaryEmptyPath) === true)
+    if (hasComponent || (!isRedirect && !emptyChildIsPage)) {
+      out.push({
+        fullPath,
+        outlet: stringProp(obj, 'outlet'),
+        componentSpec,
+        loadComponentClass,
+        sourceFile,
+        line: obj.getStartLineNumber(),
+      })
     }
-  }
 
-  return paths
+    for (const arr of childArrays) extractRouteEntries(arr, fullPath, ctx, out)
+  }
+  ctx.visiting.delete(arrayNode.compilerNode)
+}
+
+async function resolveComponentFile(entry: RouteEntry, repoRoot: string): Promise<string | undefined> {
+  const spec = entry.componentSpec
+  if (spec === undefined) return undefined
+  const moduleSpec = spec.isIdentifier ? buildImportMap(entry.sourceFile).get(spec.spec) : spec.spec
+  if (moduleSpec === undefined || !moduleSpec.startsWith('.')) return undefined
+  const absBase = path.resolve(spec.resolveFromDir, moduleSpec)
+  for (const ext of ['.ts', '.tsx', '.js', '.jsx']) {
+    try {
+      await fs.access(absBase + ext)
+      return path.relative(repoRoot, absBase + ext).replace(/\\/g, '/')
+    } catch { /* try next */ }
+  }
+  return undefined
 }
 
 export async function parseAngularRoutes(
@@ -222,123 +317,64 @@ export async function parseAngularRoutes(
   })
   for (const f of routerFiles) project.addSourceFileAtPath(f)
 
+  const routerCalls = (names: ReadonlySet<string>): import('ts-morph').CallExpression[] =>
+    project.getSourceFiles().flatMap(sf => sf.getDescendantsOfKind(SyntaxKind.CallExpression)
+      .filter(c => names.has(c.getExpression().getText())))
+
+  // 루트(provideRouter·forRoot)를 먼저 펼쳐 lazy 마운트 관계를 확정한 뒤, 어디에도 마운트되지 않은
+  // forChild만 부모 없이 파싱한다 — 파일 순회 순서에 따라 결과가 달라지지 않게 두 단계로 나눈다.
+  const ctx: ExtractContext = { project, mounted: new Set(), visiting: new Set() }
+  const entries: RouteEntry[] = []
+  for (const call of routerCalls(new Set(['provideRouter', 'RouterModule.forRoot']))) {
+    const arg = call.getArguments()[0]
+    const arr = arg !== undefined ? resolveRoutesExpr(arg, project) : undefined
+    if (arr !== undefined) extractRouteEntries(arr, '', ctx, entries)
+  }
+  for (const call of routerCalls(new Set(['RouterModule.forChild']))) {
+    const arg = call.getArguments()[0]
+    const arr = arg !== undefined ? resolveRoutesExpr(arg, project) : undefined
+    if (arr !== undefined && !ctx.mounted.has(arr.compilerNode)) extractRouteEntries(arr, '', ctx, entries)
+  }
+
   const routes: RouteNode[] = []
+  const seenIds = new Set<string>()
   const loadComponentMap = new Map<string, string>()
 
-  for (const sourceFile of project.getSourceFiles()) {
-    const filePath = sourceFile.getFilePath()
-    const relPath = path.relative(repoRoot, filePath).replace(/\\/g, '/')
-
-    for (const callExpr of sourceFile.getDescendantsOfKind(SyntaxKind.CallExpression)) {
-      const exprText = callExpr.getExpression().getText()
-      if (exprText !== 'provideRouter' && exprText !== 'RouterModule.forRoot' && exprText !== 'RouterModule.forChild') continue
-
-      const args = callExpr.getArguments()
-      if (args.length === 0) continue
-
-      const firstArg = args[0]!
-      let routesArray: import('ts-morph').Node | undefined
-
-      if (firstArg.isKind(SyntaxKind.ArrayLiteralExpression)) {
-        routesArray = firstArg
-      } else if (firstArg.isKind(SyntaxKind.Identifier)) {
-        const varName = firstArg.getText()
-        const varDecl = sourceFile.getVariableDeclarations().find(v => v.getName() === varName)
-        routesArray = varDecl?.getInitializer()
-        if (routesArray === undefined) {
-          for (const sf of project.getSourceFiles()) {
-            const vd = sf.getVariableDeclarations().find(v => v.getName() === varName)
-            if (vd !== undefined) {
-              routesArray = vd.getInitializer()
-              break
-            }
-          }
-        }
-      }
-
-      if (routesArray === undefined) continue
-
-      // v1.2.44 A1-2: routesArray가 외부 파일 import인 경우 그 외부 파일의 디렉토리 기준으로 resolve
-      // (routes의 component Identifier import는 외부 파일에 있으므로)
-      const routesArraySf = routesArray.getSourceFile()
-      const routesArrayDir = path.dirname(routesArraySf.getFilePath())
-
-      const rawPathMap = new Map<string, string>()
-      // v1.2.44 A1-2: componentSpec 수집 — resolveFromDir은 외부 파일 디렉토리
-      const componentSpecMap = new Map<string, ComponentSpecEntry>()
-      const extractedPaths = extractPathsFromRoutesArray(routesArray, '', project, routesArrayDir, rawPathMap, componentSpecMap)
-
-      // sync Identifier resolve용 importMap (routesArray의 sourceFile)
-      const importMap = buildImportMap(routesArraySf)
-
-      // v1.2.44 A1-2: routesArray가 외부 파일이면 fallback도 그 파일로 변경
-      // (provideRouter 호출 파일이 아닌, routes 정의 파일이 라우트의 원본)
-      const routesArrayRelPath = path.relative(repoRoot, routesArraySf.getFilePath()).replace(/\\/g, '/')
-
-      for (const rawPath of extractedPaths) {
-        const urlPath = rawPath === '' ? '/' : rawPath.startsWith('/') ? rawPath : ('/' + rawPath)
-        const dynamicSegmentType: DynamicSegmentType = urlPath.includes(':') ? 'dynamic' : 'static'
-
-        const provenance: Provenance = {
-          file: relPath,
-          line: callExpr.getStartLineNumber(),
-          adapter: 'angular@0.1',
-          analyzerVersion,
-        }
-
-        // v1.2.44 A1-2: componentSpec resolve → 컴포넌트 abs path → relPath 치환
-        let routeFilePath = routesArrayRelPath  // fallback: routes 정의 파일 (외부 import면 외부 파일)
-        let routeConfidence: 'verified' | 'inferred' = 'verified'
-        let routeInferenceChain: string[] | undefined
-        const specEntry = componentSpecMap.get(rawPath)
-        if (specEntry !== undefined) {
-          let moduleSpec: string | undefined
-          if (specEntry.isIdentifier) {
-            moduleSpec = importMap.get(specEntry.spec)
-          } else {
-            moduleSpec = specEntry.spec
-          }
-          if (moduleSpec !== undefined && moduleSpec.startsWith('.')) {
-            const absBase = path.resolve(specEntry.resolveFromDir, moduleSpec)
-            let compAbsPath: string | undefined
-            for (const ext of ['.ts', '.tsx', '.js', '.jsx']) {
-              try {
-                await fs.access(absBase + ext)
-                compAbsPath = absBase + ext
-                break
-              } catch { /* try next */ }
-            }
-            if (compAbsPath !== undefined) {
-              routeFilePath = path.relative(repoRoot, compAbsPath).replace(/\\/g, '/')
-              routeInferenceChain = [`라우트 정의의 component spec '${specEntry.spec}' → 컴포넌트 파일로 매핑`]
-              routeConfidence = 'inferred'
-            }
-          }
-        }
-
-        const confField = routeConfidence === 'inferred' && routeInferenceChain !== undefined
-          ? { confidence: 'inferred' as const, inferenceChain: routeInferenceChain }
-          : { confidence: 'verified' as const }
-
-        const routeId = makeNodeId('route', routeFilePath, urlPath)
-        routes.push(
-          createRouteNode({
-            id: routeId,
-            path: urlPath,
-            filePath: routeFilePath,
-            routeFileKind: 'page',
-            dynamicSegmentType,
-            isGroupRoute: false,
-            renderingMode: 'CSR',
-            provenance,
-            ...confField,
-          }),
-        )
-
-        const compClass = rawPathMap.get(rawPath)
-        if (compClass !== undefined) loadComponentMap.set(routeId, compClass)
-      }
+  for (const entry of entries) {
+    const urlPath = '/' + entry.fullPath
+    const dynamicSegmentType: DynamicSegmentType = urlPath.includes(':') ? 'dynamic' : 'static'
+    const declRelPath = path.relative(repoRoot, entry.sourceFile.getFilePath()).replace(/\\/g, '/')
+    const provenance: Provenance = {
+      file: declRelPath,
+      line: entry.line,
+      adapter: 'angular@0.1',
+      analyzerVersion,
     }
+
+    const compFile = await resolveComponentFile(entry, repoRoot)
+    const routeFilePath = compFile ?? declRelPath  // fallback: 라우트가 선언된 파일
+    const confField = compFile !== undefined
+      ? { confidence: 'inferred' as const, inferenceChain: [`라우트 정의의 component spec '${entry.componentSpec!.spec}' → 컴포넌트 파일로 매핑`] }
+      : { confidence: 'verified' as const }
+
+    // named outlet은 기본 outlet과 같은 URL을 공유하므로 심볼에 outlet을 붙여 NodeId를 구분한다.
+    const routeId = makeNodeId('route', routeFilePath, entry.outlet !== undefined ? `${urlPath}(${entry.outlet})` : urlPath)
+    if (seenIds.has(routeId)) continue
+    seenIds.add(routeId)
+    routes.push(
+      createRouteNode({
+        id: routeId,
+        path: urlPath,
+        filePath: routeFilePath,
+        routeFileKind: 'page',
+        dynamicSegmentType,
+        isGroupRoute: false,
+        renderingMode: 'CSR',
+        provenance,
+        ...confField,
+      }),
+    )
+    if (entry.loadComponentClass !== undefined) loadComponentMap.set(routeId, entry.loadComponentClass)
   }
 
   return { routes, loadComponentMap }

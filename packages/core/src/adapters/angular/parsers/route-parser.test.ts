@@ -71,9 +71,8 @@ describe('parseAngularRoutes — mini-angular-app fixture', () => {
     expect(paths).toContain('/about')
     expect(paths).toContain('/users')
     expect(paths).toContain('/users/:id')
-    // forChild route from user-detail.module.ts (path: '' → /)
-    // The forChild { path: '' } creates an additional '/' route
-    expect(routes.length).toBeGreaterThanOrEqual(4)
+    // user-detail.module.ts의 forChild { path: '' }는 lazy 부모(users/:id)의 페이지다 — 추가 '/'가 아니다.
+    expect(routes).toHaveLength(4)
   })
 
   // v1.2.44 A1-2: filePath 컴포넌트 파일 치환
@@ -90,12 +89,13 @@ describe('parseAngularRoutes — mini-angular-app fixture', () => {
     expect(about?.filePath).not.toMatch(/app\.routes\.ts$/)
   })
 
-  it('A1-2: loadChildren 라우트는 라우터 정의 파일 fallback (loadChildren은 자체 모듈)', async () => {
+  // v1.2.69 명세 변경: 예전엔 loadChildren 컨테이너를 라우터 정의 파일로 남기고 모듈의 `path:''` 자식을
+  // 무접두 `/`로 따로 냈다(상세 페이지가 `/`에 붙어 Tab2에서 소실). 이제 그 자식이 `/users/:id` 페이지다.
+  it('A1-2: loadChildren 라우트는 lazy 모듈의 path:\'\' 자식 컴포넌트 파일로 매핑된다', async () => {
     const FIXTURE = path.resolve(process.cwd(), 'fixtures/mini-angular-app')
     const { routes } = await parseAngularRoutes(FIXTURE, 'test@0.1')
     const detail = routes.find(r => r.path === '/users/:id')
-    // loadChildren은 component spec이 없으므로 라우터 정의 파일 유지
-    expect(detail?.filePath).toMatch(/app\.routes\.ts$/)
+    expect(detail?.filePath).toMatch(/user-detail\.component\.ts$/)
   })
 })
 
