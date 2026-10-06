@@ -53,6 +53,9 @@
 | F1 | ST2 critic(yes) | 매칭 호출이 있지만 FE 부모 라우트가 없어 Tab1에 못 그리는 경우 "매칭 없음" 대신 "Sequence 탭에서 확인" 안내(Sequence 탭과 모순 제거). DiagramSet.sequence 주석 정정 | `renderer/src/mermaid-renderer.ts` |
 | F2 | ST4 critic(정확성 gap) | 같은 "라우트 소실" 계열: `provideRouter([...X_ROUTES, …])` spread 펼침 · `loadChildren: () => import('./x')`(then 없음)·`.then(m => m.default)` 기본 export 해석 | `core/.../angular/parsers/route-parser.ts` |
 | F3 | ST7 critic(yes) | ERD가 그리는 컬럼 이름·타입·NULL을 바꾸는 ALTER도 반영: Postgres `ALTER COLUMN c [SET DATA] TYPE t`·`SET/DROP NOT NULL`, MySQL `MODIFY [COLUMN]`·`CHANGE [COLUMN] old new` | `core/src/db/flyway-parser.ts` |
+| F4 | GIF 촬영 중 발견(ST9 회귀) | 하한 정렬 x,y 오프셋 상태에서 −/+ 시 콘텐츠 이탈 → 단일 모드 줌이 화면 중앙 콘텐츠 지점을 고정 | `extension/media/viewer.html` |
+| F5 | 실기 VS Code 발견(ST9 회귀) | 패널 크기 변경 시 첫 fit px 오프셋이 남아 밀림 → 줌·팬 전이면 ResizeObserver로 재fit(크기 키=offset 크기, 스크롤바 루프 예방) | `extension/media/viewer.html` |
+| F6 | 완료 전 advisor 점검(ST7 회귀) | 문장·컬럼 분리를 인용 구간(문자열·`$$`) 인식으로 — `COMMENT '…;…'`에서 CREATE가 잘려 컬럼 소실되던 회귀 | `core/src/db/flyway-parser.ts` |
 
 ST4 상세(기준선 보강 — 같은 "틀린 라우트 출력" 결함 계열로 함께 처리): ⑥ 컴포넌트 없는 컨테이너(children/loadChildren)는
 자식에 기본 outlet `path:''`가 있으면 따로 내지 않음(같은 URL 이중 등록 — ② 계열) ⑦ `redirectTo` 전용 항목은 페이지가 아니므로 라우트로 내지 않음.
