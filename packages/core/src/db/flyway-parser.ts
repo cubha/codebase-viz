@@ -74,6 +74,8 @@ function parseCreateTable(sql: string): ParsedTable[] {
     let depth = 1
     let i = startIdx
     while (i < sql.length && depth > 0) {
+      const end = quotedEnd(sql, i)
+      if (end !== -1) { i = end; continue }
       if (sql[i] === '(') depth++
       else if (sql[i] === ')') depth--
       i++
@@ -205,9 +207,45 @@ function applyAlterTable(cols: ColumnDef[], actions: string): void {
 const ALTER_TABLE_RE = new RegExp(`^ALTER\\s+TABLE\\s+(?:IF\\s+EXISTS\\s+)?(?:ONLY\\s+)?(?:[A-Za-z_][A-Za-z0-9_$]*\\.)?${IDENT}\\s+([\\s\\S]+)$`, 'i')
 
 // 주석을 지우고 최상위 `;`로 문장을 나눈다 — CREATE와 ALTER를 파일 안 순서대로 적용하기 위해서다.
+// 문자열('…'·"…"·`…`)·Postgres 달러 인용($$…$$, $tag$…$tag$) 안의 `;`·`--`·괄호·쉼표는 구문이 아니다 —
+// MySQL `COMMENT '상태; 0=대기'`처럼 흔한 입력에서 문장·컬럼이 잘리지 않게 인용 구간을 통째로 건너뛴다.
+function quotedEnd(text: string, i: number): number {
+  const ch = text[i]
+  if (ch === "'" || ch === '"' || ch === '`') {
+    let j = i + 1
+    while (j < text.length) {
+      if (text[j] === ch) {
+        if (text[j + 1] === ch) { j += 2; continue }  // '' 이스케이프
+        return j + 1
+      }
+      if (text[j] === '\\' && ch === "'") { j += 2; continue }
+      j++
+    }
+    return text.length
+  }
+  if (ch === '$') {
+    const tag = /^\$[A-Za-z_]*\$/.exec(text.slice(i))
+    if (tag === null) return -1
+    const close = text.indexOf(tag[0], i + tag[0].length)
+    return close === -1 ? text.length : close + tag[0].length
+  }
+  return -1
+}
+
 function splitStatements(sql: string): string[] {
-  const noComments = sql.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/--[^\n]*/g, '')
-  return noComments.split(';').map(st => st.trim()).filter(Boolean)
+  const out: string[] = []
+  let cur = ''
+  for (let i = 0; i < sql.length;) {
+    const end = quotedEnd(sql, i)
+    if (end !== -1) { cur += sql.slice(i, end); i = end; continue }
+    if (sql.startsWith('--', i)) { const nl = sql.indexOf('\n', i); i = nl === -1 ? sql.length : nl; continue }
+    if (sql.startsWith('/*', i)) { const close = sql.indexOf('*/', i + 2); cur += ' '; i = close === -1 ? sql.length : close + 2; continue }
+    if (sql[i] === ';') { out.push(cur); cur = ''; i++; continue }
+    cur += sql[i]
+    i++
+  }
+  out.push(cur)
+  return out.map(st => st.trim()).filter(Boolean)
 }
 
 // Split a string on commas that are not inside parentheses
@@ -216,6 +254,8 @@ function splitTopLevel(body: string): string[] {
   let depth = 0
   let start = 0
   for (let i = 0; i < body.length; i++) {
+    const end = quotedEnd(body, i)
+    if (end !== -1) { i = end - 1; continue }
     const ch = body[i]
     if (ch === '(') depth++
     else if (ch === ')') depth--
