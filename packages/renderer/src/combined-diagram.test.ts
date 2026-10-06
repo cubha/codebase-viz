@@ -480,6 +480,31 @@ describe('buildCombinedDiagram — sequence 필드 (Wave B T4)', () => {
     expect(diagrams.sequence).toContain('MatchedController')
   })
 
+  // v1.2.69: 시퀀스는 FE 컴포넌트에서 출발하므로 FE 부모 라우트(Tab1 결합 그래프의 시각적 출발점)가
+  // 없어도 그릴 수 있다. drawableEdges만 넘기던 탓에 실 페어(fa-web→api)에서 matched 65건 중 57건만
+  // 시퀀스에 나왔다(NotificationBell 등 레이아웃 컴포넌트의 호출이 통째로 빠짐).
+  it('FE 부모 라우트가 없는 matched 호출도 시퀀스에는 그린다', () => {
+    const orphanComp = createComponentNode({
+      id: makeNodeId('component', 'components/NotificationBell.tsx', 'NotificationBell'),
+      name: 'NotificationBell', filePath: 'components/NotificationBell.tsx',
+      runtime: 'client', provenance: PROV, confidence: 'verified',
+    })
+    const feGraph: IRGraph = createIRGraph({
+      analyzerVersion: 'test', repoRoot: '/fe', projectName: 'fe',
+      nodes: [orphanComp], edges: [],
+    })
+    const beRoute = makeBeRoute('/api/notifications')
+    const beGraph: IRGraph = createIRGraph({
+      analyzerVersion: 'test', repoRoot: '/be', projectName: 'be', metadata: BE_META,
+      nodes: [beRoute], edges: [],
+    })
+    const diagrams = buildCombinedDiagram(feGraph, beGraph, [makeCrossEdge(orphanComp.id, beRoute.id)])
+    expect(diagrams.sequence).toBeDefined()
+    expect(diagrams.sequence).toContain('NotificationBell')
+    // Tab1 결합 그래프의 orphan 제외 규칙은 그대로다.
+    expect(diagrams.rendering).not.toContain('NotificationBell')
+  })
+
   it('drawableEdges가 0건(매칭 없음)이면 sequence는 undefined다', () => {
     const unmatched = makeFeRoute('/unmatched', 'UnmatchedWidget')
     const feGraph: IRGraph = createIRGraph({
