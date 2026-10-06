@@ -1322,11 +1322,13 @@ if (typeof ResizeObserver !== 'undefined') {
     if (!wrap) return;
     let last = '';
     new ResizeObserver(() => {
-      const size = wrap.clientWidth + 'x' + wrap.clientHeight;
+      // offset 크기(스크롤바 포함)로 비교한다 — 줄 단위 모드는 overflow:auto라 client 크기는 스크롤바 출몰만으로도
+      // 바뀌고, 그걸로 재fit하면 행 높이 변화 → 스크롤바 출몰 → 재fit 루프가 될 수 있다.
+      const size = wrap.offsetWidth + 'x' + wrap.offsetHeight;
       if (size === last) return;
       last = size;
       // 숨은 탭(0x0)·미렌더 탭은 건너뛴다 — 보이게 될 때 크기 변화로 다시 들어온다.
-      if (AUTO_FIT[t] && rendered[t] && wrap.clientWidth > 0 && wrap.clientHeight > 0) fitToView(t);
+      if (AUTO_FIT[t] && rendered[t] && wrap.offsetWidth > 0 && wrap.offsetHeight > 0) fitToView(t);
     }).observe(wrap);
   });
 }

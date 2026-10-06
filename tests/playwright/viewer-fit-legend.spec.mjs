@@ -168,6 +168,24 @@ test.describe('v1.2.69 — viewer 화면 맞춤 하한·범례', () => {
     after.forEach((r, i) => expect(scaleOf(r.t)).toBeCloseTo(scaleOf(initial[i].t), 3))
   })
 
+  // advisor(v1.2.69): 줄 단위 모드 wrap은 overflow:auto라 스크롤바가 생기고 사라질 때 clientWidth가 바뀐다. 그 변화로
+  // 재fit하면 행 높이가 줄어 스크롤바가 사라지고, 폭이 늘어 다시 커지는 루프가 될 수 있다 — 높이를 훑어 안정성을 본다.
+  // (가드: 이 환경에선 재현되지 않았다 — 크기 키를 스크롤바와 무관한 offset 크기로 둔 것이 예방책이다.)
+  test('UX-3 후속: 줄 단위 모드는 스크롤바 출몰로 재fit 루프에 빠지지 않는다', async ({ page }) => {
+    await open(page, { rendering: wideChunks(4, 10), screenComponent: '', dbScreen: '' }, { width: 1280, height: 700 })
+    await page.waitForFunction(() => document.querySelectorAll('#i-r .row-diagram svg').length === 4, null, { timeout: 20000 })
+    await page.waitForTimeout(300)
+    const total = await page.$eval('#i-r', el => el.scrollHeight)
+    for (const h of [total - 40, total - 10, total + 10, total + 40]) {
+      await page.setViewportSize({ width: 1280, height: Math.max(300, Math.round(h + 120)) })
+      await page.waitForTimeout(300)
+      const t0 = await page.$$eval('#i-r .row-diagram svg', ss => ss.map(s => s.style.transform).join('|'))
+      await page.waitForTimeout(700)
+      const t1 = await page.$$eval('#i-r .row-diagram svg', ss => ss.map(s => s.style.transform).join('|'))
+      expect(t1).toBe(t0)
+    }
+  })
+
   test('UX-1: 줄 단위 모드 첫 줄이 범례·청크 칩 아래에서 시작하고, 범례를 접으면 올라온다', async ({ page }) => {
     await open(page, { rendering: wideChunks(3, 6), screenComponent: '', dbScreen: '' })
     await page.waitForFunction(() => document.querySelectorAll('#i-r .row-diagram svg').length === 3, null, { timeout: 20000 })
