@@ -598,6 +598,7 @@ function activateRowMode(t, inner) {
   }
   applyRowReserve(t);
   fitRowSvgsInitial(t, inner);
+  AUTO_FIT[t] = true;
 }
 
 // v1.2.69 UX-2/UX-3: 화면 맞춤 정책 하나 — 단일·줄 단위 모드 모두 "맞추되 이 배율 아래로는 줄이지 않는다".
@@ -683,6 +684,9 @@ function scaleRowSvgs(wrap, inner) {
 const rendered = {r:false,s:false,d:false,q:false};
 const ST = {r:{s:1,x:0,y:0}, s:{s:1,x:0,y:0}, d:{s:1,x:0,y:0}, q:{s:1,x:0,y:0}};
 const ROW_ST = {r:[], s:[], d:[], q:[]};
+// 마지막 fit 이후 사용자가 줌·팬하지 않았으면 true — 그동안은 패널 크기가 바뀔 때 다시 맞춘다(v1.2.69).
+// 하한 정렬은 px 오프셋이라, 다시 맞추지 않으면 넓어진 폭의 절반만큼 콘텐츠가 밀려난다(실기 VS Code 발견).
+const AUTO_FIT = {r:false, s:false, d:false, q:false};
 const drag = {t:null,rowIdx:null,sx:0,sy:0,ox:0,oy:0};
 var dbCurrentView = 'all';
 var dbGraphs = null;
@@ -1165,6 +1169,7 @@ function fitToView(t) {
   const wrap = document.getElementById('w-'+t);
   const inner = document.getElementById('i-'+t);
   if (!wrap || !inner) return;
+  AUTO_FIT[t] = true;
   if (wrap.classList.contains('row-mode')) {
     // row-mode reset = 초기 fit 재계산(창 크기가 바뀌었어도 단일 모드 reset과 같은 "지금 화면에 맞춤").
     applyRowReserve(t);
@@ -1214,6 +1219,7 @@ function applyRowTransform(t, idx) {
 }
 
 function zm(t, f) {
+  AUTO_FIT[t] = false;
   const wrap = document.getElementById('w-'+t);
   if (wrap && wrap.classList.contains('row-mode')) {
     // row-mode: 모든 chunk에 동일 zoom 적용 (전역 +/- 버튼 동작).
@@ -1253,6 +1259,7 @@ document.addEventListener('mousedown', e => {
     const st = ROW_ST[t][idx];
     if (!st) return;
     drag.t=t; drag.rowIdx=idx; drag.sx=e.clientX; drag.sy=e.clientY; drag.ox=st.x; drag.oy=st.y;
+    AUTO_FIT[t] = false;
     row.classList.add('dragging');
     return;
   }
@@ -1261,6 +1268,7 @@ document.addEventListener('mousedown', e => {
   e.preventDefault();
   const t = wrap.id.slice(2);
   drag.t=t; drag.rowIdx=null; drag.sx=e.clientX; drag.sy=e.clientY; drag.ox=ST[t].x; drag.oy=ST[t].y;
+  AUTO_FIT[t] = false;
   wrap.classList.add('dragging');
 });
 document.addEventListener('mousemove', e => {
@@ -1297,6 +1305,7 @@ document.addEventListener('wheel', e => {
     const st = ROW_ST[t][idx];
     if (!st) return;
     const f = e.deltaY<0?1.1:0.9;
+    AUTO_FIT[t] = false;
     st.s = Math.max(0.1, Math.min(st.s*f, 5));
     applyRowTransform(t, idx);
     return;
@@ -1306,6 +1315,21 @@ document.addEventListener('wheel', e => {
   e.preventDefault();
   zm(wrap.id.slice(2), e.deltaY<0?1.1:0.9);
 }, {passive:false});
+
+if (typeof ResizeObserver !== 'undefined') {
+  ['r','s','d','q'].forEach(t => {
+    const wrap = document.getElementById('w-'+t);
+    if (!wrap) return;
+    let last = '';
+    new ResizeObserver(() => {
+      const size = wrap.clientWidth + 'x' + wrap.clientHeight;
+      if (size === last) return;
+      last = size;
+      // 숨은 탭(0x0)·미렌더 탭은 건너뛴다 — 보이게 될 때 크기 변화로 다시 들어온다.
+      if (AUTO_FIT[t] && rendered[t] && wrap.clientWidth > 0 && wrap.clientHeight > 0) fitToView(t);
+    }).observe(wrap);
+  });
+}
 
 function buildSidebar(erDiagram) {
   if (!erDiagram) { document.getElementById('sidebar-tables').innerHTML = '<div style="color:var(--text-muted);font-size:11px;padding:8px">No DB data</div>'; return; }
