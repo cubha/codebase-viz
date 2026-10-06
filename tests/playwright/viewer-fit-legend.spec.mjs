@@ -118,6 +118,34 @@ test.describe('v1.2.69 — viewer 화면 맞춤 하한·범례', () => {
     expect(after.dx).toBeCloseTo(before.dx * ratio, 0)
   })
 
+  // 실기(VS Code) 발견: 웹뷰 패널 폭이 바뀌어도 첫 fit의 px 오프셋이 남아, 하한 정렬된 다이어그램이 늘어난 폭의
+  // 절반만큼 오른쪽으로 밀렸다. 사용자가 줌·팬하지 않았다면 크기 변화 때 다시 맞춘다.
+  test('UX-2 후속: 줌·팬 전이면 패널 크기가 바뀔 때 다시 맞춰 시작점이 화면 왼쪽 위에 남는다', async ({ page }) => {
+    await open(page, { rendering: 'graph TD\n  A["a"]', screenComponent: '', dbScreen: bigErd(), tab3Kind: 'erd' }, { width: 900, height: 700 })
+    await page.waitForSelector('#i-r svg')
+    await page.click('.tab[data-t="d"]')
+    await page.waitForSelector('#i-d svg .node', { timeout: 20000 })
+    await page.waitForTimeout(300)
+    await page.setViewportSize({ width: 1500, height: 800 })
+    await page.waitForTimeout(400)
+    const afterResize = await page.$eval('#i-d', el => el.style.transform)
+    await page.click('[data-action="rz"][data-arg="d"]')
+    const freshFit = await page.$eval('#i-d', el => el.style.transform)
+    expect(afterResize).toBe(freshFit)
+  })
+
+  test('UX-2 후속: 사용자가 줌한 뒤에는 패널 크기가 바뀌어도 배율을 되돌리지 않는다', async ({ page }) => {
+    await open(page, { rendering: 'graph TD\n  A["a"]', screenComponent: '', dbScreen: bigErd(), tab3Kind: 'erd' }, { width: 900, height: 700 })
+    await page.waitForSelector('#i-r svg')
+    await page.click('.tab[data-t="d"]')
+    await page.waitForSelector('#i-d svg .node', { timeout: 20000 })
+    await page.click('[data-action="zm"][data-arg-t="d"][data-arg-f="1.2"]')
+    const zoomed = scaleOf(await page.$eval('#i-d', el => el.style.transform))
+    await page.setViewportSize({ width: 1500, height: 800 })
+    await page.waitForTimeout(400)
+    expect(scaleOf(await page.$eval('#i-d', el => el.style.transform))).toBeCloseTo(zoomed, 5)
+  })
+
   test('UX-3: 줄 단위 모드도 같은 정책 — 폭 맞춤(하한 0.65)으로 시작하고, 줌 후 ⌂는 그 상태로 돌아간다', async ({ page }) => {
     await open(page, { rendering: wideChunks(3, 14), screenComponent: '', dbScreen: '' })
     await page.waitForFunction(() => document.querySelectorAll('#i-r .row-diagram svg').length === 3, null, { timeout: 20000 })
