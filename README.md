@@ -4,7 +4,9 @@
 
 Routes, components, and DB relationships — extracted statically from **13 frameworks**, optionally enriched by LLM, rendered as live diagram tabs inside VS Code.
 
-> Marketplace: [`cubha.codebase-arch-viz`](https://marketplace.visualstudio.com/items?itemName=cubha.codebase-arch-viz) · Current release: **v1.2.68**
+> Marketplace: [`cubha.codebase-arch-viz`](https://marketplace.visualstudio.com/items?itemName=cubha.codebase-arch-viz) · Current release: **v1.2.69**
+>
+> **v1.2.69** — **결함 일괄 수정 + 화면 맞춤 가독 하한**. fit 배율 하한 0.65를 모든 탭·모드에 통일(대형 ERD 7% 축소 해소, 넘치면 좌상단 정렬+팬), 범례 접기. Sequence는 endpoint당 체인 1회 + 누락 호출 복구. Angular lazy `forChild` prefix·이중 등록·동일 NodeId, TypeORM `@JoinColumn`·`@OneToOne`, Flyway 버전 순서·`ALTER TABLE`·FK 결함 수정. 연결 없는 Repository 박스 제거.
 >
 > **v1.2.68** — **Tab3(Data Flow) 딥링크 + TS ORM 실제 이름 + 사이드바 피드백 버튼**. Data Flow 탭의 테이블·페이지·컴포넌트·Repository 박스에 hover 툴팁과 클릭 점프가 처음으로 동작한다. Prisma `@@map`/`@map`·TypeORM `@Column({ name })`·Drizzle 컬럼 이름 인자를 실제 DB 이름으로 표시하고, 드롭되던 TypeORM FK 선을 복구했다. TypeORM·Drizzle·Prisma도 클래스명 배지를 싣는다. 사이드바에 ⭐ Open VSX 평가·🐛 이슈 신고 버튼 추가.
 >
@@ -24,8 +26,8 @@ Open a project in VS Code → click **Analyze**. Codebase Viz produces:
 |---|---|
 | **Rendering Architecture** | Route hierarchy with URL-based hierarchical grouping, SSR / CSR / ISR / SSG labels, HTTP method badges |
 | **Screen–Component** | Route → component import graph, runtime tags (client / shared / server) |
-| **DB–Screen** | Table schema (Supabase, Prisma, Drizzle, TypeORM, Django ORM, SQLAlchemy, JPA, **Flyway DDL**) + 4-toggle view: **All** · **FK relations** (ERD with TH/TD distinction) · **Page queries** (route → table flow graph) · **Server actions** (action → table flow graph) |
-| **DB–Screen** *(ORM badge)* | Entity class names shown alongside table names when they differ (JPA / Django / SQLAlchemy / Flask-SQLAlchemy) |
+| **Data Flow** | Table schema (Supabase, Prisma, Drizzle, TypeORM, Django ORM, SQLAlchemy, JPA, **Flyway DDL**) + 4-toggle view: **All** · **FK relations** (ERD with TH/TD distinction) · **Page queries** (route → table flow graph) · **Server actions** (action → table flow graph) |
+| **Data Flow** *(ORM badge)* | Entity class names shown alongside table names when they differ (JPA / Django / SQLAlchemy / Flask-SQLAlchemy / TypeORM / Drizzle / Prisma) |
 | **Sequence** *(paired analysis only)* | Request flow over time: FE component → BE endpoint → Controller → Service / Repository → Table. Solid arrows = `verified`, dashed = `inferred`. Auto-split into rows at 12 participants per chunk |
 
 Results are cached in `.codebase-viz/cache.json`. Re-analyze on demand.
@@ -37,7 +39,7 @@ When multiple workspace folders are open (e.g. a Next.js frontend + Spring Boot 
 1. Click **Analyze** → select the main (FE) project
 2. A second prompt appears — select the paired BE project (or **Skip** for single-project mode)
 
-Codebase Viz statically extracts `fetch()` / `axios.*` call URLs from the FE codebase and matches them against BE route definitions. The **Rendering Architecture tab is replaced** with a combined diagram: matched routes appear as **dashed cross-edges**, and only the FE/BE routes that actually participate in a match are shown (unmatched routes stay visible in their own project's standalone view instead of cluttering the combined one). Screen–Component stays FE-only; DB–Screen merges FE + BE tables into one ERD. A fourth **Sequence** tab appears (paired analysis only) showing each matched call as a time-ordered flow down through the BE dependency chain to the table it queries.
+Codebase Viz statically extracts `fetch()` / `axios.*` call URLs from the FE codebase and matches them against BE route definitions. The **Rendering Architecture tab is replaced** with a combined diagram: matched routes appear as **dashed cross-edges**, and only the FE/BE routes that actually participate in a match are shown (unmatched routes stay visible in their own project's standalone view instead of cluttering the combined one). Screen–Component stays FE-only; Data Flow merges FE + BE tables into one ERD. A fourth **Sequence** tab appears (paired analysis only) showing each matched call as a time-ordered flow down through the BE dependency chain to the table it queries.
 
 | | Without LLM | With LLM (BYOK) |
 |---|---|---|

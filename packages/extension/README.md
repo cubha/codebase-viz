@@ -21,7 +21,7 @@ Mouse wheel to zoom, click and drag to pan — explore freely.
 
 ![Routes & Components](https://github.com/cubha/codebase-viz/raw/master/packages/extension/media/demo-tab-switch.gif)
 
-### DB–Screen — four views, one click
+### Data Flow — four views, one click
 Toggle between **All / FK Relations / Page Queries / Server Actions** to isolate what you need.
 The right sidebar shows every column, FK, and which routes/actions query the table.
 
@@ -58,21 +58,21 @@ Frameworks not in this list (Express, Hono, Rails, Go, etc.) use **LLM primary**
 
 ---
 
-## ✨ What's new in v1.2.68
+## ✨ What's new in v1.2.69
 
-### Click-to-source on the Data Flow tab
+### Readable on first open
 
-Hover a table — or any page, component or repository box — to see the file and line it comes from, and click to jump straight there. Database diagrams now behave like the other tabs.
+"Fit to view" never shrinks a diagram below 65% — large schemas used to open at ~7%, unreadable. Bigger diagrams open at the top-left and you pan for the rest, on every tab. The legend can be collapsed, and it no longer covers the first row.
 
-### Real names for Prisma, TypeORM and Drizzle schemas
+### Sequence tab: one chain per endpoint
 
-- `@@map` / `@map` (Prisma), `@Column({ name })` (TypeORM) and `integer('author_id')` (Drizzle) now show the **actual database names**.
-- When your code's model/class name differs from the table (`Member` ↔ `tb_member`), both are shown. Obvious pairs like `User` ↔ `users` stay hidden.
-- TypeORM foreign-key lines that used to disappear now connect.
+Every caller's arrow points at the shared endpoint, and the backend chain behind it is drawn once.
 
-### Feedback from the sidebar
+### Accuracy fixes
 
-**⭐ Rate on Open VSX** and **🐛 Report Issue** buttons at the bottom of the sidebar.
+- **Angular**: lazy `loadChildren` modules keep their parent path (`/admin/settings`, not `/settings`) and are no longer listed twice.
+- **TypeORM**: `@JoinColumn({ name })` and real primary-key columns are used for foreign keys.
+- **Flyway**: `ALTER TABLE` changes and foreign keys are applied, in version order.
 
 > Full version history lives in the [CHANGELOG](CHANGELOG.md).
 
@@ -84,7 +84,7 @@ Hover a table — or any page, component or repository box — to see the file a
 |---|---|
 | **Rendering Architecture** | Route hierarchy · HTTP method badges · SSR/CSR/ISR/SSG labels |
 | **Screen–Component** | Route → component renders/import graph · runtime tags (client/shared/server) |
-| **DB–Screen** | Tables · columns with types/nullable/FK arrows · mapper connections to routes |
+| **Data Flow** | Tables · columns with types/nullable/FK arrows · mapper connections to routes |
 
 **Sidebar panel**
 - Detected framework, parsing level (L2/L3), route/table count, last cached time
